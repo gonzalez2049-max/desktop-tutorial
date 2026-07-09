@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.env
+.env.*
+*.log
+
+# Artefactos generados por tsc -b (proyecto compuesto)
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
