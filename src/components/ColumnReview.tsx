@@ -87,7 +87,7 @@ export default function ColumnReview({ columns, onChange, onConfirm, onBack, pre
         </div>
       )}
 
-      <div className="mt-6 flex items-center justify-between no-print">
+      <div className="mt-6 flex items-center justify-between">
         <button className="btn-ghost" onClick={onBack}>
           ← Volver
         </button>

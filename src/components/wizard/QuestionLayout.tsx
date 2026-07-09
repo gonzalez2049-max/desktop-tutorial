@@ -34,7 +34,7 @@ export default function QuestionLayout({
 
       {children}
 
-      <div className="mt-8 flex items-center justify-between no-print">
+      <div className="mt-8 flex items-center justify-between">
         <button className="btn-ghost" onClick={onBack} disabled={!onBack}>
           ← Volver
         </button>

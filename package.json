@@ -1,7 +1,7 @@
 {
   "name": "nex-report",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0",
   "type": "module",
   "description": "NEX Report - Asistente para generar informes de auditorías clínicas desde Excel",
   "scripts": {

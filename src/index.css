@@ -26,10 +26,3 @@
     @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50;
   }
 }
-
-/* Elementos que no deben aparecer al exportar o imprimir el dashboard */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-}
