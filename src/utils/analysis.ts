@@ -1,5 +1,6 @@
 import type {
   AnalysisResult,
+  ClinicalCharacterization,
   ComplianceGroup,
   DescriptiveVariable,
   GlobalCompliance,
@@ -9,7 +10,8 @@ import type {
   ReportConfig,
   UnitShiftMatrix,
 } from '../types';
-import { classifyCompliance, columnForRole, columnsForRole, isDescriptiveVariable } from './columnDetection';
+import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDescriptiveVariable } from './columnDetection';
+import { canonicalIndicatorNT234 } from './nt234';
 
 const UNGROUPED = 'Sin especificar';
 
@@ -78,11 +80,18 @@ function makeGroup(label: string, cumple: number, noCumple: number, noAplica: nu
 }
 
 /** Agrupa el cumplimiento por una columna dimensión (turno, unidad…). */
-function complianceBy(rows: RawRow[], dimCol: string | null, complianceCols: string[], goal: number): ComplianceGroup[] {
+function complianceBy(
+  rows: RawRow[],
+  dimCol: string | null,
+  complianceCols: string[],
+  goal: number,
+  mapLabel?: (label: string) => string,
+): ComplianceGroup[] {
   if (!dimCol) return [];
   const acc = new Map<string, { cumple: number; noCumple: number; noAplica: number }>();
   for (const row of rows) {
-    const label = labelOf(row[dimCol]);
+    const raw = labelOf(row[dimCol]);
+    const label = mapLabel ? mapLabel(raw) : raw;
     const t = tally(row, complianceCols);
     const g = acc.get(label) ?? { cumple: 0, noCumple: 0, noAplica: 0 };
     g.cumple += t.cumple;
@@ -100,9 +109,17 @@ function complianceBy(rows: RawRow[], dimCol: string | null, complianceCols: str
  * (excluyendo variables descriptivas). Si no, cada columna de cumplimiento es un
  * indicador (formato ancho); las columnas descriptivas ya quedaron fuera.
  */
-function complianceByIndicator(rows: RawRow[], indicatorCol: string | null, complianceCols: string[], goal: number): ComplianceGroup[] {
+function complianceByIndicator(
+  rows: RawRow[],
+  indicatorCol: string | null,
+  complianceCols: string[],
+  goal: number,
+  isNT234: boolean,
+): ComplianceGroup[] {
+  // Solo NT 234 / LPP reconoce los nombres oficiales (tolerando errores/abreviaturas).
+  const canon = (label: string) => (isNT234 ? canonicalIndicatorNT234(label) ?? label : label);
   if (indicatorCol) {
-    return complianceBy(rows, indicatorCol, complianceCols, goal).filter((g) => !isDescriptiveVariable(g.label));
+    return complianceBy(rows, indicatorCol, complianceCols, goal, canon).filter((g) => !isDescriptiveVariable(g.label));
   }
   return complianceCols
     .map((col) => {
@@ -115,9 +132,28 @@ function complianceByIndicator(rows: RawRow[], indicatorCol: string | null, comp
         noCumple += one.noCumple;
         noAplica += one.noAplica;
       }
-      return makeGroup(col, cumple, noCumple, noAplica, goal);
+      return makeGroup(canon(col), cumple, noCumple, noAplica, goal);
     })
     .sort((a, b) => b.percent - a.percent);
+}
+
+/**
+ * Filas base para el cálculo de cumplimiento: excluye variables descriptivas
+ * (formato largo) y, SOLO en NT 234 / LPP con columna de riesgo, deja únicamente
+ * los pacientes de riesgo moderado y alto.
+ */
+function complianceRowsFor(workbook: ParsedWorkbook, config: ReportConfig): RawRow[] {
+  const { rows, columns } = workbook;
+  const indicatorCol = columnForRole(columns, 'indicador');
+  const riskCol = columnForRole(columns, 'riesgo');
+  let out = indicatorCol ? rows.filter((r) => !isDescriptiveVariable(r[indicatorCol])) : rows.slice();
+  if (config.reportType === 'NT234_LPP' && riskCol) {
+    out = out.filter((r) => {
+      const lvl = classifyRisk(r[riskCol]);
+      return lvl === 'alto' || lvl === 'moderado';
+    });
+  }
+  return out;
 }
 
 /**
@@ -183,13 +219,18 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
   const unitCol = columnForRole(columns, 'unidad');
   const shiftCol = columnForRole(columns, 'turno');
   const indicatorCol = columnForRole(columns, 'indicador');
+  const riskCol = columnForRole(columns, 'riesgo');
+  const isNT234 = config.reportType === 'NT234_LPP';
 
-  // Separa las filas descriptivas (formato largo) del cálculo de cumplimiento.
+  // Filas descriptivas (formato largo) para la prevalencia.
   const isDescRow = (row: RawRow) => (indicatorCol ? isDescriptiveVariable(row[indicatorCol]) : false);
-  const complianceRows = indicatorCol ? rows.filter((r) => !isDescRow(r)) : rows;
   const descriptiveRows = indicatorCol ? rows.filter(isDescRow) : [];
+  const nonDescRows = indicatorCol ? rows.filter((r) => !isDescRow(r)) : rows;
 
-  // Cumplimiento global (sin variables descriptivas).
+  // Base de cumplimiento: sin descriptivas y, en NT 234 / LPP, solo riesgo moderado/alto.
+  const complianceRows = complianceRowsFor(workbook, config);
+
+  // Cumplimiento global.
   let cumple = 0;
   let noCumple = 0;
   let noAplica = 0;
@@ -210,7 +251,21 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
     meetsGoal: aplicables > 0 && globalPercent >= goal,
   };
 
-  const byIndicator = complianceByIndicator(complianceRows, indicatorCol, complianceCols, goal);
+  const byIndicator = complianceByIndicator(complianceRows, indicatorCol, complianceCols, goal, isNT234);
+  const descriptiveVars = descriptiveVariables(rows, descriptiveCols, descriptiveRows, indicatorCol, complianceCols);
+
+  // Caracterización clínica (filtro de riesgo solo en NT 234 / LPP con columna de riesgo).
+  const riskFilterApplied = isNT234 && riskCol !== null;
+  const lpp = descriptiveVars.find((d) => isDescriptiveVariable(d.label)) ?? null;
+  const characterization: ClinicalCharacterization = {
+    totalOriginal: rows.length,
+    includedByRisk: complianceRows.length,
+    excludedByRisk: riskFilterApplied ? nonDescRows.length - complianceRows.length : 0,
+    riskFilterApplied,
+    lppPositive: lpp ? lpp.positive : null,
+    lppAnswered: lpp ? lpp.answered : null,
+    lppPrevalence: lpp ? lpp.prevalence : null,
+  };
 
   return {
     config,
@@ -223,7 +278,8 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
     complianceByIndicator: byIndicator,
     criticalIndicators: byIndicator.filter((i) => i.aplicables > 0 && !i.meetsGoal).sort((a, b) => a.percent - b.percent),
     highlightedIndicators: byIndicator.filter((i) => i.meetsGoal).sort((a, b) => b.percent - a.percent),
-    descriptiveVariables: descriptiveVariables(rows, descriptiveCols, descriptiveRows, indicatorCol, complianceCols),
+    descriptiveVariables: descriptiveVars,
+    characterization,
     detected: {
       unidad: unitCol !== null,
       turno: shiftCol !== null,
@@ -255,16 +311,15 @@ export function filterWorkbookByUnit(workbook: ParsedWorkbook, unit: string): Pa
  * Matriz de cumplimiento por turno dentro de cada unidad
  * (el global por turno y el desglose de cada unidad).
  */
-export function unitShiftMatrix(workbook: ParsedWorkbook): UnitShiftMatrix {
-  const { rows, columns } = workbook;
+export function unitShiftMatrix(workbook: ParsedWorkbook, config: ReportConfig): UnitShiftMatrix {
+  const { columns } = workbook;
   const unitCol = columnForRole(columns, 'unidad');
   const shiftCol = columnForRole(columns, 'turno');
-  const indicatorCol = columnForRole(columns, 'indicador');
   const complianceCols = columnsForRole(columns, 'cumplimiento');
   if (!unitCol || !shiftCol) return { shifts: [], rows: [] };
 
-  const isDescRow = (row: RawRow) => (indicatorCol ? isDescriptiveVariable(row[indicatorCol]) : false);
-  const dataRows = indicatorCol ? rows.filter((r) => !isDescRow(r)) : rows;
+  // Misma base de cumplimiento que el resto (respeta el filtro de riesgo NT 234).
+  const dataRows = complianceRowsFor(workbook, config);
 
   const shiftSet = new Set<string>();
   for (const row of dataRows) {

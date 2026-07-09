@@ -13,7 +13,7 @@ import {
   WidthType,
 } from 'docx';
 import { saveAs } from 'file-saver';
-import type { AnalysisResult, ComplianceGroup, DescriptiveVariable, ExecutiveReport } from '../types';
+import type { AnalysisResult, ClinicalCharacterization, ComplianceGroup, DescriptiveVariable, ExecutiveReport } from '../types';
 import { buildExecutiveReport } from './executiveReport';
 import { summaryKpis } from './reportModel';
 import { PALETTE, bare, complianceHex, trafficHex, trafficLabel, trafficLightFor } from './palette';
@@ -66,6 +66,24 @@ function complianceTable(groups: ComplianceGroup[], firstHeader: string, goal: n
     );
   }
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
+}
+
+/** Tabla de caracterización clínica (NT 234 / LPP). */
+function characterizationTable(c: ClinicalCharacterization): Table {
+  const rowsData: [string, string][] = [
+    ['Registros originales', String(c.totalOriginal)],
+    ['Incluidos (riesgo moderado + alto)', String(c.includedByRisk)],
+    ['Excluidos (sin riesgo / bajo riesgo)', String(c.excludedByRisk)],
+    ['Pacientes con LPP', c.lppPositive !== null ? String(c.lppPositive) : '—'],
+    ['% pacientes con LPP', c.lppPrevalence !== null ? `${c.lppPrevalence}%` : '—'],
+  ];
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({ tableHeader: true, children: [headerCell('Concepto'), headerCell('Valor')] }),
+      ...rowsData.map(([k, v]) => new TableRow({ children: [bodyCell([text(k)]), bodyCell([text(v, { bold: true })], AlignmentType.CENTER)] })),
+    ],
+  });
 }
 
 /** Tabla de variables clínicas descriptivas (prevalencia, no cumplimiento). */
@@ -171,6 +189,10 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
     heading('Resumen de indicadores (KPIs)'),
     kpiTable(a),
   ];
+
+  if (a.config.reportType === 'NT234_LPP') {
+    children.push(heading('Caracterización clínica'), characterizationTable(a.characterization));
+  }
 
   if (a.complianceByIndicator.length) {
     children.push(heading('Cumplimiento por indicador'), complianceTable(a.complianceByIndicator, 'Indicador', a.config.goal));

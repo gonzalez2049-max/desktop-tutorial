@@ -165,6 +165,33 @@ export function classifyCompliance(value: unknown): ComplianceValue {
   return 'desconocido';
 }
 
+/** Nivel de riesgo clínico normalizado (para el filtrado NT 234 / LPP). */
+export type RiskLevel = 'alto' | 'moderado' | 'bajo' | 'sin' | 'desconocido';
+
+/**
+ * Clasifica el nivel de riesgo de un paciente. Reconoce texto
+ * (alto/moderado/bajo/sin riesgo/no informado) y puntajes de escala de Braden
+ * (≤12 alto, 13-14 moderado, 15-18 bajo, ≥19 sin riesgo). Vacío = desconocido.
+ */
+export function classifyRisk(value: unknown): RiskLevel {
+  const n = normalize(value);
+  if (!n) return 'desconocido';
+  if (/(no informad|no reportad|sin informacion|sin dato|desconocid|no evaluad)/.test(n)) return 'desconocido';
+  if (/(muy alto|alto|alta|severo|grave|elevado)/.test(n)) return 'alto';
+  if (/(moderad|medio|media|intermedi)/.test(n)) return 'moderado';
+  if (/(sin riesgo|no riesgo|ningun|nulo)/.test(n)) return 'sin';
+  if (/(bajo|baja|leve|minim)/.test(n)) return 'bajo';
+
+  const num = Number(n.replace(',', '.'));
+  if (!Number.isNaN(num) && num >= 6 && num <= 23) {
+    if (num <= 12) return 'alto';
+    if (num <= 14) return 'moderado';
+    if (num <= 18) return 'bajo';
+    return 'sin';
+  }
+  return 'desconocido';
+}
+
 /** Heurística para saber si un valor luce como una fecha. */
 export function looksLikeDate(value: unknown): boolean {
   if (value instanceof Date) return true;

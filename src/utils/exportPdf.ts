@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { AnalysisResult, ComplianceGroup, ExecutiveReport } from '../types';
+import type { AnalysisResult, ClinicalCharacterization, ComplianceGroup, ExecutiveReport } from '../types';
 import { buildExecutiveReport } from './executiveReport';
 import { summaryKpis } from './reportModel';
 import { PALETTE, complianceHex, hexToRgb, trafficHex, trafficLabel, trafficLightFor } from './palette';
@@ -134,6 +134,29 @@ function drawComplianceTable(ctx: Ctx, groups: ComplianceGroup[], firstHeader: s
   ctx.y = lastTableY(doc) + 22;
 }
 
+/** Tabla de caracterización clínica (NT 234 / LPP). */
+function drawCharacterization(ctx: Ctx, c: ClinicalCharacterization): void {
+  const { doc, margin, pageW } = ctx;
+  autoTable(doc, {
+    startY: ctx.y,
+    head: [['Concepto', 'Valor']],
+    body: [
+      ['Registros originales', String(c.totalOriginal)],
+      ['Incluidos (riesgo moderado + alto)', String(c.includedByRisk)],
+      ['Excluidos (sin riesgo / bajo riesgo)', String(c.excludedByRisk)],
+      ['Pacientes con LPP', c.lppPositive !== null ? String(c.lppPositive) : '—'],
+      ['% pacientes con LPP', c.lppPrevalence !== null ? `${c.lppPrevalence}%` : '—'],
+    ],
+    theme: 'grid',
+    headStyles: { fillColor: BLUE, textColor: [255, 255, 255], fontSize: 8.5, halign: 'center', lineColor: LINE, lineWidth: 0.5 },
+    bodyStyles: { fontSize: 8.5, cellPadding: 4, textColor: INK, lineColor: LINE, lineWidth: 0.5 },
+    columnStyles: { 0: { halign: 'left' }, 1: { halign: 'center', fontStyle: 'bold' } },
+    margin: { left: margin, right: margin },
+    tableWidth: pageW - margin * 2,
+  });
+  ctx.y = lastTableY(doc) + 22;
+}
+
 /** Tabla de variables clínicas descriptivas (prevalencia). */
 function drawDescriptiveTable(ctx: Ctx, a: AnalysisResult): void {
   const { doc, margin, pageW } = ctx;
@@ -215,6 +238,12 @@ export function exportPdf(a: AnalysisResult, fileName: string): void {
   drawHeader(ctx, report, fileName, a);
   drawTrafficLight(ctx, a);
   drawKpis(ctx, a);
+
+  if (a.config.reportType === 'NT234_LPP') {
+    ensure(ctx, 60);
+    sectionTitle(ctx, 'Caracterización clínica');
+    drawCharacterization(ctx, a.characterization);
+  }
 
   if (a.complianceByIndicator.length) {
     sectionTitle(ctx, 'Cumplimiento por indicador');

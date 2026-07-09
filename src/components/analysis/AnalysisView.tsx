@@ -8,6 +8,7 @@ import ComplianceTable from './ComplianceTable';
 import CountTable from './CountTable';
 import DescriptiveVariables from './DescriptiveVariables';
 import UnitShiftMatrixTable from './UnitShiftMatrixTable';
+import CharacterizationSection from './CharacterizationSection';
 
 // Recharts se carga solo al llegar a los resultados, no en la pantalla inicial.
 const VisualDashboard = lazy(() => import('./charts/VisualDashboard'));
@@ -66,7 +67,7 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
   );
 
   // Matriz global (todas las unidades) para el desglose por turno de cada unidad.
-  const matrix = useMemo(() => unitShiftMatrix(workbook), [workbook]);
+  const matrix = useMemo(() => unitShiftMatrix(workbook, config), [workbook, config]);
   const allUnits = selectedUnit === ALL_UNITS;
 
   return (
@@ -125,6 +126,8 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
           Mostrando solo la unidad <strong>{selectedUnit}</strong> · {a.totalRecords} registro(s).
         </div>
       )}
+
+      {config.reportType === 'NT234_LPP' && <CharacterizationSection c={a.characterization} />}
 
       <KpiCards a={a} />
 
