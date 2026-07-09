@@ -75,12 +75,12 @@ export default function ExecutiveSummary({ analysis, fileName }: ExecutiveSummar
 
       {notice && <div className="border-b border-amber-100 bg-amber-50 px-5 py-2 text-sm text-amber-800">⚠️ {notice}</div>}
 
-      <div className="space-y-5 p-5">
+      <div className="space-y-6 p-5">
         {report.sections.map((s) => (
           <div key={s.id}>
-            <h4 className="text-sm font-bold text-nex-700">{s.title}</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wide text-nex-700">{s.title}</h4>
             {s.paragraphs.map((p, i) => (
-              <p key={i} className="mt-1 text-sm leading-relaxed text-slate-600">
+              <p key={i} className="mt-1.5 text-sm leading-relaxed text-slate-600">
                 {p}
               </p>
             ))}
@@ -94,9 +94,45 @@ export default function ExecutiveSummary({ analysis, fileName }: ExecutiveSummar
                 ))}
               </ul>
             )}
+            {s.actionPlan && <ActionPlanTable rows={s.actionPlan} />}
           </div>
         ))}
       </div>
     </section>
+  );
+}
+
+function ActionPlanTable({ rows }: { rows: import('../../types').ActionPlanRow[] }) {
+  const badge = (p: 'Alta' | 'Media' | 'Baja') =>
+    p === 'Alta' ? 'bg-red-100 text-red-700' : p === 'Media' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600';
+  return (
+    <div className="mt-3 overflow-x-auto">
+      <table className="w-full min-w-[720px] text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
+            <th className="py-2 pr-3 font-semibold">Prioridad</th>
+            <th className="py-2 px-3 font-semibold">Hallazgo</th>
+            <th className="py-2 px-3 font-semibold">Acción propuesta</th>
+            <th className="py-2 px-3 font-semibold">Responsable</th>
+            <th className="py-2 px-3 font-semibold">Plazo</th>
+            <th className="py-2 pl-3 font-semibold">Indicador esperado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="border-b border-slate-100 align-top last:border-0">
+              <td className="py-2.5 pr-3">
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${badge(r.priority)}`}>{r.priority}</span>
+              </td>
+              <td className="py-2.5 px-3 text-slate-700">{r.finding}</td>
+              <td className="py-2.5 px-3 text-slate-600">{r.action}</td>
+              <td className="py-2.5 px-3 text-slate-600">{r.responsible}</td>
+              <td className="py-2.5 px-3 text-slate-600">{r.deadline}</td>
+              <td className="py-2.5 pl-3 font-semibold text-slate-700">{r.target}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

@@ -210,6 +210,21 @@ function drawExecutive(ctx: Ctx, report: ExecutiveReport): void {
         ctx.y += (lines.length - 1) * 12;
       }
     }
+    if (s.actionPlan) {
+      ensure(ctx, 60);
+      autoTable(doc, {
+        startY: ctx.y + 4,
+        head: [['Prioridad', 'Hallazgo', 'Acción propuesta', 'Responsable', 'Plazo', 'Meta']],
+        body: s.actionPlan.map((r) => [r.priority, r.finding, r.action, r.responsible, r.deadline, r.target]),
+        theme: 'grid',
+        headStyles: { fillColor: BLUE, textColor: [255, 255, 255], fontSize: 8, halign: 'left', lineColor: LINE, lineWidth: 0.5 },
+        bodyStyles: { fontSize: 7.5, cellPadding: 3, textColor: INK, lineColor: LINE, lineWidth: 0.5, valign: 'top' },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 44 }, 4: { cellWidth: 44 }, 5: { cellWidth: 40, fontStyle: 'bold' } },
+        margin: { left: margin, right: margin },
+        tableWidth: width,
+      });
+      ctx.y = lastTableY(doc) + 6;
+    }
     ctx.y += 8;
   }
 }

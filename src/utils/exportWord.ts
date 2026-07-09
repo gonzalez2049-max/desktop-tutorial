@@ -13,7 +13,7 @@ import {
   WidthType,
 } from 'docx';
 import { saveAs } from 'file-saver';
-import type { AnalysisResult, ClinicalCharacterization, ComplianceGroup, DescriptiveVariable, ExecutiveReport } from '../types';
+import type { ActionPlanRow, AnalysisResult, ClinicalCharacterization, ComplianceGroup, DescriptiveVariable, ExecutiveReport } from '../types';
 import { buildExecutiveReport } from './executiveReport';
 import { summaryKpis } from './reportModel';
 import { PALETTE, bare, complianceHex, trafficHex, trafficLabel, trafficLightFor } from './palette';
@@ -146,13 +146,40 @@ function sectionHeading(t: string): Paragraph {
   return new Paragraph({ spacing: { before: 180, after: 60 }, children: [new TextRun({ text: t, bold: true, color: bare(PALETTE.blue), size: 20 })] });
 }
 
-/** Renderiza el resumen ejecutivo (8 secciones) como párrafos y viñetas. */
+/** Tabla del plan de acción sugerido. */
+function actionPlanTable(rows: ActionPlanRow[]): Table {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        tableHeader: true,
+        children: [headerCell('Prioridad'), headerCell('Hallazgo'), headerCell('Acción propuesta'), headerCell('Responsable'), headerCell('Plazo'), headerCell('Indicador esperado')],
+      }),
+      ...rows.map(
+        (r) =>
+          new TableRow({
+            children: [
+              bodyCell([text(r.priority, { bold: true })]),
+              bodyCell([text(r.finding)]),
+              bodyCell([text(r.action)]),
+              bodyCell([text(r.responsible)]),
+              bodyCell([text(r.deadline)]),
+              bodyCell([text(r.target, { bold: true, color: PALETTE.blue })]),
+            ],
+          }),
+      ),
+    ],
+  });
+}
+
+/** Renderiza el resumen ejecutivo (párrafos, viñetas y tabla de plan de acción). */
 function executiveParagraphs(report: ExecutiveReport): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [];
   for (const s of report.sections) {
     out.push(sectionHeading(s.title));
     for (const p of s.paragraphs) out.push(new Paragraph({ spacing: { after: 60 }, children: [text(p)] }));
     if (s.bullets) for (const b of s.bullets) out.push(new Paragraph({ bullet: { level: 0 }, spacing: { after: 40 }, children: [text(b)] }));
+    if (s.actionPlan) out.push(actionPlanTable(s.actionPlan));
   }
   return out;
 }

@@ -7,9 +7,16 @@ export function toPlainText(report: ExecutiveReport): string {
   lines.push(`${report.meta.reportTypeLabel} · Meta ${report.meta.goal}% · ${report.meta.generatedAt}`);
   lines.push('');
   for (const s of report.sections) {
-    lines.push(s.title);
+    lines.push(s.title.toUpperCase());
     for (const p of s.paragraphs) lines.push(p);
-    if (s.bullets) for (const b of s.bullets) lines.push(`  - ${b}`);
+    if (s.bullets) for (const b of s.bullets) lines.push(`  • ${b}`);
+    if (s.actionPlan) {
+      for (const r of s.actionPlan) {
+        lines.push(`  [${r.priority}] ${r.finding}`);
+        lines.push(`     Acción: ${r.action}`);
+        lines.push(`     Responsable: ${r.responsible} · Plazo: ${r.deadline} · Meta: ${r.target}`);
+      }
+    }
     lines.push('');
   }
   return lines.join('\n').trim();
