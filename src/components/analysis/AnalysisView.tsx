@@ -9,6 +9,8 @@ import CountTable from './CountTable';
 import DescriptiveVariables from './DescriptiveVariables';
 import UnitShiftMatrixTable from './UnitShiftMatrixTable';
 import CharacterizationSection from './CharacterizationSection';
+import AuditorPanel from './AuditorPanel';
+import { isAdminMode } from '../../utils/admin';
 
 // Recharts se carga solo al llegar a los resultados, no en la pantalla inicial.
 const VisualDashboard = lazy(() => import('./charts/VisualDashboard'));
@@ -69,6 +71,7 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
   // Matriz global (todas las unidades) para el desglose por turno de cada unidad.
   const matrix = useMemo(() => unitShiftMatrix(workbook, config), [workbook, config]);
   const allUnits = selectedUnit === ALL_UNITS;
+  const admin = useMemo(() => isAdminMode(), []);
 
   return (
     <div className="space-y-6">
@@ -190,6 +193,8 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
           </Section>
         )}
       </div>
+
+      {admin && <AuditorPanel a={a} />}
     </div>
   );
 }
