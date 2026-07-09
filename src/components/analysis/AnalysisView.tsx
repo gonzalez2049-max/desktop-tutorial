@@ -73,7 +73,7 @@ export default function AnalysisView({ analysis: a, fileName, onReset }: Analysi
 
       <KpiCards a={a} />
 
-      <ExecutiveSummary analysis={a} />
+      <ExecutiveSummary analysis={a} fileName={fileName} />
 
       {a.complianceByIndicator.length > 0 && (
         <Section title="Cumplimiento por indicador" icon="📊" subtitle="Cumple / no cumple / no aplica y % por indicador">

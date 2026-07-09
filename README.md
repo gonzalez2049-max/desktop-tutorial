@@ -61,12 +61,27 @@ la meta, se explicita.
 
 Acciones disponibles:
 - **📋 Copiar resumen** al portapapeles (texto plano).
-- **📕 PDF** y **📘 Word editable** *(beta)* — estructura ya funcional
-  (Word como `.doc` compatible; PDF vía vista de impresión del navegador). El
-  formato se refinará en una etapa posterior.
+- **📕 Descargar PDF** — generación nativa con **jsPDF** (diseño institucional).
+- **📘 Descargar Word** — `.docx` editable nativo con **docx**.
 
-> ⏭️ **Próxima etapa:** dashboard visual con gráficos y generación nativa de
-> PDF / Word con mejor maquetación.
+### 🖨️ Exportación profesional de informes
+
+Ambos documentos comparten una paleta institucional y una estructura ejecutiva:
+encabezado limpio, semáforo de cumplimiento, tarjetas KPI, tablas de cumplimiento
+por indicador / turno / unidad (con bordes suaves y % coloreado por estado) y el
+resumen ejecutivo completo (brechas, recomendaciones y conclusión).
+
+| Uso                    | Color     |
+| ---------------------- | --------- |
+| Verde (cumplimiento)   | `#66BB6A` |
+| Amarillo (observación) | `#F59E0B` |
+| Rojo (crítico)         | `#EF4444` |
+| Azul institucional     | `#1E3A8A` |
+
+Las librerías de exportación (`jspdf`, `docx`) se cargan **bajo demanda** para no
+penalizar la carga inicial de la aplicación.
+
+> ⏭️ **Próxima etapa:** dashboard visual con gráficos.
 
 ## 🧠 Detección inteligente de columnas
 
@@ -121,7 +136,11 @@ src/
 │   ├── excelParser.ts      # lectura de Excel con SheetJS
 │   ├── analysis.ts         # motor de análisis (KPIs, agrupaciones, indicadores)
 │   ├── executiveReport.ts  # redacción automática del resumen ejecutivo
-│   └── reportExport.ts     # copiar / exportar a Word (.doc) y PDF (impresión)
+│   ├── reportExport.ts     # copiar resumen al portapapeles
+│   ├── palette.ts          # paleta institucional compartida
+│   ├── reportModel.ts      # KPIs resumidos para exportación
+│   ├── exportPdf.ts        # PDF nativo (jsPDF + autotable)
+│   └── exportWord.ts       # Word nativo (.docx con docx)
 └── components/
     ├── FileUpload.tsx      # paso 1: carga
     ├── DataPreview.tsx     # vista previa de datos

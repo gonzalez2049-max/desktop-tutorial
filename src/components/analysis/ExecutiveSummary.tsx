@@ -1,12 +1,18 @@
 import { useMemo, useState } from 'react';
 import type { AnalysisResult } from '../../types';
 import { buildExecutiveReport } from '../../utils/executiveReport';
-import { copyReport, downloadPdf, downloadWord } from '../../utils/reportExport';
+import { copyReport } from '../../utils/reportExport';
+
+interface ExecutiveSummaryProps {
+  analysis: AnalysisResult;
+  fileName: string;
+}
 
 /** Sección "Resumen ejecutivo del reporte": redacción automática + exportación. */
-export default function ExecutiveSummary({ analysis }: { analysis: AnalysisResult }) {
+export default function ExecutiveSummary({ analysis, fileName }: ExecutiveSummaryProps) {
   const report = useMemo(() => buildExecutiveReport(analysis), [analysis]);
   const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState<null | 'pdf' | 'word'>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const handleCopy = async () => {
@@ -16,9 +22,33 @@ export default function ExecutiveSummary({ analysis }: { analysis: AnalysisResul
     if (ok) setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePdf = () => {
-    const ok = downloadPdf(report);
-    if (!ok) setNotice('El navegador bloqueó la ventana de impresión. Permite las ventanas emergentes e inténtalo de nuevo.');
+  // Los generadores nativos (jsPDF / docx) se cargan bajo demanda.
+  const handlePdf = async () => {
+    setBusy('pdf');
+    setNotice(null);
+    try {
+      const { exportPdf } = await import('../../utils/exportPdf');
+      exportPdf(analysis, fileName);
+    } catch (e) {
+      console.error(e);
+      setNotice('No se pudo generar el PDF. Inténtalo nuevamente.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleWord = async () => {
+    setBusy('word');
+    setNotice(null);
+    try {
+      const { exportWord } = await import('../../utils/exportWord');
+      await exportWord(analysis, fileName);
+    } catch (e) {
+      console.error(e);
+      setNotice('No se pudo generar el documento Word. Inténtalo nuevamente.');
+    } finally {
+      setBusy(null);
+    }
   };
 
   return (
@@ -31,14 +61,14 @@ export default function ExecutiveSummary({ analysis }: { analysis: AnalysisResul
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="btn-primary" onClick={handleCopy}>
+          <button className="btn-primary" onClick={handleCopy} disabled={busy !== null}>
             {copied ? '✓ Copiado' : '📋 Copiar resumen'}
           </button>
-          <button className="btn-ghost" onClick={handlePdf} title="Se abre la vista de impresión: elige “Guardar como PDF”">
-            📕 PDF <span className="ml-1 rounded bg-slate-100 px-1 text-[10px] font-semibold text-slate-500">beta</span>
+          <button className="btn-ghost" onClick={handlePdf} disabled={busy !== null}>
+            {busy === 'pdf' ? 'Generando…' : '📕 Descargar PDF'}
           </button>
-          <button className="btn-ghost" onClick={() => downloadWord(report)}>
-            📘 Word <span className="ml-1 rounded bg-slate-100 px-1 text-[10px] font-semibold text-slate-500">beta</span>
+          <button className="btn-ghost" onClick={handleWord} disabled={busy !== null}>
+            {busy === 'word' ? 'Generando…' : '📘 Descargar Word'}
           </button>
         </div>
       </header>
