@@ -93,12 +93,23 @@ export interface GlobalCompliance {
   meetsGoal: boolean;
 }
 
+/** Fila del plan de acción sugerido. */
+export interface ActionPlanRow {
+  priority: 'Alta' | 'Media' | 'Baja';
+  finding: string;
+  action: string;
+  responsible: string;
+  deadline: string;
+  target: string;
+}
+
 /** Una sección redactada del resumen ejecutivo. */
 export interface ReportSection {
   id: string;
   title: string;
   paragraphs: string[];
   bullets?: string[];
+  actionPlan?: ActionPlanRow[]; // si está presente, la sección se rinde como tabla
 }
 
 /** Informe ejecutivo completo generado a partir del análisis. */
