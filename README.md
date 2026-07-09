@@ -1,5 +1,7 @@
 # NEX Report
 
+**Versión actual: `v0.1.0` (MVP)** · Notas de versión: [`RELEASE_NOTES.md`](RELEASE_NOTES.md)
+
 Plataforma web para configurar **informes de auditorías clínicas** a partir de un
 Excel. El usuario sube el archivo, la app lee las columnas automáticamente y un
 asistente paso a paso (tipo copiloto) le hace preguntas simples para configurar el
@@ -7,9 +9,9 @@ informe.
 
 > **Primero pregunta, luego analiza, luego genera.**
 
-## 🎯 Alcance de esta primera versión
+## 🎯 Alcance del MVP (v0.1.0)
 
-Esta entrega cubre el flujo base **funcional**:
+Esta versión cubre el flujo completo **funcional**:
 
 1. **Pantalla de inicio** con carga de archivo.
 2. **Carga de Excel** (`.xlsx`, `.xls`, `.csv`) con arrastrar y soltar.
@@ -166,3 +168,8 @@ src/
 
 Todo el procesamiento ocurre **localmente en el navegador**; los datos no se
 envían a ningún servidor.
+
+## 🔖 Versiones
+
+- **v0.1.0 (MVP)** — versión estable actual. Ver [`RELEASE_NOTES.md`](RELEASE_NOTES.md)
+  para el detalle de funciones, limitaciones conocidas y próximos pasos.
