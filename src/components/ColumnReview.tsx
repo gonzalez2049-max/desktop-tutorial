@@ -15,6 +15,7 @@ const ROLE_LABELS: Record<ColumnRole, string> = {
   turno: 'Turno / Jornada',
   indicador: 'Indicador / Ítem',
   cumplimiento: 'Cumplimiento (Sí/No)',
+  descriptivo: 'Variable descriptiva (prevalencia)',
   fecha: 'Fecha / Periodo',
   paciente: 'Paciente',
   riesgo: 'Nivel de riesgo',
@@ -22,7 +23,7 @@ const ROLE_LABELS: Record<ColumnRole, string> = {
   desconocido: 'Ignorar',
 };
 
-const ROLE_ORDER: ColumnRole[] = ['cumplimiento', 'unidad', 'turno', 'indicador', 'fecha', 'riesgo', 'paciente', 'valor', 'desconocido'];
+const ROLE_ORDER: ColumnRole[] = ['cumplimiento', 'descriptivo', 'unidad', 'turno', 'indicador', 'fecha', 'riesgo', 'paciente', 'valor', 'desconocido'];
 
 function confidenceBadge(c: number) {
   if (c >= 0.85) return { text: 'Alta', cls: 'bg-green-100 text-green-700' };

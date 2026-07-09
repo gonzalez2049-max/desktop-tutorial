@@ -23,7 +23,6 @@ export default function ComplianceTable({ groups, firstHeader, goal, showStatus 
             <th className="py-2 pr-3 font-semibold">{firstHeader}</th>
             <th className="py-2 px-3 text-center font-semibold">Cumple</th>
             <th className="py-2 px-3 text-center font-semibold">No cumple</th>
-            <th className="py-2 px-3 text-center font-semibold">N/A</th>
             <th className="py-2 px-3 font-semibold">Cumplimiento</th>
             {showStatus && <th className="py-2 pl-3 text-center font-semibold">Estado</th>}
           </tr>
@@ -36,7 +35,6 @@ export default function ComplianceTable({ groups, firstHeader, goal, showStatus 
                 <td className="py-2.5 pr-3 font-medium text-slate-700">{g.label}</td>
                 <td className="py-2.5 px-3 text-center text-slate-600">{g.cumple}</td>
                 <td className="py-2.5 px-3 text-center text-slate-600">{g.noCumple}</td>
-                <td className="py-2.5 px-3 text-center text-slate-400">{g.noAplica}</td>
                 <td className="py-2.5 px-3">
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-24 flex-1 rounded-full bg-slate-100">

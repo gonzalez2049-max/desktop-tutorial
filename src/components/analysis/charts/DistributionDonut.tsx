@@ -4,11 +4,10 @@ import { PALETTE } from '../../../utils/palette';
 
 /** Gráfico donut con la distribución de resultados: cumple / no cumple / no aplica. */
 export default function DistributionDonut({ global }: { global: GlobalCompliance }) {
-  const total = global.cumple + global.noCumple + global.noAplica;
+  const total = global.cumple + global.noCumple;
   const data = [
     { name: 'Cumple', value: global.cumple, color: PALETTE.green },
     { name: 'No cumple', value: global.noCumple, color: PALETTE.red },
-    { name: 'No aplica', value: global.noAplica, color: PALETTE.gray },
   ].filter((d) => d.value > 0);
 
   if (total === 0) {
@@ -34,7 +33,7 @@ export default function DistributionDonut({ global }: { global: GlobalCompliance
       {/* Centro del donut: total de casos */}
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center" style={{ top: '-14px' }}>
         <span className="text-2xl font-extrabold text-slate-800">{total}</span>
-        <span className="text-xs text-slate-400">registros</span>
+        <span className="text-xs text-slate-400">evaluados</span>
       </div>
     </div>
   );

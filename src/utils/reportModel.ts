@@ -16,7 +16,6 @@ export function summaryKpis(a: AnalysisResult): Kpi[] {
     { label: 'Cumplimiento global', value: `${g.percent}%`, hint: `Meta ${a.config.goal}%`, color: complianceHex(g.percent, a.config.goal) },
     { label: 'Cumple', value: String(g.cumple), color: PALETTE.green },
     { label: 'No cumple', value: String(g.noCumple), color: PALETTE.red },
-    { label: 'No aplica', value: String(g.noAplica), color: PALETTE.muted },
     { label: 'Indicadores críticos', value: String(a.criticalIndicators.length), hint: `${a.highlightedIndicators.length} sobre la meta`, color: a.criticalIndicators.length ? PALETTE.red : PALETTE.green },
   ];
 }

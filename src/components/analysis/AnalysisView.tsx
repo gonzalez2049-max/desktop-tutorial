@@ -1,19 +1,25 @@
-import { lazy, Suspense, type ReactNode } from 'react';
-import type { AnalysisResult, ComplianceGroup } from '../../types';
+import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
+import type { ComplianceGroup, ParsedWorkbook, ReportConfig } from '../../types';
 import { highlightLabel, reportTypeLabel } from '../../config/options';
+import { analyze, filterWorkbookByUnit, listUnits, unitShiftMatrix } from '../../utils/analysis';
 import KpiCards from './KpiCards';
 import ExecutiveSummary from './ExecutiveSummary';
 import ComplianceTable from './ComplianceTable';
 import CountTable from './CountTable';
+import DescriptiveVariables from './DescriptiveVariables';
+import UnitShiftMatrixTable from './UnitShiftMatrixTable';
 
 // Recharts se carga solo al llegar a los resultados, no en la pantalla inicial.
 const VisualDashboard = lazy(() => import('./charts/VisualDashboard'));
 
 interface AnalysisViewProps {
-  analysis: AnalysisResult;
+  workbook: ParsedWorkbook;
+  config: ReportConfig;
   fileName: string;
   onReset: () => void;
 }
+
+const ALL_UNITS = '__ALL__';
 
 function Section({ title, icon, subtitle, children }: { title: string; icon?: string; subtitle?: string; children: ReactNode }) {
   return (
@@ -48,9 +54,20 @@ function IndicatorList({ items, emptyText, tone }: { items: ComplianceGroup[]; e
   );
 }
 
-/** Vista de resultados del motor de análisis: tarjetas KPI y tablas simples. */
-export default function AnalysisView({ analysis: a, fileName, onReset }: AnalysisViewProps) {
-  const { config } = a;
+/** Vista de resultados del motor de análisis. */
+export default function AnalysisView({ workbook, config, fileName, onReset }: AnalysisViewProps) {
+  const [selectedUnit, setSelectedUnit] = useState<string>(ALL_UNITS);
+  const units = useMemo(() => listUnits(workbook), [workbook]);
+
+  // Al elegir una unidad se recalcula todo el análisis solo para esa unidad.
+  const a = useMemo(
+    () => (selectedUnit === ALL_UNITS ? analyze(workbook, config) : analyze(filterWorkbookByUnit(workbook, selectedUnit), config)),
+    [workbook, config, selectedUnit],
+  );
+
+  // Matriz global (todas las unidades) para el desglose por turno de cada unidad.
+  const matrix = useMemo(() => unitShiftMatrix(workbook), [workbook]);
+  const allUnits = selectedUnit === ALL_UNITS;
 
   return (
     <div className="space-y-6">
@@ -74,16 +91,53 @@ export default function AnalysisView({ analysis: a, fileName, onReset }: Analysi
         </button>
       </div>
 
+      {/* Selector de unidad: filtra todo el dashboard. */}
+      {units.length > 0 && (
+        <div className="card flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <label htmlFor="unit-filter" className="text-sm font-semibold text-slate-700">
+            🏥 Unidad a visualizar
+          </label>
+          <div className="flex items-center gap-2">
+            <select
+              id="unit-filter"
+              value={selectedUnit}
+              onChange={(e) => setSelectedUnit(e.target.value)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 focus:border-nex-500 focus:outline-none focus:ring-2 focus:ring-nex-200"
+            >
+              <option value={ALL_UNITS}>Todas las unidades ({units.length})</option>
+              {units.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+            {!allUnits && (
+              <button className="btn-ghost !py-2" onClick={() => setSelectedUnit(ALL_UNITS)}>
+                Ver todas
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!allUnits && (
+        <div className="rounded-xl border border-nex-100 bg-nex-50 px-4 py-2 text-sm text-nex-800">
+          Mostrando solo la unidad <strong>{selectedUnit}</strong> · {a.totalRecords} registro(s).
+        </div>
+      )}
+
       <KpiCards a={a} />
 
       <Suspense fallback={<div className="card p-8 text-center text-sm text-slate-400">Cargando gráficos…</div>}>
         <VisualDashboard a={a} />
       </Suspense>
 
+      <DescriptiveVariables variables={a.descriptiveVariables} totalRecords={a.totalRecords} />
+
       <ExecutiveSummary analysis={a} fileName={fileName} />
 
       {a.complianceByIndicator.length > 0 && (
-        <Section title="Cumplimiento por indicador" icon="📊" subtitle="Cumple / no cumple / no aplica y % por indicador">
+        <Section title="Cumplimiento por indicador" icon="📊" subtitle="Cumple / no cumple y % por indicador">
           <ComplianceTable groups={a.complianceByIndicator} firstHeader="Indicador" goal={config.goal} />
         </Section>
       )}
@@ -97,13 +151,25 @@ export default function AnalysisView({ analysis: a, fileName, onReset }: Analysi
         </Section>
       </div>
 
+      {/* Cumplimiento por turno: global (respeta el filtro de unidad). */}
       {a.complianceByShift.length > 0 && (
-        <Section title="Cumplimiento por turno" icon="🕐">
+        <Section
+          title="Cumplimiento por turno"
+          icon="🕐"
+          subtitle={allUnits ? 'Global (todas las unidades)' : `Unidad ${selectedUnit}`}
+        >
           <ComplianceTable groups={a.complianceByShift} firstHeader="Turno" goal={config.goal} />
         </Section>
       )}
 
-      {config.highlights.includes('cumplimiento_unidad') && a.complianceByUnit.length > 0 && (
+      {/* Desglose por turno de cada unidad (solo en la vista global). */}
+      {allUnits && matrix.rows.length > 0 && (
+        <Section title="Cumplimiento por turno y unidad" icon="🗂️" subtitle="% por turno dentro de cada unidad">
+          <UnitShiftMatrixTable matrix={matrix} goal={config.goal} />
+        </Section>
+      )}
+
+      {allUnits && a.complianceByUnit.length > 0 && (
         <Section title="Cumplimiento por unidad" icon="🏥">
           <ComplianceTable groups={a.complianceByUnit} firstHeader="Unidad" goal={config.goal} />
         </Section>

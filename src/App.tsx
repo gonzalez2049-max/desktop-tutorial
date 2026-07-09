@@ -5,8 +5,7 @@ import ColumnReview from './components/ColumnReview';
 import DataPreview from './components/DataPreview';
 import Wizard from './components/wizard/Wizard';
 import AnalysisView from './components/analysis/AnalysisView';
-import { analyze } from './utils/analysis';
-import type { AnalysisResult, DetectedColumn, ParsedWorkbook, ReportConfig } from './types';
+import type { DetectedColumn, ParsedWorkbook, ReportConfig } from './types';
 
 type Stage = 'upload' | 'review' | 'wizard' | 'generating' | 'result';
 
@@ -22,12 +21,12 @@ const STAGE_INDEX: Record<Stage, number> = { upload: 0, review: 1, wizard: 2, ge
 export default function App() {
   const [stage, setStage] = useState<Stage>('upload');
   const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null);
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [config, setConfig] = useState<ReportConfig | null>(null);
 
   const reset = () => {
     setStage('upload');
     setWorkbook(null);
-    setAnalysis(null);
+    setConfig(null);
   };
 
   const handleParsed = (wb: ParsedWorkbook) => {
@@ -39,14 +38,12 @@ export default function App() {
     if (workbook) setWorkbook({ ...workbook, columns });
   };
 
-  const handleWizardComplete = (config: ReportConfig) => {
+  const handleWizardComplete = (cfg: ReportConfig) => {
     if (!workbook) return;
     // "Primero pregunta, luego analiza, luego genera": pequeña transición.
+    setConfig(cfg);
     setStage('generating');
-    setTimeout(() => {
-      setAnalysis(analyze(workbook, config));
-      setStage('result');
-    }, 500);
+    setTimeout(() => setStage('result'), 500);
   };
 
   const currentStep = useMemo(() => STAGE_INDEX[stage], [stage]);
@@ -91,8 +88,8 @@ export default function App() {
           </div>
         )}
 
-        {stage === 'result' && analysis && workbook && (
-          <AnalysisView analysis={analysis} fileName={workbook.fileName} onReset={reset} />
+        {stage === 'result' && config && workbook && (
+          <AnalysisView workbook={workbook} config={config} fileName={workbook.fileName} onReset={reset} />
         )}
       </main>
 

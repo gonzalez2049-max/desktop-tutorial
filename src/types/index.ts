@@ -29,6 +29,7 @@ export type ColumnRole =
   | 'fecha'
   | 'paciente'
   | 'riesgo'
+  | 'descriptivo' // variable clínica descriptiva / prevalencia (p. ej. "¿Tiene LPP?")
   | 'valor'
   | 'desconocido';
 
@@ -111,6 +112,31 @@ export interface ExecutiveReport {
   sections: ReportSection[];
 }
 
+/**
+ * Variable clínica descriptiva / de prevalencia (p. ej. "¿Tiene LPP?").
+ * No es un indicador de cumplimiento: no se compara contra la meta.
+ */
+export interface DescriptiveVariable {
+  label: string;
+  positive: number; // casos "Sí" (p. ej. pacientes con LPP)
+  negative: number; // casos "No"
+  answered: number; // positive + negative
+  prevalence: number; // positive / totalRecords * 100
+}
+
+/** Fila de la matriz de cumplimiento por turno dentro de cada unidad. */
+export interface UnitShiftRow {
+  unit: string;
+  overall: number; // % de la unidad (todos los turnos)
+  byShift: Record<string, number | null>; // % por turno (null = sin datos aplicables)
+}
+
+/** Matriz cumplimiento turno × unidad. */
+export interface UnitShiftMatrix {
+  shifts: string[];
+  rows: UnitShiftRow[];
+}
+
 /** Resultado completo del motor de análisis. */
 export interface AnalysisResult {
   config: ReportConfig;
@@ -123,6 +149,7 @@ export interface AnalysisResult {
   complianceByIndicator: ComplianceGroup[];
   criticalIndicators: ComplianceGroup[]; // bajo la meta
   highlightedIndicators: ComplianceGroup[]; // sobre o en la meta
+  descriptiveVariables: DescriptiveVariable[]; // prevalencia (no cumplimiento)
   detected: {
     unidad: boolean;
     turno: boolean;

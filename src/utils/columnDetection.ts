@@ -18,7 +18,26 @@ export function normalize(input: unknown): string {
  * Palabras clave por rol. La detección busca coincidencias por token
  * para no depender del nombre exacto de la columna.
  */
-const ROLE_KEYWORDS: Record<Exclude<ColumnRole, 'desconocido' | 'valor'>, string[]> = {
+/**
+ * Reconoce variables clínicas descriptivas / de prevalencia (no cumplimiento).
+ * Ejemplos: "¿Tiene LPP?", "Con LPP", "Paciente con LPP", "Presencia de LPP".
+ * Estas NO deben tratarse como indicadores de cumplimiento.
+ */
+export function isDescriptiveVariable(name: unknown): boolean {
+  const n = normalize(name);
+  if (!n) return false;
+  const patterns = [
+    'tiene lpp', // "¿Tiene LPP?" -> "tiene lpp"
+    'con lpp', // "Con LPP" / "Paciente con LPP"
+    'presencia de lpp',
+    'presencia lpp',
+    'presenta lpp',
+    'lpp presente',
+  ];
+  return patterns.some((p) => n.includes(p));
+}
+
+const ROLE_KEYWORDS: Record<Exclude<ColumnRole, 'desconocido' | 'valor' | 'descriptivo'>, string[]> = {
   unidad: ['unidad', 'servicio', 'area', 'area clinica', 'sala', 'departamento', 'seccion', 'piso', 'sector', 'ubicacion'],
   turno: ['turno', 'jornada', 'horario', 'shift'],
   indicador: ['indicador', 'item', 'criterio', 'pregunta', 'variable', 'parametro', 'medida', 'estandar', 'verificacion'],
@@ -79,6 +98,12 @@ export function detectColumns(headers: string[], rows: RawRow[]): DetectedColumn
     if (bestRole === 'desconocido' && values.length && dateHits / values.length >= 0.6) {
       bestRole = 'fecha';
       bestScore = 0.7;
+    }
+
+    // Variable clínica descriptiva (prevalencia): tiene prioridad sobre cualquier
+    // otra clasificación, aunque sus valores parezcan cumplimiento (Sí/No).
+    if (isDescriptiveVariable(original)) {
+      return { original, role: 'descriptivo', confidence: 1 };
     }
 
     return { original, role: bestRole, confidence: Number(bestScore.toFixed(2)) };
