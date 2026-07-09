@@ -137,6 +137,20 @@ export interface UnitShiftMatrix {
   rows: UnitShiftRow[];
 }
 
+/**
+ * Caracterización clínica de la base (NT 234 / LPP): total original, registros
+ * incluidos/excluidos por riesgo y prevalencia de LPP.
+ */
+export interface ClinicalCharacterization {
+  totalOriginal: number;
+  includedByRisk: number; // riesgo moderado + alto (base de cumplimiento)
+  excludedByRisk: number; // sin riesgo + bajo riesgo + no informado
+  riskFilterApplied: boolean; // true solo para NT 234 / LPP con columna de riesgo
+  lppPositive: number | null;
+  lppAnswered: number | null;
+  lppPrevalence: number | null;
+}
+
 /** Resultado completo del motor de análisis. */
 export interface AnalysisResult {
   config: ReportConfig;
@@ -150,6 +164,7 @@ export interface AnalysisResult {
   criticalIndicators: ComplianceGroup[]; // bajo la meta
   highlightedIndicators: ComplianceGroup[]; // sobre o en la meta
   descriptiveVariables: DescriptiveVariable[]; // prevalencia (no cumplimiento)
+  characterization: ClinicalCharacterization;
   detected: {
     unidad: boolean;
     turno: boolean;

@@ -75,6 +75,14 @@ export function buildExecutiveReport(a: AnalysisResult): ExecutiveReport {
       `Se auditaron ${a.totalRecords} registros del ámbito ${reportTypeLabel(a.config.reportType)}, de los cuales ${g.aplicables} correspondieron a casos aplicables (${g.cumple} cumple, ${g.noCumple} no cumple). El cumplimiento global alcanzó ${g.percent}%, frente a una meta institucional de ${goal}%.`,
     );
   }
+  // Filtrado por riesgo (NT 234 / LPP): se informa la base incluida/excluida.
+  if (a.characterization.riskFilterApplied) {
+    const c = a.characterization;
+    s1.push(
+      `Conforme al protocolo NT 234 / LPP, el cumplimiento se calculó únicamente sobre pacientes de riesgo moderado y alto: se incluyeron ${c.includedByRisk} registro(s) y se excluyeron ${c.excludedByRisk} por sin riesgo o bajo riesgo, de ${c.totalOriginal} registros originales.`,
+    );
+  }
+
   // Hallazgos clínicos descriptivos (prevalencia): se informan como hallazgo,
   // nunca como incumplimiento.
   if (a.descriptiveVariables.length > 0) {
