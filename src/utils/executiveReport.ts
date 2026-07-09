@@ -79,7 +79,7 @@ export function buildExecutiveReport(a: AnalysisResult): ExecutiveReport {
   if (a.characterization.riskFilterApplied) {
     const c = a.characterization;
     s1.push(
-      `Conforme al protocolo NT 234 / LPP, el cumplimiento se calculó únicamente sobre pacientes de riesgo moderado y alto: se incluyeron ${c.includedByRisk} registro(s) y se excluyeron ${c.excludedByRisk} por sin riesgo o bajo riesgo, de ${c.totalOriginal} registros originales.`,
+      `Conforme al protocolo NT 234 / LPP, el cumplimiento se calculó únicamente sobre pacientes de riesgo moderado y alto: se incluyeron ${c.includedByRisk} paciente(s) y se excluyeron ${c.excludedByRisk} por sin riesgo o bajo riesgo, de ${c.totalOriginal} paciente(s) auditados.`,
     );
   }
 

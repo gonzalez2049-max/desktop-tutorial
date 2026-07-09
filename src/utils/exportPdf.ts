@@ -141,9 +141,9 @@ function drawCharacterization(ctx: Ctx, c: ClinicalCharacterization): void {
     startY: ctx.y,
     head: [['Concepto', 'Valor']],
     body: [
-      ['Registros originales', String(c.totalOriginal)],
-      ['Incluidos (riesgo moderado + alto)', String(c.includedByRisk)],
-      ['Excluidos (sin riesgo / bajo riesgo)', String(c.excludedByRisk)],
+      ['Pacientes auditados', String(c.totalOriginal)],
+      ['Pacientes incluidos (riesgo moderado + alto)', String(c.includedByRisk)],
+      ['Pacientes excluidos (sin riesgo / bajo riesgo)', String(c.excludedByRisk)],
       ['Pacientes con LPP', c.lppPositive !== null ? String(c.lppPositive) : '—'],
       ['% pacientes con LPP', c.lppPrevalence !== null ? `${c.lppPrevalence}%` : '—'],
     ],

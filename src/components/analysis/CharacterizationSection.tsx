@@ -6,15 +6,15 @@ import type { ClinicalCharacterization } from '../../types';
  */
 export default function CharacterizationSection({ c }: { c: ClinicalCharacterization }) {
   const stats: { label: string; value: string; hint?: string; color?: string }[] = [
-    { label: 'Registros originales', value: String(c.totalOriginal) },
+    { label: 'Pacientes auditados', value: String(c.totalOriginal) },
     {
-      label: 'Incluidos (riesgo moderado + alto)',
+      label: 'Pacientes incluidos (moderado + alto)',
       value: String(c.includedByRisk),
       hint: 'Base del cálculo de cumplimiento',
       color: 'text-nex-700',
     },
     {
-      label: 'Excluidos (sin riesgo / bajo)',
+      label: 'Pacientes excluidos (sin/bajo riesgo)',
       value: String(c.excludedByRisk),
       hint: c.riskFilterApplied ? undefined : 'Sin filtro de riesgo aplicado',
       color: 'text-slate-500',
