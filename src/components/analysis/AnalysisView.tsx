@@ -1,10 +1,13 @@
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import type { AnalysisResult, ComplianceGroup } from '../../types';
 import { highlightLabel, reportTypeLabel } from '../../config/options';
 import KpiCards from './KpiCards';
 import ExecutiveSummary from './ExecutiveSummary';
 import ComplianceTable from './ComplianceTable';
 import CountTable from './CountTable';
+
+// Recharts se carga solo al llegar a los resultados, no en la pantalla inicial.
+const VisualDashboard = lazy(() => import('./charts/VisualDashboard'));
 
 interface AnalysisViewProps {
   analysis: AnalysisResult;
@@ -72,6 +75,10 @@ export default function AnalysisView({ analysis: a, fileName, onReset }: Analysi
       </div>
 
       <KpiCards a={a} />
+
+      <Suspense fallback={<div className="card p-8 text-center text-sm text-slate-400">Cargando gráficos…</div>}>
+        <VisualDashboard a={a} />
+      </Suspense>
 
       <ExecutiveSummary analysis={a} fileName={fileName} />
 

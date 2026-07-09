@@ -81,7 +81,20 @@ resumen ejecutivo completo (brechas, recomendaciones y conclusión).
 Las librerías de exportación (`jspdf`, `docx`) se cargan **bajo demanda** para no
 penalizar la carga inicial de la aplicación.
 
-> ⏭️ **Próxima etapa:** dashboard visual con gráficos.
+### 📊 Dashboard visual (Recharts)
+
+En la vista de resultados se muestra una sección visual con estilo ejecutivo
+clínico (fondo blanco, bordes suaves, colores institucionales):
+
+- **Tarjeta de semáforo** de cumplimiento (verde / amarillo / rojo) con barra de progreso hacia la meta.
+- **Gráfico donut** con la distribución de resultados (cumple / no cumple / no aplica).
+- **Gráfico de barras** de cumplimiento por indicador.
+- **Gráfico de barras** de cumplimiento por unidad.
+- **Gráfico de barras** de cumplimiento por turno.
+
+Las barras se colorean según la meta (verde ≥ meta, amarillo cercano, rojo bajo)
+y muestran la línea de meta. **Recharts** se carga de forma **diferida**
+(`React.lazy`) para no penalizar la pantalla inicial.
 
 ## 🧠 Detección inteligente de columnas
 
@@ -147,7 +160,8 @@ src/
     ├── ColumnReview.tsx    # lectura + revisión de columnas detectadas
     ├── Stepper.tsx / OptionCard.tsx
     ├── wizard/             # asistente de 3 preguntas
-    └── analysis/           # KPIs, tablas y resumen ejecutivo
+    └── analysis/           # KPIs, tablas, resumen ejecutivo
+        └── charts/         # dashboard visual con Recharts (barras, donut, semáforo)
 ```
 
 Todo el procesamiento ocurre **localmente en el navegador**; los datos no se

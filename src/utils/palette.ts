@@ -8,6 +8,7 @@ export const PALETTE = {
   ink: '#1E293B', // texto principal
   muted: '#64748B', // texto secundario
   line: '#E2E8F0', // bordes suaves
+  gray: '#E5E7EB', // gris institucional (no aplica / neutro)
   soft: '#F8FAFC', // fondos muy tenues
   white: '#FFFFFF',
 };
