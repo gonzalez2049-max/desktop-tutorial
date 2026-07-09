@@ -27,7 +27,7 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Instalar dependencias
@@ -38,6 +38,10 @@ jobs:
 
       - name: Configurar Pages
         uses: actions/configure-pages@v5
+        with:
+          # Activa GitHub Pages automáticamente si el repo es elegible
+          # (público, o privado con plan de pago). Evita el paso manual en Settings.
+          enablement: true
 
       - name: Subir artefacto (dist)
         uses: actions/upload-pages-artifact@v3
