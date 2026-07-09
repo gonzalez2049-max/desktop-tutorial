@@ -4,9 +4,9 @@ import FileUpload from './components/FileUpload';
 import ColumnReview from './components/ColumnReview';
 import DataPreview from './components/DataPreview';
 import Wizard from './components/wizard/Wizard';
-import ReportSummary from './components/ReportSummary';
-import { buildSummary } from './utils/summary';
-import type { DetectedColumn, ParsedWorkbook, ReportConfig, ReportSummary as Summary } from './types';
+import AnalysisView from './components/analysis/AnalysisView';
+import { analyze } from './utils/analysis';
+import type { AnalysisResult, DetectedColumn, ParsedWorkbook, ReportConfig } from './types';
 
 type Stage = 'upload' | 'review' | 'wizard' | 'generating' | 'result';
 
@@ -22,12 +22,12 @@ const STAGE_INDEX: Record<Stage, number> = { upload: 0, review: 1, wizard: 2, ge
 export default function App() {
   const [stage, setStage] = useState<Stage>('upload');
   const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null);
-  const [summary, setSummary] = useState<Summary | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
 
   const reset = () => {
     setStage('upload');
     setWorkbook(null);
-    setSummary(null);
+    setAnalysis(null);
   };
 
   const handleParsed = (wb: ParsedWorkbook) => {
@@ -44,7 +44,7 @@ export default function App() {
     // "Primero pregunta, luego analiza, luego genera": pequeña transición.
     setStage('generating');
     setTimeout(() => {
-      setSummary(buildSummary(workbook, config));
+      setAnalysis(analyze(workbook, config));
       setStage('result');
     }, 500);
   };
@@ -91,8 +91,8 @@ export default function App() {
           </div>
         )}
 
-        {stage === 'result' && summary && workbook && (
-          <ReportSummary summary={summary} fileName={workbook.fileName} onReset={reset} />
+        {stage === 'result' && analysis && workbook && (
+          <AnalysisView analysis={analysis} fileName={workbook.fileName} onReset={reset} />
         )}
       </main>
 

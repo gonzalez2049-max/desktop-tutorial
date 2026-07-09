@@ -64,24 +64,49 @@ export interface ParsedWorkbook {
   columns: DetectedColumn[];
 }
 
-/**
- * Resumen ligero calculado tras "Generar reporte". No es el dashboard avanzado:
- * solo confirma que la lectura del Excel y la configuración inteligente funcionan.
- */
-export interface ReportSummary {
-  config: ReportConfig;
-  totalRows: number;
-  applicableRows: number;
+/** Conteo simple de registros por categoría (p. ej. total por unidad). */
+export interface GroupCount {
+  label: string;
+  count: number;
+}
+
+/** Cumplimiento agregado de una categoría (indicador, turno, unidad…). */
+export interface ComplianceGroup {
+  label: string;
+  total: number; // registros del grupo
   cumple: number;
   noCumple: number;
   noAplica: number;
-  globalPercent: number;
+  aplicables: number; // cumple + noCumple
+  percent: number; // cumple / aplicables * 100
   meetsGoal: boolean;
-  detectedDimensions: {
+}
+
+/** Cumplimiento global de toda la auditoría. */
+export interface GlobalCompliance {
+  cumple: number;
+  noCumple: number;
+  noAplica: number;
+  aplicables: number;
+  percent: number;
+  meetsGoal: boolean;
+}
+
+/** Resultado completo del motor de análisis. */
+export interface AnalysisResult {
+  config: ReportConfig;
+  totalRecords: number;
+  global: GlobalCompliance;
+  totalByUnit: GroupCount[];
+  totalByShift: GroupCount[];
+  complianceByUnit: ComplianceGroup[];
+  complianceByShift: ComplianceGroup[];
+  complianceByIndicator: ComplianceGroup[];
+  criticalIndicators: ComplianceGroup[]; // bajo la meta
+  highlightedIndicators: ComplianceGroup[]; // sobre o en la meta
+  detected: {
     unidad: boolean;
     turno: boolean;
     indicador: boolean;
-    fecha: boolean;
-    riesgo: boolean;
   };
 }

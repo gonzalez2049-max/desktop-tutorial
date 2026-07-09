@@ -19,13 +19,28 @@ Esta entrega cubre el flujo base **funcional**:
    - Tipo de informe.
    - Indicadores / datos a destacar.
    - Meta de cumplimiento.
-6. Botón **"Generar reporte"** que valida la lectura del Excel y muestra un
-   resumen de la configuración con KPIs básicos (cumplimiento global, filas
-   leídas, dimensiones detectadas).
+6. Botón **"Generar reporte"** que ejecuta el **motor de análisis** y muestra
+   los resultados en **tarjetas KPI** y **tablas simples**.
+
+### 📈 Motor de análisis
+
+Al generar el reporte se calcula:
+
+- **Total de registros** y **total por unidad** / **por turno**.
+- **Cumplimiento global** (cumple / casos aplicables).
+- **Cumplimiento por indicador** y **cumplimiento por turno**.
+- **Indicadores críticos** (bajo la meta) e **indicadores destacados** (en o sobre la meta).
+
+Reconocimiento de valores (sin distinguir mayúsculas ni acentos):
+
+| Resultado   | Valores reconocidos                                    |
+| ----------- | ------------------------------------------------------ |
+| Cumple      | `Sí`, `SI`, `Si`, `Cumple`, `1`, `Verdadero`           |
+| No cumple   | `No`, `No cumple`, `0`, `Falso`                         |
+| No aplica   | `N/A`, `NA`, `No aplica`, y celdas **vacías** en columna de cumplimiento |
 
 > ⏭️ **Aún no incluido (próxima entrega):** dashboard visual con gráficos y
-> exportación a PDF / Word. La base actual (carga + configuración inteligente)
-> queda lista para construirlos encima.
+> exportación a PDF / Word. La base actual queda lista para construirlos encima.
 
 ## 🧠 Detección inteligente de columnas
 
@@ -78,14 +93,14 @@ src/
 ├── utils/
 │   ├── columnDetection.ts  # detección difusa de columnas y clasificación de valores
 │   ├── excelParser.ts      # lectura de Excel con SheetJS
-│   └── summary.ts          # cálculo básico tras "Generar reporte"
+│   └── analysis.ts         # motor de análisis (KPIs, agrupaciones, indicadores)
 └── components/
     ├── FileUpload.tsx      # paso 1: carga
     ├── DataPreview.tsx     # vista previa de datos
     ├── ColumnReview.tsx    # lectura + revisión de columnas detectadas
     ├── Stepper.tsx / OptionCard.tsx
     ├── wizard/             # asistente de 3 preguntas
-    └── ReportSummary.tsx   # resultado de "Generar reporte"
+    └── analysis/           # tarjetas KPI y tablas de resultados
 ```
 
 Todo el procesamiento ocurre **localmente en el navegador**; los datos no se
