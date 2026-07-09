@@ -71,9 +71,9 @@ function complianceTable(groups: ComplianceGroup[], firstHeader: string, goal: n
 /** Tabla de caracterización clínica (NT 234 / LPP). */
 function characterizationTable(c: ClinicalCharacterization): Table {
   const rowsData: [string, string][] = [
-    ['Registros originales', String(c.totalOriginal)],
-    ['Incluidos (riesgo moderado + alto)', String(c.includedByRisk)],
-    ['Excluidos (sin riesgo / bajo riesgo)', String(c.excludedByRisk)],
+    ['Pacientes auditados', String(c.totalOriginal)],
+    ['Pacientes incluidos (riesgo moderado + alto)', String(c.includedByRisk)],
+    ['Pacientes excluidos (sin riesgo / bajo riesgo)', String(c.excludedByRisk)],
     ['Pacientes con LPP', c.lppPositive !== null ? String(c.lppPositive) : '—'],
     ['% pacientes con LPP', c.lppPrevalence !== null ? `${c.lppPrevalence}%` : '—'],
   ];

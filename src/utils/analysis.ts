@@ -10,7 +10,7 @@ import type {
   ReportConfig,
   UnitShiftMatrix,
 } from '../types';
-import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDescriptiveVariable } from './columnDetection';
+import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDescriptiveVariable, type RiskLevel } from './columnDetection';
 import { canonicalIndicatorNT234 } from './nt234';
 
 const UNGROUPED = 'Sin especificar';
@@ -209,6 +209,78 @@ function descriptiveVariables(
   return out.sort((a, b) => b.positive - a.positive);
 }
 
+/**
+ * Caracterización clínica POR PACIENTE (no por fila de indicador). Deduplica por
+ * la columna de paciente cuando existe; si no, cada registro cuenta como uno.
+ */
+function clinicalCharacterization(workbook: ParsedWorkbook, config: ReportConfig): ClinicalCharacterization {
+  const { rows, columns } = workbook;
+  const patientCol = columnForRole(columns, 'paciente');
+  const riskCol = columnForRole(columns, 'riesgo');
+  const indicatorCol = columnForRole(columns, 'indicador');
+  const complianceCols = columnsForRole(columns, 'cumplimiento');
+  const descriptiveCols = columnsForRole(columns, 'descriptivo');
+  const isNT234 = config.reportType === 'NT234_LPP';
+
+  interface PInfo {
+    risk: RiskLevel;
+    lppPos: boolean;
+    lppAns: boolean;
+  }
+  const patients = new Map<string, PInfo>();
+
+  rows.forEach((row, idx) => {
+    const key = patientCol ? labelOf(row[patientCol]) : `registro-${idx}`;
+    const info = patients.get(key) ?? { risk: 'desconocido', lppPos: false, lppAns: false };
+
+    if (riskCol) {
+      const lvl = classifyRisk(row[riskCol]);
+      if (info.risk === 'desconocido' && lvl !== 'desconocido') info.risk = lvl;
+    }
+
+    // LPP como columna descriptiva (formato ancho).
+    for (const col of descriptiveCols) {
+      const c = classifyCompliance(row[col]);
+      if (c === 'cumple') {
+        info.lppPos = true;
+        info.lppAns = true;
+      } else if (c === 'no_cumple') info.lppAns = true;
+    }
+    // LPP como valor de la columna indicador (formato largo).
+    if (indicatorCol && isDescriptiveVariable(row[indicatorCol])) {
+      const t = tally(row, complianceCols);
+      if (t.cumple > 0) {
+        info.lppPos = true;
+        info.lppAns = true;
+      } else if (t.noCumple > 0) info.lppAns = true;
+    }
+
+    patients.set(key, info);
+  });
+
+  let included = 0;
+  let lppPos = 0;
+  let lppAns = 0;
+  for (const info of patients.values()) {
+    if (info.risk === 'alto' || info.risk === 'moderado') included++;
+    if (info.lppPos) lppPos++;
+    if (info.lppAns) lppAns++;
+  }
+  const total = patients.size;
+  const riskFilterApplied = isNT234 && riskCol !== null;
+  const hasLpp = lppAns > 0;
+
+  return {
+    totalOriginal: total,
+    includedByRisk: riskFilterApplied ? included : total,
+    excludedByRisk: riskFilterApplied ? total - included : 0,
+    riskFilterApplied,
+    lppPositive: hasLpp ? lppPos : null,
+    lppAnswered: hasLpp ? lppAns : null,
+    lppPrevalence: hasLpp ? pct(lppPos, lppAns) : null,
+  };
+}
+
 /** Ejecuta el motor de análisis completo. */
 export function analyze(workbook: ParsedWorkbook, config: ReportConfig): AnalysisResult {
   const { rows, columns } = workbook;
@@ -219,13 +291,11 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
   const unitCol = columnForRole(columns, 'unidad');
   const shiftCol = columnForRole(columns, 'turno');
   const indicatorCol = columnForRole(columns, 'indicador');
-  const riskCol = columnForRole(columns, 'riesgo');
   const isNT234 = config.reportType === 'NT234_LPP';
 
   // Filas descriptivas (formato largo) para la prevalencia.
   const isDescRow = (row: RawRow) => (indicatorCol ? isDescriptiveVariable(row[indicatorCol]) : false);
   const descriptiveRows = indicatorCol ? rows.filter(isDescRow) : [];
-  const nonDescRows = indicatorCol ? rows.filter((r) => !isDescRow(r)) : rows;
 
   // Base de cumplimiento: sin descriptivas y, en NT 234 / LPP, solo riesgo moderado/alto.
   const complianceRows = complianceRowsFor(workbook, config);
@@ -254,18 +324,8 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
   const byIndicator = complianceByIndicator(complianceRows, indicatorCol, complianceCols, goal, isNT234);
   const descriptiveVars = descriptiveVariables(rows, descriptiveCols, descriptiveRows, indicatorCol, complianceCols);
 
-  // Caracterización clínica (filtro de riesgo solo en NT 234 / LPP con columna de riesgo).
-  const riskFilterApplied = isNT234 && riskCol !== null;
-  const lpp = descriptiveVars.find((d) => isDescriptiveVariable(d.label)) ?? null;
-  const characterization: ClinicalCharacterization = {
-    totalOriginal: rows.length,
-    includedByRisk: complianceRows.length,
-    excludedByRisk: riskFilterApplied ? nonDescRows.length - complianceRows.length : 0,
-    riskFilterApplied,
-    lppPositive: lpp ? lpp.positive : null,
-    lppAnswered: lpp ? lpp.answered : null,
-    lppPrevalence: lpp ? lpp.prevalence : null,
-  };
+  // Caracterización clínica por paciente (filtro de riesgo solo en NT 234 / LPP).
+  const characterization = clinicalCharacterization(workbook, config);
 
   return {
     config,
