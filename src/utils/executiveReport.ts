@@ -72,7 +72,15 @@ export function buildExecutiveReport(a: AnalysisResult): ExecutiveReport {
     );
   } else {
     s1.push(
-      `Se auditaron ${a.totalRecords} registros del ámbito ${reportTypeLabel(a.config.reportType)}, de los cuales ${g.aplicables} correspondieron a casos aplicables (${g.cumple} cumple, ${g.noCumple} no cumple y ${g.noAplica} no aplica). El cumplimiento global alcanzó ${g.percent}%, frente a una meta institucional de ${goal}%.`,
+      `Se auditaron ${a.totalRecords} registros del ámbito ${reportTypeLabel(a.config.reportType)}, de los cuales ${g.aplicables} correspondieron a casos aplicables (${g.cumple} cumple, ${g.noCumple} no cumple). El cumplimiento global alcanzó ${g.percent}%, frente a una meta institucional de ${goal}%.`,
+    );
+  }
+  // Hallazgos clínicos descriptivos (prevalencia): se informan como hallazgo,
+  // nunca como incumplimiento.
+  if (a.descriptiveVariables.length > 0) {
+    const parts = a.descriptiveVariables.map((d) => `${d.label} — ${d.positive} de ${d.answered} evaluados (${d.prevalence}%)`);
+    s1.push(
+      `Como hallazgo clínico descriptivo, y no como incumplimiento, se registró la siguiente prevalencia: ${parts.join('; ')}. Esta(s) variable(s) no forma(n) parte del cálculo de cumplimiento.`,
     );
   }
   sections.push({ id: 'resumen-general', title: '1. Resumen general del cumplimiento', paragraphs: s1 });

@@ -1,13 +1,15 @@
 import type {
   AnalysisResult,
   ComplianceGroup,
+  DescriptiveVariable,
   GlobalCompliance,
   GroupCount,
   ParsedWorkbook,
   RawRow,
   ReportConfig,
+  UnitShiftMatrix,
 } from '../types';
-import { classifyCompliance, columnForRole, columnsForRole } from './columnDetection';
+import { classifyCompliance, columnForRole, columnsForRole, isDescriptiveVariable } from './columnDetection';
 
 const UNGROUPED = 'Sin especificar';
 
@@ -23,12 +25,8 @@ function pct(cumple: number, aplicables: number): number {
 
 /**
  * Cuenta cumple / no cumple / no aplica de una fila sobre una o varias columnas
- * de cumplimiento.
- *
- * Reconoce (vía classifyCompliance, sin distinguir mayúsculas ni acentos):
- * - cumple:      Sí, SI, Si, Cumple, 1, Verdadero
- * - no cumple:   No, No cumple, 0, Falso
- * - no aplica:   N/A, NA, No aplica y celdas vacías cuando corresponde
+ * de cumplimiento. Las variables descriptivas (p. ej. "¿Tiene LPP?") NO se
+ * incluyen aquí, porque no forman parte del cumplimiento.
  */
 function tally(row: RawRow, cols: string[]): { cumple: number; noCumple: number; noAplica: number } {
   let cumple = 0;
@@ -41,7 +39,6 @@ function tally(row: RawRow, cols: string[]): { cumple: number; noCumple: number;
     else if (c === 'no_cumple') noCumple++;
     else if (c === 'no_aplica') noAplica++;
     else if (isEmpty(v)) noAplica++; // vacío en columna de cumplimiento = no aplica
-    // valores no reconocidos y no vacíos se ignoran
   }
   return { cumple, noCumple, noAplica };
 }
@@ -99,17 +96,13 @@ function complianceBy(rows: RawRow[], dimCol: string | null, complianceCols: str
 }
 
 /**
- * Cumplimiento por indicador. Si hay una columna "indicador", agrupa por su valor.
- * Si no, cada columna de cumplimiento se trata como un indicador (formato ancho).
+ * Cumplimiento por indicador. Si hay una columna "indicador", agrupa por su valor
+ * (excluyendo variables descriptivas). Si no, cada columna de cumplimiento es un
+ * indicador (formato ancho); las columnas descriptivas ya quedaron fuera.
  */
-function complianceByIndicator(
-  rows: RawRow[],
-  indicatorCol: string | null,
-  complianceCols: string[],
-  goal: number,
-): ComplianceGroup[] {
+function complianceByIndicator(rows: RawRow[], indicatorCol: string | null, complianceCols: string[], goal: number): ComplianceGroup[] {
   if (indicatorCol) {
-    return complianceBy(rows, indicatorCol, complianceCols, goal);
+    return complianceBy(rows, indicatorCol, complianceCols, goal).filter((g) => !isDescriptiveVariable(g.label));
   }
   return complianceCols
     .map((col) => {
@@ -127,21 +120,80 @@ function complianceByIndicator(
     .sort((a, b) => b.percent - a.percent);
 }
 
+/**
+ * Calcula las variables clínicas descriptivas (prevalencia). Considera:
+ * - Columnas marcadas como 'descriptivo' (formato ancho, una fila por paciente).
+ * - Valores de la columna indicador que son descriptivos (formato largo).
+ */
+function descriptiveVariables(
+  rows: RawRow[],
+  descriptiveCols: string[],
+  descriptiveRows: RawRow[],
+  indicatorCol: string | null,
+  complianceCols: string[],
+): DescriptiveVariable[] {
+  const out: DescriptiveVariable[] = [];
+  // La prevalencia se calcula sobre los pacientes evaluados para esa variable
+  // (positivos + negativos), es decir el total de registros con respuesta.
+
+  // 1) Columnas descriptivas (formato ancho).
+  for (const col of descriptiveCols) {
+    let positive = 0;
+    let negative = 0;
+    for (const row of rows) {
+      const c = classifyCompliance(row[col]);
+      if (c === 'cumple') positive++;
+      else if (c === 'no_cumple') negative++;
+    }
+    const answered = positive + negative;
+    if (answered > 0) {
+      out.push({ label: col, positive, negative, answered, prevalence: pct(positive, answered) });
+    }
+  }
+
+  // 2) Valores descriptivos dentro de la columna indicador (formato largo).
+  if (indicatorCol) {
+    const acc = new Map<string, { positive: number; negative: number }>();
+    for (const row of descriptiveRows) {
+      const label = labelOf(row[indicatorCol]);
+      const t = tally(row, complianceCols);
+      const g = acc.get(label) ?? { positive: 0, negative: 0 };
+      g.positive += t.cumple;
+      g.negative += t.noCumple;
+      acc.set(label, g);
+    }
+    for (const [label, g] of acc) {
+      const answered = g.positive + g.negative;
+      if (answered > 0) {
+        out.push({ label, positive: g.positive, negative: g.negative, answered, prevalence: pct(g.positive, answered) });
+      }
+    }
+  }
+
+  return out.sort((a, b) => b.positive - a.positive);
+}
+
 /** Ejecuta el motor de análisis completo. */
 export function analyze(workbook: ParsedWorkbook, config: ReportConfig): AnalysisResult {
   const { rows, columns } = workbook;
   const goal = config.goal;
 
   const complianceCols = columnsForRole(columns, 'cumplimiento');
+  const descriptiveCols = columnsForRole(columns, 'descriptivo');
   const unitCol = columnForRole(columns, 'unidad');
   const shiftCol = columnForRole(columns, 'turno');
   const indicatorCol = columnForRole(columns, 'indicador');
 
-  // Cumplimiento global.
+  // Separa las filas descriptivas (formato largo) del cálculo de cumplimiento.
+  const isDescRow = (row: RawRow) => (indicatorCol ? isDescriptiveVariable(row[indicatorCol]) : false);
+  const complianceRows = indicatorCol ? rows.filter((r) => !isDescRow(r)) : rows;
+  const descriptiveRows = indicatorCol ? rows.filter(isDescRow) : [];
+
+  // Cumplimiento global (sin variables descriptivas).
   let cumple = 0;
   let noCumple = 0;
   let noAplica = 0;
-  for (const row of rows) {
+  for (const row of complianceRows) {
     const t = tally(row, complianceCols);
     cumple += t.cumple;
     noCumple += t.noCumple;
@@ -158,7 +210,7 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
     meetsGoal: aplicables > 0 && globalPercent >= goal,
   };
 
-  const byIndicator = complianceByIndicator(rows, indicatorCol, complianceCols, goal);
+  const byIndicator = complianceByIndicator(complianceRows, indicatorCol, complianceCols, goal);
 
   return {
     config,
@@ -166,15 +218,90 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
     global,
     totalByUnit: countBy(rows, unitCol),
     totalByShift: countBy(rows, shiftCol),
-    complianceByUnit: complianceBy(rows, unitCol, complianceCols, goal),
-    complianceByShift: complianceBy(rows, shiftCol, complianceCols, goal),
+    complianceByUnit: complianceBy(complianceRows, unitCol, complianceCols, goal),
+    complianceByShift: complianceBy(complianceRows, shiftCol, complianceCols, goal),
     complianceByIndicator: byIndicator,
     criticalIndicators: byIndicator.filter((i) => i.aplicables > 0 && !i.meetsGoal).sort((a, b) => a.percent - b.percent),
     highlightedIndicators: byIndicator.filter((i) => i.meetsGoal).sort((a, b) => b.percent - a.percent),
+    descriptiveVariables: descriptiveVariables(rows, descriptiveCols, descriptiveRows, indicatorCol, complianceCols),
     detected: {
       unidad: unitCol !== null,
       turno: shiftCol !== null,
       indicador: indicatorCol !== null || complianceCols.length > 0,
     },
   };
+}
+
+/** Lista de unidades presentes (para el selector de unidad). */
+export function listUnits(workbook: ParsedWorkbook): string[] {
+  const unitCol = columnForRole(workbook.columns, 'unidad');
+  if (!unitCol) return [];
+  const set = new Set<string>();
+  for (const row of workbook.rows) {
+    const label = labelOf(row[unitCol]);
+    if (label !== UNGROUPED) set.add(label);
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
+
+/** Devuelve un workbook filtrado a una sola unidad. */
+export function filterWorkbookByUnit(workbook: ParsedWorkbook, unit: string): ParsedWorkbook {
+  const unitCol = columnForRole(workbook.columns, 'unidad');
+  if (!unitCol) return workbook;
+  return { ...workbook, rows: workbook.rows.filter((r) => labelOf(r[unitCol]) === unit) };
+}
+
+/**
+ * Matriz de cumplimiento por turno dentro de cada unidad
+ * (el global por turno y el desglose de cada unidad).
+ */
+export function unitShiftMatrix(workbook: ParsedWorkbook): UnitShiftMatrix {
+  const { rows, columns } = workbook;
+  const unitCol = columnForRole(columns, 'unidad');
+  const shiftCol = columnForRole(columns, 'turno');
+  const indicatorCol = columnForRole(columns, 'indicador');
+  const complianceCols = columnsForRole(columns, 'cumplimiento');
+  if (!unitCol || !shiftCol) return { shifts: [], rows: [] };
+
+  const isDescRow = (row: RawRow) => (indicatorCol ? isDescriptiveVariable(row[indicatorCol]) : false);
+  const dataRows = indicatorCol ? rows.filter((r) => !isDescRow(r)) : rows;
+
+  const shiftSet = new Set<string>();
+  for (const row of dataRows) {
+    const s = labelOf(row[shiftCol]);
+    if (s !== UNGROUPED) shiftSet.add(s);
+  }
+  const shifts = Array.from(shiftSet).sort((a, b) => a.localeCompare(b));
+
+  // Acumula por unidad y por (unidad, turno).
+  const perUnit = new Map<string, { cumple: number; noCumple: number }>();
+  const perCell = new Map<string, { cumple: number; noCumple: number }>();
+  for (const row of dataRows) {
+    const unit = labelOf(row[unitCol]);
+    if (unit === UNGROUPED) continue;
+    const shift = labelOf(row[shiftCol]);
+    const t = tally(row, complianceCols);
+    const u = perUnit.get(unit) ?? { cumple: 0, noCumple: 0 };
+    u.cumple += t.cumple;
+    u.noCumple += t.noCumple;
+    perUnit.set(unit, u);
+    const key = `${unit}||${shift}`;
+    const c = perCell.get(key) ?? { cumple: 0, noCumple: 0 };
+    c.cumple += t.cumple;
+    c.noCumple += t.noCumple;
+    perCell.set(key, c);
+  }
+
+  const rowsOut = Array.from(perUnit.entries())
+    .map(([unit, u]) => {
+      const byShift: Record<string, number | null> = {};
+      for (const s of shifts) {
+        const cell = perCell.get(`${unit}||${s}`);
+        byShift[s] = cell && cell.cumple + cell.noCumple > 0 ? pct(cell.cumple, cell.cumple + cell.noCumple) : null;
+      }
+      return { unit, overall: pct(u.cumple, u.cumple + u.noCumple), byShift };
+    })
+    .sort((a, b) => b.overall - a.overall);
+
+  return { shifts, rows: rowsOut };
 }

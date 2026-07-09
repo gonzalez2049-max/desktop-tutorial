@@ -13,7 +13,7 @@ import {
   WidthType,
 } from 'docx';
 import { saveAs } from 'file-saver';
-import type { AnalysisResult, ComplianceGroup, ExecutiveReport } from '../types';
+import type { AnalysisResult, ComplianceGroup, DescriptiveVariable, ExecutiveReport } from '../types';
 import { buildExecutiveReport } from './executiveReport';
 import { summaryKpis } from './reportModel';
 import { PALETTE, bare, complianceHex, trafficHex, trafficLabel, trafficLightFor } from './palette';
@@ -48,7 +48,7 @@ function complianceTable(groups: ComplianceGroup[], firstHeader: string, goal: n
   const rows: TableRow[] = [
     new TableRow({
       tableHeader: true,
-      children: [headerCell(firstHeader), headerCell('Cumple'), headerCell('No cumple'), headerCell('N/A'), headerCell('%'), headerCell('Estado')],
+      children: [headerCell(firstHeader), headerCell('Cumple'), headerCell('No cumple'), headerCell('%'), headerCell('Estado')],
     }),
   ];
   for (const g of groups) {
@@ -59,9 +59,31 @@ function complianceTable(groups: ComplianceGroup[], firstHeader: string, goal: n
           bodyCell([text(g.label)]),
           bodyCell([text(String(g.cumple))], AlignmentType.CENTER),
           bodyCell([text(String(g.noCumple))], AlignmentType.CENTER),
-          bodyCell([text(String(g.noAplica), { color: PALETTE.muted })], AlignmentType.CENTER),
           bodyCell([text(`${g.percent}%`, { bold: true, color })], AlignmentType.CENTER),
           bodyCell([text(g.meetsGoal ? 'Cumple' : 'Bajo meta', { bold: true, color })], AlignmentType.CENTER),
+        ],
+      }),
+    );
+  }
+  return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
+}
+
+/** Tabla de variables clínicas descriptivas (prevalencia, no cumplimiento). */
+function descriptiveTable(vars: DescriptiveVariable[]): Table {
+  const rows: TableRow[] = [
+    new TableRow({
+      tableHeader: true,
+      children: [headerCell('Variable clínica'), headerCell('Positivos'), headerCell('Negativos'), headerCell('Prevalencia')],
+    }),
+  ];
+  for (const v of vars) {
+    rows.push(
+      new TableRow({
+        children: [
+          bodyCell([text(v.label)]),
+          bodyCell([text(String(v.positive))], AlignmentType.CENTER),
+          bodyCell([text(String(v.negative))], AlignmentType.CENTER),
+          bodyCell([text(`${v.prevalence}% (${v.positive}/${v.answered})`, { bold: true, color: PALETTE.blue })], AlignmentType.CENTER),
         ],
       }),
     );
@@ -158,6 +180,17 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
   }
   if (a.complianceByUnit.length) {
     children.push(heading('Cumplimiento por unidad'), complianceTable(a.complianceByUnit, 'Unidad', a.config.goal));
+  }
+
+  if (a.descriptiveVariables.length) {
+    children.push(
+      heading('Variables clínicas descriptivas'),
+      new Paragraph({
+        spacing: { after: 80 },
+        children: [text('Prevalencia sobre el total de registros. No forman parte del cálculo de cumplimiento.', { color: PALETTE.muted, size: 18 })],
+      }),
+      descriptiveTable(a.descriptiveVariables),
+    );
   }
 
   children.push(heading('Resumen ejecutivo'), ...executiveParagraphs(report));

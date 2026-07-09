@@ -110,8 +110,8 @@ function drawComplianceTable(ctx: Ctx, groups: ComplianceGroup[], firstHeader: s
   const { doc, margin, pageW } = ctx;
   autoTable(doc, {
     startY: ctx.y,
-    head: [[firstHeader, 'Cumple', 'No cumple', 'N/A', '%', 'Estado']],
-    body: groups.map((g) => [g.label, String(g.cumple), String(g.noCumple), String(g.noAplica), `${g.percent}%`, g.meetsGoal ? 'Cumple' : 'Bajo meta']),
+    head: [[firstHeader, 'Cumple', 'No cumple', '%', 'Estado']],
+    body: groups.map((g) => [g.label, String(g.cumple), String(g.noCumple), `${g.percent}%`, g.meetsGoal ? 'Cumple' : 'Bajo meta']),
     theme: 'grid',
     headStyles: { fillColor: BLUE, textColor: [255, 255, 255], fontSize: 8.5, halign: 'center', lineColor: LINE, lineWidth: 0.5 },
     bodyStyles: { fontSize: 8.5, cellPadding: 4, textColor: INK, lineColor: LINE, lineWidth: 0.5 },
@@ -119,18 +119,39 @@ function drawComplianceTable(ctx: Ctx, groups: ComplianceGroup[], firstHeader: s
       0: { halign: 'left' },
       1: { halign: 'center' },
       2: { halign: 'center' },
-      3: { halign: 'center', textColor: MUTED },
+      3: { halign: 'center', fontStyle: 'bold' },
       4: { halign: 'center', fontStyle: 'bold' },
-      5: { halign: 'center', fontStyle: 'bold' },
     },
     margin: { left: margin, right: margin },
     tableWidth: pageW - margin * 2,
     didParseCell: (data) => {
-      if (data.section === 'body' && (data.column.index === 4 || data.column.index === 5)) {
+      if (data.section === 'body' && (data.column.index === 3 || data.column.index === 4)) {
         const g = groups[data.row.index];
         if (g) data.cell.styles.textColor = hexToRgb(complianceHex(g.percent, goal));
       }
     },
+  });
+  ctx.y = lastTableY(doc) + 22;
+}
+
+/** Tabla de variables clínicas descriptivas (prevalencia). */
+function drawDescriptiveTable(ctx: Ctx, a: AnalysisResult): void {
+  const { doc, margin, pageW } = ctx;
+  autoTable(doc, {
+    startY: ctx.y,
+    head: [['Variable clínica', 'Positivos', 'Negativos', 'Prevalencia']],
+    body: a.descriptiveVariables.map((v) => [v.label, String(v.positive), String(v.negative), `${v.prevalence}% (${v.positive}/${v.answered})`]),
+    theme: 'grid',
+    headStyles: { fillColor: BLUE, textColor: [255, 255, 255], fontSize: 8.5, halign: 'center', lineColor: LINE, lineWidth: 0.5 },
+    bodyStyles: { fontSize: 8.5, cellPadding: 4, textColor: INK, lineColor: LINE, lineWidth: 0.5 },
+    columnStyles: {
+      0: { halign: 'left' },
+      1: { halign: 'center' },
+      2: { halign: 'center' },
+      3: { halign: 'center', fontStyle: 'bold', textColor: BLUE },
+    },
+    margin: { left: margin, right: margin },
+    tableWidth: pageW - margin * 2,
   });
   ctx.y = lastTableY(doc) + 22;
 }
@@ -206,6 +227,12 @@ export function exportPdf(a: AnalysisResult, fileName: string): void {
   if (a.complianceByUnit.length) {
     sectionTitle(ctx, 'Cumplimiento por unidad');
     drawComplianceTable(ctx, a.complianceByUnit, 'Unidad', a.config.goal);
+  }
+
+  if (a.descriptiveVariables.length) {
+    ensure(ctx, 60);
+    sectionTitle(ctx, 'Variables clínicas descriptivas');
+    drawDescriptiveTable(ctx, a);
   }
 
   ensure(ctx, 40);
