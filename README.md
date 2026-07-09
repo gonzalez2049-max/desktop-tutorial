@@ -39,8 +39,34 @@ Reconocimiento de valores (sin distinguir mayúsculas ni acentos):
 | No cumple   | `No`, `No cumple`, `0`, `Falso`                         |
 | No aplica   | `N/A`, `NA`, `No aplica`, y celdas **vacías** en columna de cumplimiento |
 
-> ⏭️ **Aún no incluido (próxima entrega):** dashboard visual con gráficos y
-> exportación a PDF / Word. La base actual queda lista para construirlos encima.
+### 🧾 Resumen ejecutivo del reporte (Fase 3)
+
+A partir de los resultados calculados, la app **redacta automáticamente** un
+informe ejecutivo en lenguaje institucional (sin frases genéricas y sin inventar
+datos: cada frase se apoya en cifras reales). Incluye 8 secciones:
+
+1. Resumen general del cumplimiento
+2. Interpretación del porcentaje global
+3. Principales brechas detectadas
+4. Indicadores críticos bajo la meta
+5. Unidades o turnos con menor cumplimiento
+6. Fortalezas identificadas
+7. Recomendaciones operativas concretas
+8. Conclusión final
+
+Reglas aplicadas: si el cumplimiento está bajo la meta se indica que **requiere
+intervención**; para cada indicador crítico se sugiere **refuerzo educativo**,
+**supervisión dirigida** o **revisión del proceso**; si ningún indicador alcanza
+la meta, se explicita.
+
+Acciones disponibles:
+- **📋 Copiar resumen** al portapapeles (texto plano).
+- **📕 PDF** y **📘 Word editable** *(beta)* — estructura ya funcional
+  (Word como `.doc` compatible; PDF vía vista de impresión del navegador). El
+  formato se refinará en una etapa posterior.
+
+> ⏭️ **Próxima etapa:** dashboard visual con gráficos y generación nativa de
+> PDF / Word con mejor maquetación.
 
 ## 🧠 Detección inteligente de columnas
 
@@ -93,14 +119,16 @@ src/
 ├── utils/
 │   ├── columnDetection.ts  # detección difusa de columnas y clasificación de valores
 │   ├── excelParser.ts      # lectura de Excel con SheetJS
-│   └── analysis.ts         # motor de análisis (KPIs, agrupaciones, indicadores)
+│   ├── analysis.ts         # motor de análisis (KPIs, agrupaciones, indicadores)
+│   ├── executiveReport.ts  # redacción automática del resumen ejecutivo
+│   └── reportExport.ts     # copiar / exportar a Word (.doc) y PDF (impresión)
 └── components/
     ├── FileUpload.tsx      # paso 1: carga
     ├── DataPreview.tsx     # vista previa de datos
     ├── ColumnReview.tsx    # lectura + revisión de columnas detectadas
     ├── Stepper.tsx / OptionCard.tsx
     ├── wizard/             # asistente de 3 preguntas
-    └── analysis/           # tarjetas KPI y tablas de resultados
+    └── analysis/           # KPIs, tablas y resumen ejecutivo
 ```
 
 Todo el procesamiento ocurre **localmente en el navegador**; los datos no se

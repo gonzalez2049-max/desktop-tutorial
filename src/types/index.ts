@@ -92,6 +92,25 @@ export interface GlobalCompliance {
   meetsGoal: boolean;
 }
 
+/** Una sección redactada del resumen ejecutivo. */
+export interface ReportSection {
+  id: string;
+  title: string;
+  paragraphs: string[];
+  bullets?: string[];
+}
+
+/** Informe ejecutivo completo generado a partir del análisis. */
+export interface ExecutiveReport {
+  title: string;
+  meta: {
+    reportTypeLabel: string;
+    goal: number;
+    generatedAt: string; // fecha legible
+  };
+  sections: ReportSection[];
+}
+
 /** Resultado completo del motor de análisis. */
 export interface AnalysisResult {
   config: ReportConfig;

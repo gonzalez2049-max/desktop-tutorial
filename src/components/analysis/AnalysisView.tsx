@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { AnalysisResult, ComplianceGroup } from '../../types';
 import { highlightLabel, reportTypeLabel } from '../../config/options';
 import KpiCards from './KpiCards';
+import ExecutiveSummary from './ExecutiveSummary';
 import ComplianceTable from './ComplianceTable';
 import CountTable from './CountTable';
 
@@ -71,6 +72,8 @@ export default function AnalysisView({ analysis: a, fileName, onReset }: Analysi
       </div>
 
       <KpiCards a={a} />
+
+      <ExecutiveSummary analysis={a} />
 
       {a.complianceByIndicator.length > 0 && (
         <Section title="Cumplimiento por indicador" icon="📊" subtitle="Cumple / no cumple / no aplica y % por indicador">
