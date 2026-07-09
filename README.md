@@ -125,6 +125,17 @@ También clasifica los **valores** de cada celda:
 | Lectura Excel | SheetJS (`xlsx`)      |
 | Build         | Vite                  |
 
+## 🌐 Demo en línea (GitHub Pages)
+
+La app se publica automáticamente en **GitHub Pages** mediante GitHub Actions en
+cada push a `main` (workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)).
+
+- URL pública: **https://gonzalez2049-max.github.io/desktop-tutorial/**
+- Requisito único (una sola vez): en el repositorio, **Settings → Pages →
+  Build and deployment → Source: GitHub Actions**.
+
+No necesitas instalar nada: el build ocurre en la nube.
+
 ## 🚀 Puesta en marcha
 
 ```bash
