@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-slate-50 text-slate-800 font-sans;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl border border-slate-200 shadow-sm;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-nex-600 text-white hover:bg-nex-700;
+  }
+  .btn-ghost {
+    @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50;
+  }
+}
+
+/* Elementos que no deben aparecer al exportar o imprimir el dashboard */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
