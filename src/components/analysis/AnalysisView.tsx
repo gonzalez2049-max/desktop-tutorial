@@ -27,6 +27,8 @@ interface AnalysisViewProps {
   config: ReportConfig;
   fileName: string;
   onReset: () => void;
+  /** Volver al asistente para modificar la configuración sin perder los datos. */
+  onEdit?: () => void;
 }
 
 const ALL_UNITS = '__ALL__';
@@ -65,7 +67,7 @@ function IndicatorList({ items, emptyText, tone }: { items: ComplianceGroup[]; e
 }
 
 /** Vista de resultados del motor de análisis. */
-export default function AnalysisView({ workbook, config, fileName, onReset }: AnalysisViewProps) {
+export default function AnalysisView({ workbook, config, fileName, onReset, onEdit }: AnalysisViewProps) {
   const [selectedUnit, setSelectedUnit] = useState<string>(ALL_UNITS);
   const units = useMemo(() => listUnits(workbook), [workbook]);
 
@@ -133,9 +135,16 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
             <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">Meta {config.goal}%</span>
           </div>
         </div>
-        <button className="btn-ghost shrink-0" onClick={onReset}>
-          ↺ Nuevo reporte
-        </button>
+        <div className="flex shrink-0 gap-2">
+          {onEdit && (
+            <button className="btn-ghost" onClick={onEdit}>
+              ← Atrás
+            </button>
+          )}
+          <button className="btn-ghost" onClick={onReset}>
+            ↺ Nuevo reporte
+          </button>
+        </div>
       </div>
 
       {/* Selector de unidad: filtra todo el dashboard. */}

@@ -62,6 +62,9 @@ export default function App() {
     setTimeout(() => setStage('result'), 500);
   };
 
+  // Volver a editar desde el reporte sin perder Excel, columnas ni configuración.
+  const handleEditFromResult = () => setStage('wizard');
+
   const currentStep = useMemo(() => STAGE_INDEX[stage], [stage]);
 
   return (
@@ -100,7 +103,13 @@ export default function App() {
         )}
 
         {stage === 'wizard' && workbook && reportType && (
-          <Wizard reportType={reportType} workbook={workbook} onComplete={handleWizardComplete} onBack={() => setStage('review')} />
+          <Wizard
+            reportType={reportType}
+            workbook={workbook}
+            onComplete={handleWizardComplete}
+            onBack={() => setStage('review')}
+            initialConfig={config ?? undefined}
+          />
         )}
 
         {stage === 'generating' && (
@@ -112,7 +121,7 @@ export default function App() {
         )}
 
         {stage === 'result' && config && workbook && (
-          <AnalysisView workbook={workbook} config={config} fileName={workbook.fileName} onReset={reset} />
+          <AnalysisView workbook={workbook} config={config} fileName={workbook.fileName} onReset={reset} onEdit={handleEditFromResult} />
         )}
       </main>
 
