@@ -1,14 +1,16 @@
 import type { AnalysisResult } from '../../../types';
+import type { TrafficColors } from '../../../config/programs';
 import { PALETTE, trafficLightFor } from '../../../utils/palette';
 
-/** Tarjeta visual de semáforo de cumplimiento. */
-export default function TrafficLightCard({ a }: { a: AnalysisResult }) {
+/** Tarjeta visual de semáforo de cumplimiento. Los colores pueden configurarse por programa. */
+export default function TrafficLightCard({ a, colors }: { a: AnalysisResult; colors?: TrafficColors }) {
   const light = trafficLightFor(a.global.percent, a.config.goal);
+  const c = colors ?? { verde: PALETTE.green, amarillo: PALETTE.amber, rojo: PALETTE.red };
 
   const lights: { key: 'rojo' | 'amarillo' | 'verde'; color: string; label: string }[] = [
-    { key: 'rojo', color: PALETTE.red, label: 'Bajo la meta' },
-    { key: 'amarillo', color: PALETTE.amber, label: 'Cercano a la meta' },
-    { key: 'verde', color: PALETTE.green, label: 'Cumple la meta' },
+    { key: 'rojo', color: c.rojo, label: 'Bajo la meta' },
+    { key: 'amarillo', color: c.amarillo, label: 'Cercano a la meta' },
+    { key: 'verde', color: c.verde, label: 'Cumple la meta' },
   ];
   const active = lights.find((l) => l.key === light)!;
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import Stepper from './components/Stepper';
 import Home from './components/Home';
+import ProgramSettings from './components/ProgramSettings';
 import FileUpload from './components/FileUpload';
 import ColumnReview from './components/ColumnReview';
 import DataPreview from './components/DataPreview';
@@ -8,7 +9,7 @@ import Wizard from './components/wizard/Wizard';
 import AnalysisView from './components/analysis/AnalysisView';
 import type { DetectedColumn, ParsedWorkbook, ReportConfig, ReportType } from './types';
 
-type Stage = 'home' | 'upload' | 'review' | 'wizard' | 'generating' | 'result';
+type Stage = 'home' | 'settings' | 'upload' | 'review' | 'wizard' | 'generating' | 'result';
 
 const STEPS = [
   { key: 'home', label: 'Programa' },
@@ -18,11 +19,12 @@ const STEPS = [
   { key: 'result', label: 'Reporte' },
 ];
 
-const STAGE_INDEX: Record<Stage, number> = { home: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4 };
+const STAGE_INDEX: Record<Stage, number> = { home: 0, settings: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4 };
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('home');
   const [reportType, setReportType] = useState<ReportType | null>(null);
+  const [configProgram, setConfigProgram] = useState<ReportType | null>(null);
   const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null);
   const [config, setConfig] = useState<ReportConfig | null>(null);
 
@@ -36,6 +38,11 @@ export default function App() {
   const handleSelectProgram = (rt: ReportType) => {
     setReportType(rt);
     setStage('upload');
+  };
+
+  const handleConfigureProgram = (rt: ReportType) => {
+    setConfigProgram(rt);
+    setStage('settings');
   };
 
   const handleParsed = (wb: ParsedWorkbook) => {
@@ -73,7 +80,11 @@ export default function App() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
-        {stage === 'home' && <Home onSelect={handleSelectProgram} />}
+        {stage === 'home' && <Home onSelect={handleSelectProgram} onConfigure={handleConfigureProgram} />}
+
+        {stage === 'settings' && configProgram && (
+          <ProgramSettings reportType={configProgram} onBack={() => setStage('home')} />
+        )}
 
         {stage === 'upload' && <FileUpload onParsed={handleParsed} onBack={reset} />}
 

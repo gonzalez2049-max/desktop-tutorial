@@ -37,6 +37,19 @@ export function isDescriptiveVariable(name: unknown): boolean {
   return patterns.some((p) => n.includes(p));
 }
 
+/**
+ * ¿El valor coincide con alguna variable descriptiva configurada por el programa?
+ * (además de las reconocidas de forma nativa por isDescriptiveVariable).
+ */
+export function matchesDescriptivePatterns(value: unknown, patterns: string[]): boolean {
+  const n = normalize(value);
+  if (!n) return false;
+  return patterns.some((p) => {
+    const np = normalize(p);
+    return np !== '' && n.includes(np);
+  });
+}
+
 const ROLE_KEYWORDS: Record<Exclude<ColumnRole, 'desconocido' | 'valor' | 'descriptivo'>, string[]> = {
   unidad: ['unidad', 'servicio', 'area', 'area clinica', 'sala', 'departamento', 'seccion', 'piso', 'sector', 'ubicacion'],
   turno: ['turno', 'jornada', 'horario', 'shift'],

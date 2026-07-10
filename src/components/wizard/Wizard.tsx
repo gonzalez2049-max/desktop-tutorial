@@ -2,6 +2,7 @@ import { useState } from 'react';
 import QuestionLayout from './QuestionLayout';
 import OptionCard from '../OptionCard';
 import { ANALYSIS_TYPES, GOAL_PRESETS, HIGHLIGHTS, reportTypeLabel } from '../../config/options';
+import { getProgramConfig } from '../../utils/programConfig';
 import type { AnalysisType, Highlight, ParsedWorkbook, ReportConfig, ReportType } from '../../types';
 
 interface WizardProps {
@@ -32,7 +33,8 @@ export default function Wizard({ reportType, workbook, onComplete, onBack }: Wiz
   const [step, setStep] = useState(0);
   const [analysisType, setAnalysisType] = useState<AnalysisType | null>(null);
   const [highlights, setHighlights] = useState<Highlight[]>([]);
-  const [goal, setGoal] = useState<number>(90);
+  // Meta inicial tomada de la configuración del programa (meta institucional).
+  const [goal, setGoal] = useState<number>(() => getProgramConfig(reportType).goal);
 
   const dims = availableDimensions(workbook);
   const TOTAL = 3;
