@@ -3,16 +3,20 @@ import type {
   ClinicalCharacterization,
   ComplianceGroup,
   DescriptiveVariable,
+  EvolutionPoint,
   GlobalCompliance,
   GroupCount,
   ParsedWorkbook,
   RawRow,
   ReportConfig,
+  TemporalAnalysis,
   UnitShiftMatrix,
 } from '../types';
 import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDescriptiveVariable, normalize, type RiskLevel } from './columnDetection';
 import { canonicalIndicatorNT234 } from './nt234';
 import { classifyLppStage, isLppStageColumn, LPP_STAGES, type LppStage } from './lpp';
+import { granularityFor } from '../config/options';
+import { periodKey, periodLabel, type Granularity } from './periods';
 
 const UNGROUPED = 'Sin especificar';
 
@@ -320,6 +324,79 @@ function clinicalCharacterization(workbook: ParsedWorkbook, config: ReportConfig
   };
 }
 
+/**
+ * Evolución del cumplimiento global agrupada por período (según la granularidad).
+ * Usa la misma base de cumplimiento que el análisis global (respeta el filtro de
+ * riesgo NT 234): NO filtra la base, solo la segmenta en el tiempo.
+ */
+function buildEvolution(
+  complianceRows: RawRow[],
+  dateCol: string | null,
+  complianceCols: string[],
+  gran: Granularity,
+  goal: number,
+): EvolutionPoint[] {
+  if (!dateCol) return [];
+  const acc = new Map<string, { cumple: number; noCumple: number }>();
+  for (const row of complianceRows) {
+    const key = periodKey(row[dateCol], gran);
+    if (!key) continue;
+    const t = tally(row, complianceCols);
+    const g = acc.get(key) ?? { cumple: 0, noCumple: 0 };
+    g.cumple += t.cumple;
+    g.noCumple += t.noCumple;
+    acc.set(key, g);
+  }
+  return Array.from(acc.entries())
+    .map(([key, g]) => {
+      const total = g.cumple + g.noCumple;
+      const percent = pct(g.cumple, total);
+      return { key, label: periodLabel(key, gran), total, cumple: g.cumple, percent, meetsGoal: total > 0 && percent >= goal };
+    })
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** Períodos disponibles en la base según la granularidad (ordenados). */
+function listPeriodKeys(rows: RawRow[], dateCol: string | null, gran: Granularity): { key: string; label: string }[] {
+  if (!dateCol) return [];
+  const keys = new Set<string>();
+  for (const row of rows) {
+    const key = periodKey(row[dateCol], gran);
+    if (key) keys.add(key);
+  }
+  return Array.from(keys)
+    .sort((a, b) => a.localeCompare(b))
+    .map((key) => ({ key, label: periodLabel(key, gran) }));
+}
+
+/**
+ * Construye el análisis temporal (evolución + períodos disponibles). No altera
+ * el cálculo de cumplimiento: reutiliza la misma base filtrada por riesgo.
+ */
+function buildTemporal(workbook: ParsedWorkbook, config: ReportConfig, complianceRows: RawRow[]): TemporalAnalysis {
+  const { columns } = workbook;
+  const dateCol = columnForRole(columns, 'fecha');
+  const complianceCols = columnsForRole(columns, 'cumplimiento');
+  const gran = granularityFor(config.analysisType);
+  const hasDate = dateCol !== null && listPeriodKeys(complianceRows, dateCol, gran).length > 0;
+  return {
+    hasDate,
+    granularity: gran,
+    evolution: hasDate ? buildEvolution(complianceRows, dateCol, complianceCols, gran, config.goal) : [],
+    periods: hasDate ? listPeriodKeys(complianceRows, dateCol, gran) : [],
+  };
+}
+
+/**
+ * Devuelve un workbook filtrado a un único período (por clave de período).
+ * Se usa en la comparación lado a lado, donde cada período se re-analiza completo.
+ */
+export function filterWorkbookByPeriod(workbook: ParsedWorkbook, key: string, gran: Granularity): ParsedWorkbook {
+  const dateCol = columnForRole(workbook.columns, 'fecha');
+  if (!dateCol) return workbook;
+  return { ...workbook, rows: workbook.rows.filter((r) => periodKey(r[dateCol], gran) === key) };
+}
+
 /** Ejecuta el motor de análisis completo. */
 export function analyze(workbook: ParsedWorkbook, config: ReportConfig): AnalysisResult {
   const { rows, columns } = workbook;
@@ -366,6 +443,9 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
   // Caracterización clínica por paciente (filtro de riesgo solo en NT 234 / LPP).
   const characterization = clinicalCharacterization(workbook, config);
 
+  // Análisis temporal (evolución + períodos disponibles) sobre la misma base.
+  const temporal = buildTemporal(workbook, config, complianceRows);
+
   return {
     config,
     totalRecords: rows.length,
@@ -379,6 +459,7 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
     highlightedIndicators: byIndicator.filter((i) => i.meetsGoal).sort((a, b) => b.percent - a.percent),
     descriptiveVariables: descriptiveVars,
     characterization,
+    temporal,
     detected: {
       unidad: unitCol !== null,
       turno: shiftCol !== null,

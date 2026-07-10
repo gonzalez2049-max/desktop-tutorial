@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import QuestionLayout from './QuestionLayout';
 import OptionCard from '../OptionCard';
-import { GOAL_PRESETS, HIGHLIGHTS, REPORT_TYPES } from '../../config/options';
-import type { Highlight, ParsedWorkbook, ReportConfig, ReportType } from '../../types';
+import { ANALYSIS_TYPES, GOAL_PRESETS, HIGHLIGHTS, REPORT_TYPES } from '../../config/options';
+import type { AnalysisType, Highlight, ParsedWorkbook, ReportConfig, ReportType } from '../../types';
 
 interface WizardProps {
   workbook: ParsedWorkbook;
@@ -23,16 +23,18 @@ function availableDimensions(workbook: ParsedWorkbook) {
 }
 
 /**
- * Asistente de 3 preguntas: tipo de informe, datos a destacar y meta.
- * Primero pregunta; el análisis y la generación vienen después.
+ * Asistente de 4 preguntas: tipo de informe, tipo de análisis temporal, datos a
+ * destacar y meta. Primero pregunta; el análisis y la generación vienen después.
  */
 export default function Wizard({ workbook, onComplete, onBack }: WizardProps) {
   const [step, setStep] = useState(0);
   const [reportType, setReportType] = useState<ReportType | null>(null);
+  const [analysisType, setAnalysisType] = useState<AnalysisType | null>(null);
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [goal, setGoal] = useState<number>(90);
 
   const dims = availableDimensions(workbook);
+  const TOTAL = 4;
 
   const toggleHighlight = (h: Highlight) => {
     setHighlights((prev) => (prev.includes(h) ? prev.filter((x) => x !== h) : [...prev, h]));
@@ -42,7 +44,7 @@ export default function Wizard({ workbook, onComplete, onBack }: WizardProps) {
     return (
       <QuestionLayout
         step={1}
-        total={3}
+        total={TOTAL}
         title="¿Qué tipo de informe quieres generar?"
         subtitle="Elige el ámbito de la auditoría para adaptar el análisis y las recomendaciones."
         onBack={onBack}
@@ -69,11 +71,44 @@ export default function Wizard({ workbook, onComplete, onBack }: WizardProps) {
     return (
       <QuestionLayout
         step={2}
-        total={3}
-        title="¿Qué datos quieres destacar?"
-        subtitle="Puedes elegir varios. Las opciones sin datos en tu Excel aparecen deshabilitadas."
+        total={TOTAL}
+        title="¿Qué tipo de análisis desea realizar?"
+        subtitle="Segmenta la base por período para ver la evolución del cumplimiento, o compara dos períodos lado a lado."
         onBack={() => setStep(0)}
         onNext={() => setStep(2)}
+        nextDisabled={!analysisType}
+      >
+        {!dims.fecha && (
+          <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            ⚠️ No se detectó una columna de fecha en tu Excel. Puedes continuar, pero la evolución y la comparación por
+            período no podrán calcularse hasta que exista una columna de fecha.
+          </p>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {ANALYSIS_TYPES.map((a) => (
+            <OptionCard
+              key={a.value}
+              label={a.label}
+              description={a.description}
+              icon={a.icon}
+              selected={analysisType === a.value}
+              onClick={() => setAnalysisType(a.value)}
+            />
+          ))}
+        </div>
+      </QuestionLayout>
+    );
+  }
+
+  if (step === 2) {
+    return (
+      <QuestionLayout
+        step={3}
+        total={TOTAL}
+        title="¿Qué datos quieres destacar?"
+        subtitle="Puedes elegir varios. Las opciones sin datos en tu Excel aparecen deshabilitadas."
+        onBack={() => setStep(1)}
+        onNext={() => setStep(3)}
         nextDisabled={highlights.length === 0}
       >
         <div className="grid gap-3 sm:grid-cols-2">
@@ -97,12 +132,12 @@ export default function Wizard({ workbook, onComplete, onBack }: WizardProps) {
 
   return (
     <QuestionLayout
-      step={3}
-      total={3}
+      step={4}
+      total={TOTAL}
       title="¿Cuál es la meta de cumplimiento?"
       subtitle="Se usará como referencia para el semáforo, las brechas y las recomendaciones."
-      onBack={() => setStep(1)}
-      onNext={() => onComplete({ reportType: reportType!, highlights, goal })}
+      onBack={() => setStep(2)}
+      onNext={() => onComplete({ reportType: reportType!, analysisType: analysisType!, highlights, goal })}
       nextLabel="Generar reporte ✨"
       nextDisabled={goal <= 0 || goal > 100}
     >

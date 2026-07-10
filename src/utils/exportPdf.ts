@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { AnalysisResult, ClinicalCharacterization, ComplianceGroup, ExecutiveReport } from '../types';
 import { buildExecutiveReport } from './executiveReport';
+import { analysisTypeLabel } from '../config/options';
 import { summaryKpis } from './reportModel';
 import { PALETTE, complianceHex, hexToRgb, trafficHex, trafficLabel, trafficLightFor } from './palette';
 
@@ -202,6 +203,51 @@ function drawDescriptiveTable(ctx: Ctx, a: AnalysisResult): void {
   ctx.y = lastTableY(doc) + 22;
 }
 
+/** Tabla de evolución del cumplimiento por período. */
+function drawEvolution(ctx: Ctx, a: AnalysisResult): void {
+  const { doc, margin, pageW } = ctx;
+  const pts = a.temporal.evolution;
+  const goal = a.config.goal;
+  autoTable(doc, {
+    startY: ctx.y,
+    head: [['Período', 'Cumple', 'Aplicables', '%', 'Estado']],
+    body: pts.map((p) => [p.label, String(p.cumple), String(p.total), `${p.percent}%`, p.meetsGoal ? 'Cumple' : 'Bajo meta']),
+    theme: 'grid',
+    headStyles: { fillColor: BLUE, textColor: [255, 255, 255], fontSize: 8.5, halign: 'center', lineColor: LINE, lineWidth: 0.5 },
+    bodyStyles: { fontSize: 8.5, cellPadding: 4, textColor: INK, lineColor: LINE, lineWidth: 0.5 },
+    columnStyles: {
+      0: { halign: 'left' },
+      1: { halign: 'center' },
+      2: { halign: 'center' },
+      3: { halign: 'center', fontStyle: 'bold' },
+      4: { halign: 'center', fontStyle: 'bold' },
+    },
+    margin: { left: margin, right: margin },
+    tableWidth: pageW - margin * 2,
+    didParseCell: (data) => {
+      if (data.section === 'body' && (data.column.index === 3 || data.column.index === 4)) {
+        const p = pts[data.row.index];
+        if (p) data.cell.styles.textColor = hexToRgb(complianceHex(p.percent, goal));
+      }
+    },
+  });
+  ctx.y = lastTableY(doc) + 8;
+  if (pts.length >= 2) {
+    const delta = Number((pts[pts.length - 1].percent - pts[0].percent).toFixed(1));
+    ensure(ctx, 20);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...MUTED);
+    doc.text(
+      `Variación entre ${pts[0].label} y ${pts[pts.length - 1].label}: ${delta >= 0 ? '+' : ''}${delta} puntos porcentuales`,
+      margin,
+      (ctx.y += 12),
+    );
+    ctx.y += 10;
+  }
+  ctx.y += 12;
+}
+
 /** Resumen ejecutivo: títulos de sección, párrafos y viñetas, con paginación. */
 function drawExecutive(ctx: Ctx, report: ExecutiveReport): void {
   const { doc, margin, pageW } = ctx;
@@ -299,6 +345,12 @@ export function exportPdf(a: AnalysisResult, fileName: string): void {
   if (a.complianceByUnit.length) {
     sectionTitle(ctx, 'Cumplimiento por unidad');
     drawComplianceTable(ctx, a.complianceByUnit, 'Unidad', a.config.goal);
+  }
+
+  if (a.temporal.hasDate && a.temporal.evolution.length > 0) {
+    ensure(ctx, 60);
+    sectionTitle(ctx, `Evolución del cumplimiento (${analysisTypeLabel(a.config.analysisType).toLowerCase()})`);
+    drawEvolution(ctx, a);
   }
 
   if (a.descriptiveVariables.length) {
