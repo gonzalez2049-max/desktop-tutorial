@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import type { AnalysisResult, ClinicalCharacterization, ComplianceGroup, ExecutiveReport } from '../types';
 import { buildExecutiveReport } from './executiveReport';
 import { analysisTypeLabel, showsEvolution } from '../config/options';
+import { buildReportCharts } from './reportCharts';
 import { summaryKpis } from './reportModel';
 import { PALETTE, complianceHex, hexToRgb, trafficHex, trafficLabel, trafficLightFor } from './palette';
 
@@ -298,6 +299,25 @@ function drawExecutive(ctx: Ctx, report: ExecutiveReport): void {
   }
 }
 
+/** Gráficos institucionales (velocímetro, barras, ranking, dona, evolución). */
+function drawCharts(ctx: Ctx, a: AnalysisResult): void {
+  const charts = buildReportCharts(a);
+  if (!charts.length) return;
+  const { doc, margin } = ctx;
+  sectionTitle(ctx, 'Gráficos institucionales');
+  ctx.y += 6;
+  for (const ch of charts) {
+    ensure(ctx, ch.height + 26);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.setTextColor(...BLUE);
+    doc.text(ch.title, margin, ctx.y + 8);
+    ctx.y += 14;
+    doc.addImage(ch.dataUrl, 'PNG', margin, ctx.y, ch.width, ch.height, undefined, 'FAST');
+    ctx.y += ch.height + 16;
+  }
+}
+
 /** Bloque de firma y timbre al final del informe. */
 function drawSignature(ctx: Ctx): void {
   const { doc, pageW } = ctx;
@@ -355,6 +375,8 @@ function buildPdfDoc(a: AnalysisResult, fileName: string): jsPDF {
       drawLppStages(ctx, a);
     }
   }
+
+  drawCharts(ctx, a);
 
   if (a.complianceByIndicator.length) {
     sectionTitle(ctx, 'Cumplimiento por indicador');
