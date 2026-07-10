@@ -15,7 +15,7 @@ import {
 import { saveAs } from 'file-saver';
 import type { ActionPlanRow, AnalysisResult, ClinicalCharacterization, ComplianceGroup, DescriptiveVariable, EvolutionPoint, ExecutiveReport } from '../types';
 import { buildExecutiveReport } from './executiveReport';
-import { analysisTypeLabel } from '../config/options';
+import { analysisTypeLabel, showsEvolution } from '../config/options';
 import { summaryKpis } from './reportModel';
 import { PALETTE, bare, complianceHex, trafficHex, trafficLabel, trafficLightFor } from './palette';
 
@@ -286,7 +286,7 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
     children.push(heading('Cumplimiento por unidad'), complianceTable(a.complianceByUnit, 'Unidad', a.config.goal));
   }
 
-  if (a.temporal.hasDate && a.temporal.evolution.length > 0) {
+  if (showsEvolution(a.config.analysisType) && a.temporal.hasDate && a.temporal.evolution.length > 0) {
     const pts = a.temporal.evolution;
     const delta = pts.length >= 2 ? Number((pts[pts.length - 1].percent - pts[0].percent).toFixed(1)) : null;
     children.push(

@@ -49,6 +49,14 @@ export function analysisTypeLabel(value: AnalysisType): string {
 }
 
 /**
+ * ¿El tipo de análisis muestra la evolución del cumplimiento?
+ * Solo trimestral, semestral y anual. El mensual no muestra evolución.
+ */
+export function showsEvolution(value: AnalysisType): boolean {
+  return value === 'trimestral' || value === 'semestral' || value === 'anual';
+}
+
+/**
  * Granularidad de agrupación temporal para un tipo de análisis.
  * La comparación usa la granularidad más fina (mensual) para elegir períodos.
  */

@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { AnalysisResult, ClinicalCharacterization, ComplianceGroup, ExecutiveReport } from '../types';
 import { buildExecutiveReport } from './executiveReport';
-import { analysisTypeLabel } from '../config/options';
+import { analysisTypeLabel, showsEvolution } from '../config/options';
 import { summaryKpis } from './reportModel';
 import { PALETTE, complianceHex, hexToRgb, trafficHex, trafficLabel, trafficLightFor } from './palette';
 
@@ -347,7 +347,7 @@ export function exportPdf(a: AnalysisResult, fileName: string): void {
     drawComplianceTable(ctx, a.complianceByUnit, 'Unidad', a.config.goal);
   }
 
-  if (a.temporal.hasDate && a.temporal.evolution.length > 0) {
+  if (showsEvolution(a.config.analysisType) && a.temporal.hasDate && a.temporal.evolution.length > 0) {
     ensure(ctx, 60);
     sectionTitle(ctx, `Evolución del cumplimiento (${analysisTypeLabel(a.config.analysisType).toLowerCase()})`);
     drawEvolution(ctx, a);
