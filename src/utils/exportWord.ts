@@ -75,8 +75,8 @@ function characterizationTable(c: ClinicalCharacterization): Table {
     ['Pacientes auditados', String(c.totalOriginal)],
     ['Pacientes con riesgo alto', String(c.highRisk)],
     ['Pacientes con riesgo moderado', String(c.moderateRisk)],
-    ['Pacientes incluidos (riesgo moderado + alto)', String(c.includedByRisk)],
-    ['Pacientes excluidos (sin riesgo / bajo riesgo)', String(c.excludedByRisk)],
+    ['Pacientes incluidos (riesgo moderado + alto)', c.includedByRisk !== null ? String(c.includedByRisk) : 'No determinado'],
+    ['Pacientes excluidos (sin riesgo / bajo riesgo)', c.excludedByRisk !== null ? String(c.excludedByRisk) : 'No determinado'],
     ['Pacientes con LPP', c.lppPositive !== null ? String(c.lppPositive) : '—'],
     ['% pacientes con LPP', c.lppPrevalence !== null ? `${c.lppPrevalence}%` : '—'],
   ];

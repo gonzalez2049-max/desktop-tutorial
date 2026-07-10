@@ -80,6 +80,9 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
   const allUnits = selectedUnit === ALL_UNITS;
   const admin = useMemo(() => isAdminMode(), []);
 
+  // NT 234 / LPP requiere columna de riesgo para calcular el cumplimiento.
+  const nt234NeedsRisk = config.reportType === 'NT234_LPP' && !a.characterization.riskColumnDetected;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -141,8 +144,25 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
       {config.reportType === 'NT234_LPP' && <CharacterizationSection c={a.characterization} />}
       {config.reportType === 'NT234_LPP' && <LppCharacterization c={a.characterization} />}
 
-      {/* 2) KPIs principales. */}
-      <KpiCards a={a} />
+      {/* NT 234 sin columna de riesgo: no se calcula el cumplimiento. */}
+      {nt234NeedsRisk && (
+        <div className="card border-amber-200 bg-amber-50 p-5">
+          <h3 className="flex items-center gap-2 text-base font-bold text-amber-800">⚠️ Cumplimiento NT 234 no calculado</h3>
+          <p className="mt-1 text-sm text-amber-800">
+            No se ha seleccionado la columna de riesgo, por lo que el cumplimiento NT 234 no puede calcularse. Vuelve a{' '}
+            <strong>Revisar columnas</strong> y marca la columna de riesgo (p. ej. «Riesgo», «Nivel de riesgo», «Braden»)
+            para habilitar el análisis.
+          </p>
+          <button className="btn-ghost mt-3" onClick={onReset}>
+            ↺ Volver a empezar
+          </button>
+        </div>
+      )}
+
+      {!nt234NeedsRisk && (
+        <>
+          {/* 2) KPIs principales. */}
+          <KpiCards a={a} />
 
       {/* 2.5) Análisis temporal: comparación o evolución según lo elegido en el wizard. */}
       {config.analysisType === 'comparacion' ? (
@@ -223,10 +243,12 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
       {/* Variables descriptivas (solo fuera de NT 234; en NT 234 lo cubre la caracterización de LPP). */}
       {config.reportType !== 'NT234_LPP' && <DescriptiveVariables variables={a.descriptiveVariables} totalRecords={a.totalRecords} />}
 
-      {/* 8) Resumen ejecutivo (análisis e interpretación al final) + exportación. */}
-      <ExecutiveSummary analysis={a} fileName={fileName} />
+          {/* 8) Resumen ejecutivo (análisis e interpretación al final) + exportación. */}
+          <ExecutiveSummary analysis={a} fileName={fileName} />
 
-      {admin && <AuditorPanel a={a} />}
+          {admin && <AuditorPanel a={a} />}
+        </>
+      )}
     </div>
   );
 }

@@ -176,8 +176,9 @@ export interface ClinicalCharacterization {
   totalOriginal: number;
   highRisk: number; // pacientes con riesgo alto
   moderateRisk: number; // pacientes con riesgo moderado
-  includedByRisk: number; // riesgo moderado + alto (base de cumplimiento)
-  excludedByRisk: number; // sin riesgo + bajo riesgo + no informado
+  includedByRisk: number | null; // riesgo moderado + alto; null = no determinado (falta columna de riesgo)
+  excludedByRisk: number | null; // sin riesgo + bajo + no informado + vacío; null = no determinado
+  riskColumnDetected: boolean; // se detectó una columna de riesgo utilizable
   riskFilterApplied: boolean; // true solo para NT 234 / LPP con columna de riesgo
   lppPositive: number | null;
   lppAnswered: number | null;

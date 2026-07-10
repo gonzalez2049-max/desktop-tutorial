@@ -53,8 +53,8 @@ export function exportAuditExcel(a: AnalysisResult): void {
     name: 'Caracterización',
     rows: [
       { Concepto: 'Pacientes auditados', Valor: c.totalOriginal },
-      { Concepto: 'Pacientes incluidos (moderado + alto)', Valor: c.includedByRisk },
-      { Concepto: 'Pacientes excluidos (sin / bajo riesgo)', Valor: c.excludedByRisk },
+      { Concepto: 'Pacientes incluidos (moderado + alto)', Valor: c.includedByRisk ?? 'No determinado' },
+      { Concepto: 'Pacientes excluidos (sin / bajo riesgo)', Valor: c.excludedByRisk ?? 'No determinado' },
       { Concepto: 'Pacientes con LPP', Valor: c.lppPositive ?? '—' },
       { Concepto: '% pacientes con LPP', Valor: c.lppPrevalence ?? '—' },
       { Concepto: 'Filtro de riesgo aplicado (NT 234)', Valor: c.riskFilterApplied ? 'Sí' : 'No' },
