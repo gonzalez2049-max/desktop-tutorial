@@ -4,6 +4,7 @@ import type { ReportType } from '../types';
 
 interface HomeProps {
   onSelect: (reportType: ReportType) => void;
+  onConfigure: (reportType: ReportType) => void;
 }
 
 /**
@@ -11,8 +12,9 @@ interface HomeProps {
  * Solo NT 234 / LPP está operativo; el resto de los módulos permanecen visibles
  * con la etiqueta "Próximamente" y no permiten continuar.
  */
-export default function Home({ onSelect }: HomeProps) {
+export default function Home({ onSelect, onConfigure }: HomeProps) {
   const [notice, setNotice] = useState<string | null>(null);
+  const operativos = REPORT_TYPES.filter((m) => m.status === 'operativo');
 
   const handleClick = (value: ReportType, operativo: boolean) => {
     if (operativo) {
@@ -77,6 +79,22 @@ export default function Home({ onSelect }: HomeProps) {
           );
         })}
       </div>
+
+      {operativos.length > 0 && (
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-sm">
+          <span className="text-slate-400">⚙️ Configuración del programa:</span>
+          {operativos.map((m) => (
+            <button
+              key={m.value}
+              type="button"
+              onClick={() => onConfigure(m.value)}
+              className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-600 transition hover:border-nex-400 hover:text-nex-700"
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <p className="mt-8 text-center text-xs text-slate-400">
         Nuevos programas de auditoría se incorporarán en próximas versiones.

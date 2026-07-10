@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { AnalysisResult } from '../../types';
 import { buildExecutiveReport } from '../../utils/executiveReport';
+import { getProgramConfig } from '../../utils/programConfig';
 import { copyReport } from '../../utils/reportExport';
 
 interface ExecutiveSummaryProps {
@@ -11,6 +12,7 @@ interface ExecutiveSummaryProps {
 /** Sección "Resumen ejecutivo del reporte": redacción automática + exportación. */
 export default function ExecutiveSummary({ analysis, fileName }: ExecutiveSummaryProps) {
   const report = useMemo(() => buildExecutiveReport(analysis), [analysis]);
+  const baseText = getProgramConfig(analysis.config.reportType).executiveBaseText.trim();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<null | 'pdf' | 'word'>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -76,6 +78,9 @@ export default function ExecutiveSummary({ analysis, fileName }: ExecutiveSummar
       {notice && <div className="border-b border-amber-100 bg-amber-50 px-5 py-2 text-sm text-amber-800">⚠️ {notice}</div>}
 
       <div className="space-y-6 p-5">
+        {baseText && (
+          <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm italic leading-relaxed text-slate-500">{baseText}</p>
+        )}
         {report.sections.map((s) => (
           <div key={s.id}>
             <h4 className="text-xs font-bold uppercase tracking-wide text-nex-700">{s.title}</h4>

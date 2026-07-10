@@ -15,6 +15,7 @@ import TrafficLightCard from './charts/TrafficLightCard';
 import AuditorPanel from './AuditorPanel';
 import { analysisTypeLabel, showsEvolution } from '../../config/options';
 import { trafficLabel, trafficLightFor } from '../../utils/palette';
+import { getProgramConfig } from '../../utils/programConfig';
 import { isAdminMode } from '../../utils/admin';
 
 // Recharts se carga solo al llegar a los resultados, no en la pantalla inicial.
@@ -83,8 +84,9 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
   const admin = useMemo(() => isAdminMode(), []);
 
   const isNT234 = config.reportType === 'NT234_LPP';
-  // NT 234 / LPP requiere columna de riesgo para calcular el cumplimiento.
-  const nt234NeedsRisk = isNT234 && !a.characterization.riskColumnDetected;
+  const program = useMemo(() => getProgramConfig(config.reportType), [config.reportType]);
+  // Un programa con filtro de riesgo requiere columna de riesgo para calcular el cumplimiento.
+  const nt234NeedsRisk = program.riskFilter && !a.characterization.riskColumnDetected;
 
   // Análisis temporal: solo comparación (comparacion) o evolución
   // (trimestral/semestral/anual). El informe mensual no muestra ninguna.
@@ -115,9 +117,12 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-400">
+            <span>{program.logo}</span> {program.institutionName} · {program.unitName}
+          </p>
           <h2 className="text-2xl font-bold text-slate-800">Análisis del reporte</h2>
           <p className="mt-1 text-sm text-slate-500">
-            {reportTypeLabel(config.reportType)} · <span className="text-slate-400">{fileName}</span>
+            {program.programName || reportTypeLabel(config.reportType)} · <span className="text-slate-400">{fileName}</span>
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {config.highlights.map((h) => (
@@ -196,7 +201,7 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
             icon="🚦"
             subtitle={`Cumplimiento global ${a.global.percent}% · Meta ${config.goal}% · ${trafficLabel(trafficLightFor(a.global.percent, config.goal))}`}
           >
-            <TrafficLightCard a={a} />
+            <TrafficLightCard a={a} colors={program.traffic} />
           </Section>
 
           {temporalSection}
