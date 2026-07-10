@@ -1,14 +1,16 @@
 import { useCallback, useRef, useState } from 'react';
 import { parseExcelFile } from '../utils/excelParser';
-import type { ParsedWorkbook } from '../types';
+import type { ParsedWorkbook, ReportType } from '../types';
 
 interface FileUploadProps {
   onParsed: (workbook: ParsedWorkbook) => void;
   onBack?: () => void;
+  /** Programa seleccionado: activa su perfil de reconocimiento de columnas. */
+  reportType?: ReportType;
 }
 
 /** Paso 2: carga del archivo Excel con soporte de arrastrar y soltar. */
-export default function FileUpload({ onParsed, onBack }: FileUploadProps) {
+export default function FileUpload({ onParsed, onBack, reportType }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,7 +21,7 @@ export default function FileUpload({ onParsed, onBack }: FileUploadProps) {
       setError(null);
       setLoading(true);
       try {
-        const wb = await parseExcelFile(file);
+        const wb = await parseExcelFile(file, reportType);
         onParsed(wb);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'No se pudo leer el archivo.');
@@ -27,7 +29,7 @@ export default function FileUpload({ onParsed, onBack }: FileUploadProps) {
         setLoading(false);
       }
     },
-    [onParsed],
+    [onParsed, reportType],
   );
 
   return (

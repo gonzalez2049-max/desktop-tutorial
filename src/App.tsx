@@ -86,7 +86,7 @@ export default function App() {
           <ProgramSettings reportType={configProgram} onBack={() => setStage('home')} />
         )}
 
-        {stage === 'upload' && <FileUpload onParsed={handleParsed} onBack={reset} />}
+        {stage === 'upload' && reportType && <FileUpload onParsed={handleParsed} onBack={reset} reportType={reportType} />}
 
         {stage === 'review' && workbook && (
           <ColumnReview
@@ -94,6 +94,7 @@ export default function App() {
             onChange={handleColumns}
             onConfirm={() => setStage('wizard')}
             onBack={() => setStage('upload')}
+            reportType={reportType ?? undefined}
             preview={<DataPreview workbook={workbook} />}
           />
         )}

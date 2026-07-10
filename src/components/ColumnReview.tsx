@@ -1,11 +1,14 @@
 import type { ReactNode } from 'react';
-import type { ColumnRole, DetectedColumn } from '../types';
+import type { ColumnRole, DetectedColumn, ReportType } from '../types';
+import { profileNameFor } from '../utils/detectionProfiles';
 
 interface ColumnReviewProps {
   columns: DetectedColumn[];
   onChange: (columns: DetectedColumn[]) => void;
   onConfirm: () => void;
   onBack: () => void;
+  /** Programa seleccionado (para mostrar el perfil de reconocimiento aplicado). */
+  reportType?: ReportType;
   /** Vista previa de datos que se muestra sobre la detección de columnas. */
   preview?: ReactNode;
 }
@@ -36,8 +39,10 @@ function confidenceBadge(c: number) {
  * Paso 2: revisión de la detección automática de columnas.
  * El usuario puede corregir cualquier asignación antes de continuar.
  */
-export default function ColumnReview({ columns, onChange, onConfirm, onBack, preview }: ColumnReviewProps) {
+export default function ColumnReview({ columns, onChange, onConfirm, onBack, reportType, preview }: ColumnReviewProps) {
   const hasCompliance = columns.some((c) => c.role === 'cumplimiento');
+  const profile = reportType ? profileNameFor(reportType) : null;
+  const doubtful = columns.filter((c) => c.confidence > 0 && c.confidence < 0.6).length;
 
   const setRole = (original: string, role: ColumnRole) => {
     onChange(columns.map((c) => (c.original === original ? { ...c, role, confidence: c.role === role ? c.confidence : 1 } : c)));
@@ -52,18 +57,28 @@ export default function ColumnReview({ columns, onChange, onConfirm, onBack, pre
         </p>
       </div>
 
+      {profile && (
+        <div className="mb-4 rounded-xl border border-nex-100 bg-nex-50 px-4 py-3 text-sm text-nex-800">
+          🧩 Perfil aplicado: <strong>{profile}</strong> — se asignaron las columnas según la estructura habitual.{' '}
+          {doubtful > 0
+            ? `Revisa las ${doubtful} columna(s) marcadas como "Revisar".`
+            : 'Todas las columnas se asignaron con buena confianza; confirma para continuar.'}
+        </div>
+      )}
+
       {preview && <div className="card p-4 mb-6">{preview}</div>}
 
       <h3 className="mb-2 text-sm font-semibold text-slate-600">Columnas detectadas</h3>
       <div className="card divide-y divide-slate-100">
         {columns.map((col) => {
           const badge = confidenceBadge(col.confidence);
+          const review = col.confidence > 0 && col.confidence < 0.6;
           return (
-            <div key={col.original} className="flex items-center gap-4 p-4">
+            <div key={col.original} className={`flex items-center gap-4 p-4 ${review ? 'bg-amber-50/60' : ''}`}>
               <div className="flex-1 min-w-0">
                 <p className="truncate font-medium text-slate-800">{col.original}</p>
                 <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${badge.cls}`}>
-                  Confianza: {badge.text}
+                  {review ? 'Revisar' : `Confianza: ${badge.text}`}
                 </span>
               </div>
               <select
