@@ -1,14 +1,17 @@
 import type { AnalysisType, Highlight, ReportType } from '../types';
 import type { Granularity } from '../utils/periods';
 
-/** Opciones de tipo de informe para el wizard. */
-export const REPORT_TYPES: { value: ReportType; label: string; description: string; icon: string }[] = [
-  { value: 'NT234_LPP', label: 'NT 234 / LPP', description: 'Prevención de lesiones por presión', icon: '🛏️' },
-  { value: 'IAAS', label: 'IAAS', description: 'Infecciones asociadas a la atención en salud', icon: '🦠' },
-  { value: 'Dolor', label: 'Dolor', description: 'Manejo y evaluación del dolor', icon: '📊' },
-  { value: 'Caidas', label: 'Caídas', description: 'Prevención de caídas', icon: '⚠️' },
-  { value: 'AccesosVasculares', label: 'Accesos Vasculares', description: 'Manejo de accesos vasculares', icon: '💉' },
-  { value: 'Personalizado', label: 'Otro informe personalizado', description: 'Auditoría genérica configurable', icon: '🧩' },
+/** Estado de disponibilidad de un módulo/programa clínico. */
+export type ModuleStatus = 'operativo' | 'proximamente';
+
+/** Programas de Buenas Prácticas Clínicas (módulos). Solo NT 234 / LPP está operativo. */
+export const REPORT_TYPES: { value: ReportType; label: string; description: string; icon: string; status: ModuleStatus }[] = [
+  { value: 'NT234_LPP', label: 'NT 234 / LPP', description: 'Prevención de lesiones por presión', icon: '🛏️', status: 'operativo' },
+  { value: 'IAAS', label: 'IAAS', description: 'Infecciones asociadas a la atención en salud', icon: '🦠', status: 'proximamente' },
+  { value: 'Dolor', label: 'Dolor', description: 'Manejo y evaluación del dolor', icon: '📊', status: 'proximamente' },
+  { value: 'Caidas', label: 'Caídas', description: 'Prevención de caídas', icon: '⚠️', status: 'proximamente' },
+  { value: 'AccesosVasculares', label: 'Accesos Vasculares', description: 'Manejo de accesos vasculares', icon: '💉', status: 'proximamente' },
+  { value: 'Personalizado', label: 'Otro informe personalizado', description: 'Auditoría genérica configurable', icon: '🧩', status: 'proximamente' },
 ];
 
 /** Opciones de datos a destacar. */
