@@ -30,6 +30,24 @@ function isDescriptive(value: unknown, patterns: string[]): boolean {
   return isDescriptiveVariable(value) || matchesDescriptivePatterns(value, patterns);
 }
 
+/**
+ * Filas de pacientes/registros reales. Descarta filas de resumen o totales (los
+ * bloques al pie del Excel oficial) y filas vacías: una fila es válida si tiene
+ * al menos un dato en las columnas clínicas (riesgo, indicador, cumplimiento,
+ * variable descriptiva o clasificación/estadio de LPP). Las columnas ignoradas
+ * (p. ej. "% Cumplimiento", "Semáforo") no cuentan para la validez.
+ */
+function validPatientRows(workbook: ParsedWorkbook): RawRow[] {
+  const { rows, columns } = workbook;
+  const clinical = columns
+    .filter((c) => c.role === 'riesgo' || c.role === 'cumplimiento' || c.role === 'indicador' || c.role === 'descriptivo')
+    .map((c) => c.original);
+  const stageCols = columns.map((c) => c.original).filter((h) => isLppStageColumn(h));
+  const cols = Array.from(new Set([...clinical, ...stageCols]));
+  if (cols.length === 0) return rows.slice();
+  return rows.filter((r) => cols.some((c) => !isEmpty(r[c])));
+}
+
 /** % de cumplimiento sobre casos aplicables (cumple / (cumple + no cumple)). */
 function pct(cumple: number, aplicables: number): number {
   return aplicables === 0 ? 0 : Number(((cumple / aplicables) * 100).toFixed(1));
@@ -154,11 +172,13 @@ function complianceByIndicator(
  * los pacientes de riesgo moderado y alto.
  */
 function complianceRowsFor(workbook: ParsedWorkbook, config: ReportConfig): RawRow[] {
-  const { rows, columns } = workbook;
+  const { columns } = workbook;
   const pc = getProgramConfig(config.reportType);
   const indicatorCol = columnForRole(columns, 'indicador');
   const riskCol = columnForRole(columns, 'riesgo');
-  let out = indicatorCol ? rows.filter((r) => !isDescriptive(r[indicatorCol], pc.descriptiveVariables)) : rows.slice();
+  // Parte de las filas reales (sin resumen/vacías) y excluye variables descriptivas.
+  const base = validPatientRows(workbook);
+  let out = indicatorCol ? base.filter((r) => !isDescriptive(r[indicatorCol], pc.descriptiveVariables)) : base;
   if (pc.riskFilter && riskCol) {
     out = out.filter((r) => {
       const lvl = classifyRisk(r[riskCol]);
@@ -387,8 +407,12 @@ export function filterWorkbookByPeriod(workbook: ParsedWorkbook, key: string, gr
 
 /** Ejecuta el motor de análisis completo. */
 export function analyze(workbook: ParsedWorkbook, config: ReportConfig): AnalysisResult {
-  const { rows, columns } = workbook;
   const goal = config.goal;
+
+  // Base de trabajo: solo filas de pacientes reales (descarta resumen/totales y vacías).
+  const dataRows = validPatientRows(workbook);
+  const data: ParsedWorkbook = { ...workbook, rows: dataRows };
+  const { columns } = data;
 
   const complianceCols = columnsForRole(columns, 'cumplimiento');
   const descriptiveCols = columnsForRole(columns, 'descriptivo');
@@ -399,10 +423,10 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
 
   // Filas descriptivas (formato largo) para la prevalencia.
   const isDescRow = (row: RawRow) => (indicatorCol ? isDescriptive(row[indicatorCol], pc.descriptiveVariables) : false);
-  const descriptiveRows = indicatorCol ? rows.filter(isDescRow) : [];
+  const descriptiveRows = indicatorCol ? dataRows.filter(isDescRow) : [];
 
   // Base de cumplimiento: sin descriptivas y, en NT 234 / LPP, solo riesgo moderado/alto.
-  const complianceRows = complianceRowsFor(workbook, config);
+  const complianceRows = complianceRowsFor(data, config);
 
   // Cumplimiento global.
   let cumple = 0;
@@ -426,20 +450,20 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
   };
 
   const byIndicator = complianceByIndicator(complianceRows, indicatorCol, complianceCols, goal, pc.canonicalizeIndicator, pc.descriptiveVariables);
-  const descriptiveVars = descriptiveVariables(rows, descriptiveCols, descriptiveRows, indicatorCol, complianceCols);
+  const descriptiveVars = descriptiveVariables(dataRows, descriptiveCols, descriptiveRows, indicatorCol, complianceCols);
 
   // Caracterización clínica por paciente (filtro de riesgo solo en NT 234 / LPP).
-  const characterization = clinicalCharacterization(workbook, config);
+  const characterization = clinicalCharacterization(data, config);
 
   // Análisis temporal (evolución + períodos disponibles) sobre la misma base.
-  const temporal = buildTemporal(workbook, config, complianceRows);
+  const temporal = buildTemporal(data, config, complianceRows);
 
   return {
     config,
-    totalRecords: rows.length,
+    totalRecords: dataRows.length,
     global,
-    totalByUnit: countBy(rows, unitCol),
-    totalByShift: countBy(rows, shiftCol),
+    totalByUnit: countBy(dataRows, unitCol),
+    totalByShift: countBy(dataRows, shiftCol),
     complianceByUnit: complianceBy(complianceRows, unitCol, complianceCols, goal),
     complianceByShift: complianceBy(complianceRows, shiftCol, complianceCols, goal),
     complianceByIndicator: byIndicator,

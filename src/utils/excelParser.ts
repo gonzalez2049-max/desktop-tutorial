@@ -25,9 +25,13 @@ export async function parseExcelFile(file: File, reportType?: ReportType): Promi
     throw new Error('La hoja seleccionada está vacía.');
   }
 
-  // Los headers son la unión de todas las claves presentes, preservando el
-  // orden de aparición de la primera fila.
-  const headers = Object.keys(rows[0]);
+  // Headers reales del Excel, descartando columnas auxiliares o vacías:
+  // - sin encabezado o encabezado en blanco,
+  // - columnas generadas por SheetJS sin encabezado (__EMPTY, __EMPTY_1, …),
+  // - columnas completamente vacías en todas las filas.
+  const isBlankHeader = (h: string) => h == null || String(h).trim() === '' || /^__EMPTY/i.test(h);
+  const isEmptyColumn = (h: string) => rows.every((r) => r[h] === null || r[h] === undefined || String(r[h]).trim() === '');
+  const headers = Object.keys(rows[0]).filter((h) => !isBlankHeader(h) && !isEmptyColumn(h));
 
   const base = detectColumns(headers, rows);
   const columns = reportType ? applyDetectionProfile(reportType, base, rows) : base;
