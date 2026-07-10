@@ -10,7 +10,7 @@ import type {
   ReportConfig,
   UnitShiftMatrix,
 } from '../types';
-import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDescriptiveVariable, type RiskLevel } from './columnDetection';
+import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDescriptiveVariable, normalize, type RiskLevel } from './columnDetection';
 import { canonicalIndicatorNT234 } from './nt234';
 import { classifyLppStage, isLppStageColumn, LPP_STAGES, type LppStage } from './lpp';
 
@@ -388,22 +388,60 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
 }
 
 /** Lista de unidades presentes (para el selector de unidad). */
+/** Palabras que no son unidades (totales, resúmenes, etc.). */
+const NON_UNIT_PREFIX = /^(total|totales|subtotal|sub total|general|promedio|suma|resumen)\b/;
+
+/**
+ * ¿El valor corresponde al nombre de una unidad? Excluye vacíos, números puros,
+ * porcentajes y filas de totales/resumen.
+ */
+function isValidUnitValue(value: unknown): boolean {
+  const norm = normalize(value);
+  if (!norm) return false; // vacío
+  if (!/[a-z]/.test(norm)) return false; // solo números / porcentajes
+  if (NON_UNIT_PREFIX.test(norm)) return false; // totales / resúmenes
+  return true;
+}
+
+/**
+ * Clave canónica para agrupar variantes de una misma unidad
+ * (p. ej. "UCM6", "UCM 6", "UCM 6°", "UCM 6 piso" → misma clave).
+ */
+export function unitCanonicalKey(value: unknown): string {
+  return normalize(value)
+    .replace(/\bpiso\b/g, '')
+    .replace(/\s+/g, '')
+    .trim();
+}
+
+/**
+ * Opciones del selector de unidad: únicamente nombres de unidad tomados de la
+ * columna "Unidad" (respetando la corrección manual del usuario), sin números,
+ * porcentajes, totales, vacíos ni duplicados, con variantes normalizadas y
+ * ordenadas alfabéticamente.
+ */
 export function listUnits(workbook: ParsedWorkbook): string[] {
   const unitCol = columnForRole(workbook.columns, 'unidad');
   if (!unitCol) return [];
-  const set = new Set<string>();
+  // clave canónica → forma de despliegue más completa (la más larga).
+  const byKey = new Map<string, string>();
   for (const row of workbook.rows) {
-    const label = labelOf(row[unitCol]);
-    if (label !== UNGROUPED) set.add(label);
+    const raw = String(row[unitCol] ?? '').trim();
+    if (!isValidUnitValue(raw)) continue;
+    const key = unitCanonicalKey(raw);
+    if (!key) continue;
+    const current = byKey.get(key);
+    if (!current || raw.length > current.length) byKey.set(key, raw);
   }
-  return Array.from(set).sort((a, b) => a.localeCompare(b));
+  return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b, 'es'));
 }
 
-/** Devuelve un workbook filtrado a una sola unidad. */
+/** Devuelve un workbook filtrado a una sola unidad (comparando por clave canónica). */
 export function filterWorkbookByUnit(workbook: ParsedWorkbook, unit: string): ParsedWorkbook {
   const unitCol = columnForRole(workbook.columns, 'unidad');
   if (!unitCol) return workbook;
-  return { ...workbook, rows: workbook.rows.filter((r) => labelOf(r[unitCol]) === unit) };
+  const target = unitCanonicalKey(unit);
+  return { ...workbook, rows: workbook.rows.filter((r) => unitCanonicalKey(r[unitCol]) === target) };
 }
 
 /**
