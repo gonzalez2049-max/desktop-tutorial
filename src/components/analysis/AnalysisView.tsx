@@ -12,7 +12,7 @@ import CharacterizationSection from './CharacterizationSection';
 import LppCharacterization from './LppCharacterization';
 import PeriodComparison from './PeriodComparison';
 import AuditorPanel from './AuditorPanel';
-import { analysisTypeLabel } from '../../config/options';
+import { analysisTypeLabel, showsEvolution } from '../../config/options';
 import { isAdminMode } from '../../utils/admin';
 
 // Recharts se carga solo al llegar a los resultados, no en la pantalla inicial.
@@ -164,24 +164,27 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
           {/* 2) KPIs principales. */}
           <KpiCards a={a} />
 
-      {/* 2.5) Análisis temporal: comparación o evolución según lo elegido en el wizard. */}
-      {config.analysisType === 'comparacion' ? (
-        a.temporal.hasDate && a.temporal.periods.length >= 2 ? (
+      {/* 2.5) Análisis temporal: solo comparación (comparacion) o evolución
+          (trimestral/semestral/anual). El informe mensual no muestra ninguna. */}
+      {config.analysisType === 'comparacion' &&
+        (a.temporal.hasDate && a.temporal.periods.length >= 2 ? (
           <PeriodComparison workbook={activeWorkbook} config={config} periods={a.temporal.periods} />
         ) : (
           <div className="card p-5 text-sm text-slate-500">
             ⚖️ Comparación entre períodos: se necesitan al menos dos períodos con columna de fecha. No se encontraron suficientes datos temporales.
           </div>
-        )
-      ) : a.temporal.hasDate && a.temporal.evolution.length > 0 ? (
-        <Suspense fallback={<div className="card p-8 text-center text-sm text-slate-400">Cargando evolución…</div>}>
-          <EvolutionSection points={a.temporal.evolution} goal={config.goal} analysisTypeLabelText={analysisTypeLabel(config.analysisType)} />
-        </Suspense>
-      ) : (
-        <div className="card p-5 text-sm text-slate-500">
-          📈 {analysisTypeLabel(config.analysisType)}: no se detectó una columna de fecha utilizable, por lo que no es posible mostrar la evolución temporal.
-        </div>
-      )}
+        ))}
+
+      {showsEvolution(config.analysisType) &&
+        (a.temporal.hasDate && a.temporal.evolution.length > 0 ? (
+          <Suspense fallback={<div className="card p-8 text-center text-sm text-slate-400">Cargando evolución…</div>}>
+            <EvolutionSection points={a.temporal.evolution} goal={config.goal} analysisTypeLabelText={analysisTypeLabel(config.analysisType)} />
+          </Suspense>
+        ) : (
+          <div className="card p-5 text-sm text-slate-500">
+            📈 {analysisTypeLabel(config.analysisType)}: no se detectó una columna de fecha utilizable, por lo que no es posible mostrar la evolución temporal.
+          </div>
+        ))}
 
       {/* 3-5) Cumplimiento por indicador / turno / unidad. */}
       {a.complianceByIndicator.length > 0 && (
