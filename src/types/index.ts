@@ -161,6 +161,8 @@ export interface LppStageCount {
  */
 export interface ClinicalCharacterization {
   totalOriginal: number;
+  highRisk: number; // pacientes con riesgo alto
+  moderateRisk: number; // pacientes con riesgo moderado
   includedByRisk: number; // riesgo moderado + alto (base de cumplimiento)
   excludedByRisk: number; // sin riesgo + bajo riesgo + no informado
   riskFilterApplied: boolean; // true solo para NT 234 / LPP con columna de riesgo

@@ -277,16 +277,19 @@ function clinicalCharacterization(workbook: ParsedWorkbook, config: ReportConfig
     patients.set(key, info);
   });
 
-  let included = 0;
+  let highRisk = 0;
+  let moderateRisk = 0;
   let lppPos = 0;
   let explicitAns = 0; // pacientes con respuesta explícita Sí/No de LPP
   const stageAcc = new Map<string, number>();
   for (const info of patients.values()) {
-    if (info.risk === 'alto' || info.risk === 'moderado') included++;
+    if (info.risk === 'alto') highRisk++;
+    else if (info.risk === 'moderado') moderateRisk++;
     if (info.lppPos) lppPos++;
     if (info.lppAns) explicitAns++;
     if (info.stage) stageAcc.set(info.stage, (stageAcc.get(info.stage) ?? 0) + 1);
   }
+  const included = highRisk + moderateRisk;
   const total = patients.size;
   const riskFilterApplied = isNT234 && riskCol !== null;
   const stagesPresent = stageAcc.size > 0;
@@ -305,6 +308,8 @@ function clinicalCharacterization(workbook: ParsedWorkbook, config: ReportConfig
 
   return {
     totalOriginal: total,
+    highRisk,
+    moderateRisk,
     includedByRisk: riskFilterApplied ? included : total,
     excludedByRisk: riskFilterApplied ? total - included : 0,
     riskFilterApplied,
