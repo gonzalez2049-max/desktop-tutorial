@@ -46,9 +46,22 @@ export interface DetectedColumn {
 /** Un valor de cumplimiento normalizado. */
 export type ComplianceValue = 'cumple' | 'no_cumple' | 'no_aplica' | 'desconocido';
 
+/**
+ * Tipo de análisis temporal elegido en el wizard.
+ * Los períodos (mensual…anual) segmentan la base y muestran la evolución del
+ * cumplimiento sin filtrar; 'comparacion' habilita el contraste de dos períodos.
+ */
+export type AnalysisType =
+  | 'mensual'
+  | 'trimestral'
+  | 'semestral'
+  | 'anual'
+  | 'comparacion';
+
 /** Configuración final del informe elegida en el wizard. */
 export interface ReportConfig {
   reportType: ReportType;
+  analysisType: AnalysisType;
   highlights: Highlight[];
   goal: number; // meta de cumplimiento en % (0..100)
 }
@@ -172,6 +185,43 @@ export interface ClinicalCharacterization {
   lppStages: LppStageCount[]; // distribución por estadio (vacío si no hay datos)
 }
 
+/** Punto de la evolución temporal del cumplimiento (un período). */
+export interface EvolutionPoint {
+  key: string; // clave ordenable del período (p. ej. "2026-Q1")
+  label: string; // etiqueta legible (p. ej. "Q1 2026")
+  total: number; // registros aplicables del período
+  cumple: number;
+  percent: number; // cumplimiento global del período
+  meetsGoal: boolean;
+}
+
+/** Cumplimiento de un indicador dentro de un período (para la comparación). */
+export interface PeriodIndicator {
+  label: string;
+  percent: number | null; // null = sin datos aplicables en ese período
+}
+
+/** Métricas de un período elegido para la comparación lado a lado. */
+export interface PeriodSnapshot {
+  key: string;
+  label: string;
+  global: number | null; // % cumplimiento global
+  aplicables: number;
+  byIndicator: PeriodIndicator[];
+  lppPrevalence: number | null;
+}
+
+/**
+ * Análisis temporal: evolución del cumplimiento por período y, cuando la base
+ * tiene columna de fecha, los períodos disponibles para comparar.
+ */
+export interface TemporalAnalysis {
+  hasDate: boolean; // existe columna de fecha utilizable
+  granularity: 'mensual' | 'trimestral' | 'semestral' | 'anual';
+  evolution: EvolutionPoint[]; // vacío si no hay fecha
+  periods: { key: string; label: string }[]; // períodos disponibles para comparar
+}
+
 /** Resultado completo del motor de análisis. */
 export interface AnalysisResult {
   config: ReportConfig;
@@ -186,6 +236,7 @@ export interface AnalysisResult {
   highlightedIndicators: ComplianceGroup[]; // sobre o en la meta
   descriptiveVariables: DescriptiveVariable[]; // prevalencia (no cumplimiento)
   characterization: ClinicalCharacterization;
+  temporal: TemporalAnalysis;
   detected: {
     unidad: boolean;
     turno: boolean;

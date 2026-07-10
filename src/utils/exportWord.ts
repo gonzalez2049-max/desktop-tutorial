@@ -13,8 +13,9 @@ import {
   WidthType,
 } from 'docx';
 import { saveAs } from 'file-saver';
-import type { ActionPlanRow, AnalysisResult, ClinicalCharacterization, ComplianceGroup, DescriptiveVariable, ExecutiveReport } from '../types';
+import type { ActionPlanRow, AnalysisResult, ClinicalCharacterization, ComplianceGroup, DescriptiveVariable, EvolutionPoint, ExecutiveReport } from '../types';
 import { buildExecutiveReport } from './executiveReport';
+import { analysisTypeLabel } from '../config/options';
 import { summaryKpis } from './reportModel';
 import { PALETTE, bare, complianceHex, trafficHex, trafficLabel, trafficLightFor } from './palette';
 
@@ -128,6 +129,31 @@ function descriptiveTable(vars: DescriptiveVariable[]): Table {
           bodyCell([text(String(v.positive))], AlignmentType.CENTER),
           bodyCell([text(String(v.negative))], AlignmentType.CENTER),
           bodyCell([text(`${v.prevalence}% (${v.positive}/${v.answered})`, { bold: true, color: PALETTE.blue })], AlignmentType.CENTER),
+        ],
+      }),
+    );
+  }
+  return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
+}
+
+/** Tabla de evolución del cumplimiento por período. */
+function evolutionTable(points: EvolutionPoint[], goal: number): Table {
+  const rows: TableRow[] = [
+    new TableRow({
+      tableHeader: true,
+      children: [headerCell('Período'), headerCell('Cumple'), headerCell('Aplicables'), headerCell('Cumplimiento'), headerCell('Estado')],
+    }),
+  ];
+  for (const p of points) {
+    const color = complianceHex(p.percent, goal);
+    rows.push(
+      new TableRow({
+        children: [
+          bodyCell([text(p.label)]),
+          bodyCell([text(String(p.cumple))], AlignmentType.CENTER),
+          bodyCell([text(String(p.total))], AlignmentType.CENTER),
+          bodyCell([text(`${p.percent}%`, { bold: true, color })], AlignmentType.CENTER),
+          bodyCell([text(p.meetsGoal ? 'Cumple' : 'Bajo meta', { bold: true, color })], AlignmentType.CENTER),
         ],
       }),
     );
@@ -258,6 +284,26 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
   }
   if (a.complianceByUnit.length) {
     children.push(heading('Cumplimiento por unidad'), complianceTable(a.complianceByUnit, 'Unidad', a.config.goal));
+  }
+
+  if (a.temporal.hasDate && a.temporal.evolution.length > 0) {
+    const pts = a.temporal.evolution;
+    const delta = pts.length >= 2 ? Number((pts[pts.length - 1].percent - pts[0].percent).toFixed(1)) : null;
+    children.push(
+      heading(`Evolución del cumplimiento (${analysisTypeLabel(a.config.analysisType).toLowerCase()})`),
+      evolutionTable(pts, a.config.goal),
+    );
+    if (delta !== null) {
+      children.push(
+        new Paragraph({
+          spacing: { before: 80, after: 80 },
+          children: [
+            text(`Variación entre ${pts[0].label} y ${pts[pts.length - 1].label}: `, { size: 18, color: PALETTE.muted }),
+            text(`${delta >= 0 ? '+' : ''}${delta} puntos porcentuales`, { bold: true, color: delta >= 0 ? PALETTE.green : PALETTE.red }),
+          ],
+        }),
+      );
+    }
   }
 
   if (a.descriptiveVariables.length) {

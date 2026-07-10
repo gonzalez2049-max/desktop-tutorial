@@ -1,4 +1,5 @@
-import type { Highlight, ReportType } from '../types';
+import type { AnalysisType, Highlight, ReportType } from '../types';
+import type { Granularity } from '../utils/periods';
 
 /** Opciones de tipo de informe para el wizard. */
 export const REPORT_TYPES: { value: ReportType; label: string; description: string; icon: string }[] = [
@@ -22,12 +23,45 @@ export const HIGHLIGHTS: { value: Highlight; label: string; description: string;
   { value: 'comparacion_mensual', label: 'Comparación mensual', description: 'Evolución del cumplimiento en el tiempo', requires: 'fecha' },
 ];
 
+/** Tipos de análisis temporal para el wizard. */
+export const ANALYSIS_TYPES: { value: AnalysisType; label: string; description: string; icon: string }[] = [
+  { value: 'mensual', label: 'Informe mensual', description: 'Segmenta la base por mes y muestra la evolución', icon: '📅' },
+  { value: 'trimestral', label: 'Informe trimestral', description: 'Agrupa por trimestre (Q1–Q4) y muestra la evolución', icon: '🗓️' },
+  { value: 'semestral', label: 'Informe semestral', description: 'Agrupa por semestre y muestra la evolución', icon: '📆' },
+  { value: 'anual', label: 'Informe anual', description: 'Agrupa por año y muestra la evolución', icon: '📈' },
+  { value: 'comparacion', label: 'Comparación entre períodos', description: 'Contrasta dos períodos elegidos lado a lado (Δ)', icon: '⚖️' },
+];
+
 /** Metas de cumplimiento sugeridas. */
 export const GOAL_PRESETS = [80, 85, 90, 95];
 
 /** Etiqueta legible para un tipo de informe. */
 export function reportTypeLabel(value: ReportType): string {
   return REPORT_TYPES.find((r) => r.value === value)?.label ?? 'Informe';
+}
+
+/** Etiqueta legible para un tipo de análisis. */
+export function analysisTypeLabel(value: AnalysisType): string {
+  return ANALYSIS_TYPES.find((a) => a.value === value)?.label ?? 'Análisis';
+}
+
+/**
+ * Granularidad de agrupación temporal para un tipo de análisis.
+ * La comparación usa la granularidad más fina (mensual) para elegir períodos.
+ */
+export function granularityFor(value: AnalysisType): Granularity {
+  switch (value) {
+    case 'trimestral':
+      return 'trimestral';
+    case 'semestral':
+      return 'semestral';
+    case 'anual':
+      return 'anual';
+    case 'mensual':
+    case 'comparacion':
+    default:
+      return 'mensual';
+  }
 }
 
 /** Etiqueta legible para un highlight. */
