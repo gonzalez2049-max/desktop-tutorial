@@ -1,7 +1,8 @@
 // Perfiles de reconocimiento de columnas por programa. Mejoran la asignación
 // automática sin tocar el motor de cálculo: solo deciden el ROL de cada columna.
 import type { DetectedColumn, RawRow, ReportType } from '../types';
-import { classifyCompliance, normalize } from './columnDetection';
+import { classifyCompliance, isDescriptiveVariable, normalize } from './columnDetection';
+import { isLppStageColumn } from './lpp';
 import { canonicalIndicatorNT234 } from './nt234';
 
 /** Nombre del perfil de reconocimiento del módulo NT 234 (estructura HUAP). */
@@ -59,6 +60,11 @@ function applyNt234HuapProfile(columns: DetectedColumn[], rows: RawRow[]): Detec
     //    (formato ancho). Gana a la señal de riesgo de "Valoración de Riesgo…".
     if (canonicalIndicatorNT234(col.original) && complianceRatio(rows, col.original) >= 0.5) {
       return { ...col, role: 'cumplimiento', confidence: 0.95 };
+    }
+
+    // 3b) LPP descriptiva / clasificación de LPP (no es riesgo ni cumplimiento).
+    if (col.role !== 'descriptivo' && (isDescriptiveVariable(col.original) || isLppStageColumn(col.original))) {
+      return { ...col, role: 'descriptivo', confidence: 0.9 };
     }
 
     // 4) Resumen / derivados: nunca indicador. Se ignoran salvo contenido Sí/No real.
