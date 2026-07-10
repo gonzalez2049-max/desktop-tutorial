@@ -16,7 +16,7 @@ import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDesc
 import { classifyLppStage, isLppStageColumn, LPP_STAGES } from './lpp';
 import { granularityFor } from '../config/options';
 import { getProgramConfig } from './programConfig';
-import { periodKey, periodLabel, type Granularity } from './periods';
+import { detectDateOrder, periodKey, periodLabel, type DateOrder, type Granularity } from './periods';
 
 const UNGROUPED = 'Sin especificar';
 
@@ -343,11 +343,12 @@ function buildEvolution(
   complianceCols: string[],
   gran: Granularity,
   goal: number,
+  order: DateOrder,
 ): EvolutionPoint[] {
   if (!dateCol) return [];
   const acc = new Map<string, { cumple: number; noCumple: number }>();
   for (const row of complianceRows) {
-    const key = periodKey(row[dateCol], gran);
+    const key = periodKey(row[dateCol], gran, order);
     if (!key) continue;
     const t = tally(row, complianceCols);
     const g = acc.get(key) ?? { cumple: 0, noCumple: 0 };
@@ -365,11 +366,11 @@ function buildEvolution(
 }
 
 /** Períodos disponibles en la base según la granularidad (ordenados). */
-function listPeriodKeys(rows: RawRow[], dateCol: string | null, gran: Granularity): { key: string; label: string }[] {
+function listPeriodKeys(rows: RawRow[], dateCol: string | null, gran: Granularity, order: DateOrder): { key: string; label: string }[] {
   if (!dateCol) return [];
   const keys = new Set<string>();
   for (const row of rows) {
-    const key = periodKey(row[dateCol], gran);
+    const key = periodKey(row[dateCol], gran, order);
     if (key) keys.add(key);
   }
   return Array.from(keys)
@@ -379,19 +380,21 @@ function listPeriodKeys(rows: RawRow[], dateCol: string | null, gran: Granularit
 
 /**
  * Construye el análisis temporal (evolución + períodos disponibles). No altera
- * el cálculo de cumplimiento: reutiliza la misma base filtrada por riesgo.
+ * el cálculo de cumplimiento: reutiliza la misma base filtrada por riesgo. El
+ * orden de fecha (dd/mm vs mm/dd) se autodetecta de la propia columna.
  */
 function buildTemporal(workbook: ParsedWorkbook, config: ReportConfig, complianceRows: RawRow[]): TemporalAnalysis {
   const { columns } = workbook;
   const dateCol = columnForRole(columns, 'fecha');
   const complianceCols = columnsForRole(columns, 'cumplimiento');
   const gran = granularityFor(config.analysisType);
-  const hasDate = dateCol !== null && listPeriodKeys(complianceRows, dateCol, gran).length > 0;
+  const order = dateCol ? detectDateOrder(complianceRows.map((r) => r[dateCol])) : 'dmy';
+  const hasDate = dateCol !== null && listPeriodKeys(complianceRows, dateCol, gran, order).length > 0;
   return {
     hasDate,
     granularity: gran,
-    evolution: hasDate ? buildEvolution(complianceRows, dateCol, complianceCols, gran, config.goal) : [],
-    periods: hasDate ? listPeriodKeys(complianceRows, dateCol, gran) : [],
+    evolution: hasDate ? buildEvolution(complianceRows, dateCol, complianceCols, gran, config.goal, order) : [],
+    periods: hasDate ? listPeriodKeys(complianceRows, dateCol, gran, order) : [],
   };
 }
 
@@ -402,7 +405,8 @@ function buildTemporal(workbook: ParsedWorkbook, config: ReportConfig, complianc
 export function filterWorkbookByPeriod(workbook: ParsedWorkbook, key: string, gran: Granularity): ParsedWorkbook {
   const dateCol = columnForRole(workbook.columns, 'fecha');
   if (!dateCol) return workbook;
-  return { ...workbook, rows: workbook.rows.filter((r) => periodKey(r[dateCol], gran) === key) };
+  const order = detectDateOrder(workbook.rows.map((r) => r[dateCol]));
+  return { ...workbook, rows: workbook.rows.filter((r) => periodKey(r[dateCol], gran, order) === key) };
 }
 
 /** Ejecuta el motor de análisis completo. */

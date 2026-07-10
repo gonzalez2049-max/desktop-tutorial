@@ -15,11 +15,20 @@ export const PALETTE = {
 
 export type TrafficLight = 'verde' | 'amarillo' | 'rojo';
 
+/** Colores del semáforo (verde / amarillo / rojo); configurables por programa. */
+export interface TrafficColors {
+  verde: string;
+  amarillo: string;
+  rojo: string;
+}
+
+const DEFAULT_TRAFFIC: TrafficColors = { verde: PALETTE.green, amarillo: PALETTE.amber, rojo: PALETTE.red };
+
 /** Color de cumplimiento según el % respecto de la meta. */
-export function complianceHex(percent: number, goal: number): string {
-  if (percent >= goal) return PALETTE.green;
-  if (percent >= goal - 10) return PALETTE.amber;
-  return PALETTE.red;
+export function complianceHex(percent: number, goal: number, colors: TrafficColors = DEFAULT_TRAFFIC): string {
+  if (percent >= goal) return colors.verde;
+  if (percent >= goal - 10) return colors.amarillo;
+  return colors.rojo;
 }
 
 /** Estado del semáforo según el % respecto de la meta. */
@@ -35,8 +44,8 @@ export function trafficLabel(light: TrafficLight): string {
 }
 
 /** Color hex del semáforo. */
-export function trafficHex(light: TrafficLight): string {
-  return light === 'verde' ? PALETTE.green : light === 'amarillo' ? PALETTE.amber : PALETTE.red;
+export function trafficHex(light: TrafficLight, colors: TrafficColors = DEFAULT_TRAFFIC): string {
+  return light === 'verde' ? colors.verde : light === 'amarillo' ? colors.amarillo : colors.rojo;
 }
 
 /** Convierte un hex (#RRGGBB) a tupla RGB para jsPDF. */
