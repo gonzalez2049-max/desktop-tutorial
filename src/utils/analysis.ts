@@ -12,6 +12,7 @@ import type {
 } from '../types';
 import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDescriptiveVariable, type RiskLevel } from './columnDetection';
 import { canonicalIndicatorNT234 } from './nt234';
+import { classifyLppStage, isLppStageColumn, LPP_STAGES, type LppStage } from './lpp';
 
 const UNGROUPED = 'Sin especificar';
 
@@ -221,17 +222,22 @@ function clinicalCharacterization(workbook: ParsedWorkbook, config: ReportConfig
   const complianceCols = columnsForRole(columns, 'cumplimiento');
   const descriptiveCols = columnsForRole(columns, 'descriptivo');
   const isNT234 = config.reportType === 'NT234_LPP';
+  // Columnas donde buscar la clasificación por estadio de LPP.
+  const stageCols = columns
+    .map((c) => c.original)
+    .filter((h) => isLppStageColumn(h) || isDescriptiveVariable(h));
 
   interface PInfo {
     risk: RiskLevel;
     lppPos: boolean;
     lppAns: boolean;
+    stage: LppStage | null;
   }
   const patients = new Map<string, PInfo>();
 
   rows.forEach((row, idx) => {
     const key = patientCol ? labelOf(row[patientCol]) : `registro-${idx}`;
-    const info = patients.get(key) ?? { risk: 'desconocido', lppPos: false, lppAns: false };
+    const info = patients.get(key) ?? { risk: 'desconocido', lppPos: false, lppAns: false, stage: null };
 
     if (riskCol) {
       const lvl = classifyRisk(row[riskCol]);
@@ -255,20 +261,47 @@ function clinicalCharacterization(workbook: ParsedWorkbook, config: ReportConfig
       } else if (t.noCumple > 0) info.lppAns = true;
     }
 
+    // Clasificación por estadio (una lesión clasificada implica LPP presente).
+    // No cuenta como "respuesta Sí/No"; el denominador se ajusta más abajo.
+    if (!info.stage) {
+      for (const col of stageCols) {
+        const st = classifyLppStage(row[col]);
+        if (st) {
+          info.stage = st;
+          info.lppPos = true;
+          break;
+        }
+      }
+    }
+
     patients.set(key, info);
   });
 
   let included = 0;
   let lppPos = 0;
-  let lppAns = 0;
+  let explicitAns = 0; // pacientes con respuesta explícita Sí/No de LPP
+  const stageAcc = new Map<string, number>();
   for (const info of patients.values()) {
     if (info.risk === 'alto' || info.risk === 'moderado') included++;
     if (info.lppPos) lppPos++;
-    if (info.lppAns) lppAns++;
+    if (info.lppAns) explicitAns++;
+    if (info.stage) stageAcc.set(info.stage, (stageAcc.get(info.stage) ?? 0) + 1);
   }
   const total = patients.size;
   const riskFilterApplied = isNT234 && riskCol !== null;
-  const hasLpp = lppAns > 0;
+  const stagesPresent = stageAcc.size > 0;
+  // Con clasificación por estadio, todos los pacientes fueron evaluados para LPP
+  // (la ausencia de estadio equivale a "sin LPP"); si solo hay Sí/No, se usan las
+  // respuestas explícitas.
+  const answered = stagesPresent ? total : explicitAns;
+  const hasLpp = lppPos > 0;
+
+  const lppStages = stagesPresent
+    ? LPP_STAGES.map((stage) => {
+        const count = stageAcc.get(stage) ?? 0;
+        return { stage, count, percent: pct(count, lppPos) };
+      })
+    : [];
 
   return {
     totalOriginal: total,
@@ -276,8 +309,9 @@ function clinicalCharacterization(workbook: ParsedWorkbook, config: ReportConfig
     excludedByRisk: riskFilterApplied ? total - included : 0,
     riskFilterApplied,
     lppPositive: hasLpp ? lppPos : null,
-    lppAnswered: hasLpp ? lppAns : null,
-    lppPrevalence: hasLpp ? pct(lppPos, lppAns) : null,
+    lppAnswered: hasLpp ? answered : null,
+    lppPrevalence: hasLpp ? pct(lppPos, answered) : null,
+    lppStages,
   };
 }
 

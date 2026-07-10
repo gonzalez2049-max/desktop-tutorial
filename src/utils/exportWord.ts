@@ -86,6 +86,30 @@ function characterizationTable(c: ClinicalCharacterization): Table {
   });
 }
 
+/** Tabla de distribución de LPP por estadio/categoría. */
+function lppStageTable(c: ClinicalCharacterization): Table {
+  const stages = c.lppStages.filter((s) => s.count > 0);
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({ tableHeader: true, children: [headerCell('Clasificación de LPP'), headerCell('Cantidad'), headerCell('Porcentaje')] }),
+      new TableRow({
+        children: [
+          bodyCell([text('Total de pacientes con LPP', { bold: true })]),
+          bodyCell([text(String(c.lppPositive ?? 0), { bold: true })], AlignmentType.CENTER),
+          bodyCell([text('100%', { bold: true })], AlignmentType.CENTER),
+        ],
+      }),
+      ...stages.map(
+        (s) =>
+          new TableRow({
+            children: [bodyCell([text(s.stage)]), bodyCell([text(String(s.count))], AlignmentType.CENTER), bodyCell([text(`${s.percent}%`, { color: PALETTE.blue })], AlignmentType.CENTER)],
+          }),
+      ),
+    ],
+  });
+}
+
 /** Tabla de variables clínicas descriptivas (prevalencia, no cumplimiento). */
 function descriptiveTable(vars: DescriptiveVariable[]): Table {
   const rows: TableRow[] = [
@@ -219,6 +243,9 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
 
   if (a.config.reportType === 'NT234_LPP') {
     children.push(heading('Caracterización clínica'), characterizationTable(a.characterization));
+    if (a.characterization.lppStages.some((s) => s.count > 0)) {
+      children.push(heading('Caracterización de pacientes con LPP'), lppStageTable(a.characterization));
+    }
   }
 
   if (a.complianceByIndicator.length) {
