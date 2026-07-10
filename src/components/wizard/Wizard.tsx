@@ -11,6 +11,8 @@ interface WizardProps {
   workbook: ParsedWorkbook;
   onComplete: (config: ReportConfig) => void;
   onBack: () => void;
+  /** Configuración previa (al volver a editar): precarga las respuestas. */
+  initialConfig?: ReportConfig;
 }
 
 /** Detecta qué dimensiones existen para deshabilitar highlights no disponibles. */
@@ -29,12 +31,13 @@ function availableDimensions(workbook: ParsedWorkbook) {
  * Asistente de 3 preguntas: tipo de análisis temporal, datos a destacar y meta.
  * El programa clínico (tipo de informe) ya viene elegido desde la pantalla inicial.
  */
-export default function Wizard({ reportType, workbook, onComplete, onBack }: WizardProps) {
+export default function Wizard({ reportType, workbook, onComplete, onBack, initialConfig }: WizardProps) {
   const [step, setStep] = useState(0);
-  const [analysisType, setAnalysisType] = useState<AnalysisType | null>(null);
-  const [highlights, setHighlights] = useState<Highlight[]>([]);
-  // Meta inicial tomada de la configuración del programa (meta institucional).
-  const [goal, setGoal] = useState<number>(() => getProgramConfig(reportType).goal);
+  // Al volver a editar se recuperan las respuestas anteriores; si no, valores por defecto.
+  const [analysisType, setAnalysisType] = useState<AnalysisType | null>(initialConfig?.analysisType ?? null);
+  const [highlights, setHighlights] = useState<Highlight[]>(initialConfig?.highlights ?? []);
+  // Meta inicial: la configuración previa o la meta institucional del programa.
+  const [goal, setGoal] = useState<number>(() => initialConfig?.goal ?? getProgramConfig(reportType).goal);
 
   const dims = availableDimensions(workbook);
   const TOTAL = 3;
