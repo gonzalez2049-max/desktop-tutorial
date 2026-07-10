@@ -4,8 +4,10 @@ import type { AnalysisResult, ClinicalCharacterization, ComplianceGroup, Executi
 import { buildExecutiveReport } from './executiveReport';
 import { analysisTypeLabel, showsEvolution } from '../config/options';
 import { buildReportCharts } from './reportCharts';
+import { getProgramConfig } from './programConfig';
+import type { ProgramConfig } from '../config/programs';
 import { summaryKpis } from './reportModel';
-import { PALETTE, complianceHex, hexToRgb, trafficHex, trafficLabel, trafficLightFor } from './palette';
+import { PALETTE, complianceHex, hexToRgb, trafficHex, trafficLabel, trafficLightFor, type TrafficColors } from './palette';
 
 interface Ctx {
   doc: jsPDF;
@@ -13,6 +15,8 @@ interface Ctx {
   pageH: number;
   margin: number;
   y: number;
+  colors: TrafficColors;
+  program: ProgramConfig;
 }
 
 const BLUE = hexToRgb(PALETTE.blue);
@@ -32,34 +36,34 @@ function lastTableY(doc: jsPDF): number {
   return (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
 }
 
-/** Encabezado limpio: NEX Report + subtítulo + regla fina. Fondo blanco. */
+/** Encabezado institucional: institución + programa + unidad + regla fina. */
 function drawHeader(ctx: Ctx, report: ExecutiveReport, fileName: string, a: AnalysisResult): void {
-  const { doc, margin, pageW } = ctx;
+  const { doc, margin, pageW, program } = ctx;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
+  doc.setFontSize(20);
   doc.setTextColor(...BLUE);
-  doc.text('NEX Report', margin, 54);
+  doc.text(program.institutionName || 'NEX Report', margin, 52);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(...MUTED);
-  doc.text(`Informe de auditoría clínica · ${report.meta.reportTypeLabel}`, margin, 72);
+  doc.text(`Informe de auditoría clínica · ${program.programName || report.meta.reportTypeLabel}`, margin, 70);
 
   doc.setFontSize(9);
-  doc.text(`Archivo: ${fileName}`, margin, 90);
-  doc.text(`Fecha: ${report.meta.generatedAt}    ·    Meta de cumplimiento: ${a.config.goal}%`, margin, 104);
+  doc.text(`Unidad: ${program.unitName}    ·    Archivo: ${fileName}`, margin, 88);
+  doc.text(`Fecha: ${report.meta.generatedAt}    ·    Meta de cumplimiento: ${a.config.goal}%`, margin, 102);
 
   doc.setDrawColor(...LINE);
   doc.setLineWidth(0.8);
-  doc.line(margin, 116, pageW - margin, 116);
-  ctx.y = 140;
+  doc.line(margin, 114, pageW - margin, 114);
+  ctx.y = 138;
 }
 
 /** Semáforo de cumplimiento: punto de color + estado + %. */
 function drawTrafficLight(ctx: Ctx, a: AnalysisResult): void {
   const { doc, margin } = ctx;
   const light = trafficLightFor(a.global.percent, a.config.goal);
-  const [r, g, b] = hexToRgb(trafficHex(light));
+  const [r, g, b] = hexToRgb(trafficHex(light, ctx.colors));
   ensure(ctx, 30);
   doc.setFillColor(r, g, b);
   doc.circle(margin + 6, ctx.y - 3, 6, 'F');
@@ -73,7 +77,7 @@ function drawTrafficLight(ctx: Ctx, a: AnalysisResult): void {
 /** Tarjetas KPI en fila, con bordes suaves. */
 function drawKpis(ctx: Ctx, a: AnalysisResult): void {
   const { doc, margin, pageW } = ctx;
-  const kpis = summaryKpis(a);
+  const kpis = summaryKpis(a, ctx.colors);
   const gap = 8;
   const cols = kpis.length;
   const cardW = (pageW - margin * 2 - gap * (cols - 1)) / cols;
@@ -129,7 +133,7 @@ function drawComplianceTable(ctx: Ctx, groups: ComplianceGroup[], firstHeader: s
     didParseCell: (data) => {
       if (data.section === 'body' && (data.column.index === 3 || data.column.index === 4)) {
         const g = groups[data.row.index];
-        if (g) data.cell.styles.textColor = hexToRgb(complianceHex(g.percent, goal));
+        if (g) data.cell.styles.textColor = hexToRgb(complianceHex(g.percent, goal, ctx.colors));
       }
     },
   });
@@ -228,7 +232,7 @@ function drawEvolution(ctx: Ctx, a: AnalysisResult): void {
     didParseCell: (data) => {
       if (data.section === 'body' && (data.column.index === 3 || data.column.index === 4)) {
         const p = pts[data.row.index];
-        if (p) data.cell.styles.textColor = hexToRgb(complianceHex(p.percent, goal));
+        if (p) data.cell.styles.textColor = hexToRgb(complianceHex(p.percent, goal, ctx.colors));
       }
     },
   });
@@ -301,7 +305,7 @@ function drawExecutive(ctx: Ctx, report: ExecutiveReport): void {
 
 /** Gráficos institucionales (velocímetro, barras, ranking, dona, evolución). */
 function drawCharts(ctx: Ctx, a: AnalysisResult): void {
-  const charts = buildReportCharts(a);
+  const charts = buildReportCharts(a, ctx.colors);
   if (!charts.length) return;
   const { doc, margin } = ctx;
   sectionTitle(ctx, 'Gráficos institucionales');
@@ -358,8 +362,9 @@ function drawFooters(doc: jsPDF, margin: number): void {
 /** Construye el documento PDF del informe (sin guardarlo). */
 function buildPdfDoc(a: AnalysisResult, fileName: string): jsPDF {
   const report = buildExecutiveReport(a);
+  const program = getProgramConfig(a.config.reportType);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  const ctx: Ctx = { doc, pageW: doc.internal.pageSize.getWidth(), pageH: doc.internal.pageSize.getHeight(), margin: 40, y: 0 };
+  const ctx: Ctx = { doc, pageW: doc.internal.pageSize.getWidth(), pageH: doc.internal.pageSize.getHeight(), margin: 40, y: 0, colors: program.traffic, program };
 
   drawHeader(ctx, report, fileName, a);
   drawTrafficLight(ctx, a);
@@ -406,6 +411,17 @@ function buildPdfDoc(a: AnalysisResult, fileName: string): jsPDF {
   ensure(ctx, 40);
   sectionTitle(ctx, 'Resumen ejecutivo');
   ctx.y += 4;
+  const baseText = program.executiveBaseText.trim();
+  if (baseText) {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(9.5);
+    doc.setTextColor(...MUTED);
+    const lines = doc.splitTextToSize(baseText, ctx.pageW - ctx.margin * 2);
+    ensure(ctx, lines.length * 12 + 6);
+    doc.text(lines, ctx.margin, (ctx.y += 12));
+    ctx.y += (lines.length - 1) * 12 + 8;
+    doc.setFont('helvetica', 'normal');
+  }
   drawExecutive(ctx, report);
 
   drawSignature(ctx);

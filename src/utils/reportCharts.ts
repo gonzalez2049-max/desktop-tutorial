@@ -2,8 +2,10 @@
 // incrustarlos igual en el PDF y en el Word (y, por tanto, en la vista previa).
 // Estilo limpio y ejecutivo; sin dependencias externas.
 import type { AnalysisResult, ComplianceGroup } from '../types';
-import { PALETTE, complianceHex } from './palette';
+import { PALETTE, complianceHex, type TrafficColors } from './palette';
 import { analysisTypeLabel, showsEvolution } from '../config/options';
+
+const DEFAULT_TRAFFIC: TrafficColors = { verde: PALETTE.green, amarillo: PALETTE.amber, rojo: PALETTE.red };
 
 export interface ReportChart {
   title: string;
@@ -37,7 +39,7 @@ function truncate(ctx: CanvasRenderingContext2D, text: string, maxW: number): st
 }
 
 /** Velocímetro (gauge) de cumplimiento global con zonas de color y aguja. */
-function gaugeChart(a: AnalysisResult): ReportChart {
+function gaugeChart(a: AnalysisResult, colors: TrafficColors): ReportChart {
   const w = 340;
   const h = 210;
   const { canvas, ctx } = makeCanvas(w, h);
@@ -50,9 +52,9 @@ function gaugeChart(a: AnalysisResult): ReportChart {
 
   // Zonas: rojo [0, goal-10), ámbar [goal-10, goal), verde [goal, 100].
   const zones: [number, number, string][] = [
-    [0, Math.max(0, goal - 10), PALETTE.red],
-    [Math.max(0, goal - 10), goal, PALETTE.amber],
-    [goal, 100, PALETTE.green],
+    [0, Math.max(0, goal - 10), colors.rojo],
+    [Math.max(0, goal - 10), goal, colors.amarillo],
+    [goal, 100, colors.verde],
   ];
   ctx.lineWidth = 24;
   ctx.lineCap = 'butt';
@@ -79,7 +81,7 @@ function gaugeChart(a: AnalysisResult): ReportChart {
 
   // Valor y meta.
   ctx.textAlign = 'center';
-  ctx.fillStyle = complianceHex(pct, goal);
+  ctx.fillStyle = complianceHex(pct, goal, colors);
   ctx.font = `bold 40px ${FONT}`;
   ctx.fillText(`${pct}%`, cx, cy - 34);
   ctx.fillStyle = PALETTE.muted;
@@ -96,7 +98,7 @@ function gaugeChart(a: AnalysisResult): ReportChart {
 }
 
 /** Barras horizontales de cumplimiento por categoría, con línea de meta. */
-function barsChart(title: string, groups: ComplianceGroup[], goal: number, opts: { labelW?: number } = {}): ReportChart {
+function barsChart(title: string, groups: ComplianceGroup[], goal: number, colors: TrafficColors, opts: { labelW?: number } = {}): ReportChart {
   const labelW = opts.labelW ?? 150;
   const rowH = 26;
   const padT = 14;
@@ -132,7 +134,7 @@ function barsChart(title: string, groups: ComplianceGroup[], goal: number, opts:
     ctx.fillStyle = PALETTE.gray;
     ctx.fillRect(x0, y - 8, barMaxW, 16);
     // Barra.
-    ctx.fillStyle = complianceHex(g.percent, goal);
+    ctx.fillStyle = complianceHex(g.percent, goal, colors);
     ctx.fillRect(x0, y - 8, (g.percent / 100) * barMaxW, 16);
     // Valor.
     ctx.fillStyle = PALETTE.ink;
@@ -195,7 +197,7 @@ function lppDonut(a: AnalysisResult): ReportChart | null {
 }
 
 /** Evolución del cumplimiento por período (línea). */
-function evolutionChart(a: AnalysisResult): ReportChart | null {
+function evolutionChart(a: AnalysisResult, colors: TrafficColors): ReportChart | null {
   const pts = a.temporal.evolution;
   if (!pts.length) return null;
   const w = 380;
@@ -239,7 +241,7 @@ function evolutionChart(a: AnalysisResult): ReportChart | null {
   pts.forEach((p, i) => (i === 0 ? ctx.moveTo(x(i), y(p.percent)) : ctx.lineTo(x(i), y(p.percent))));
   ctx.stroke();
   pts.forEach((p, i) => {
-    ctx.fillStyle = complianceHex(p.percent, goal);
+    ctx.fillStyle = complianceHex(p.percent, goal, colors);
     ctx.beginPath();
     ctx.arc(x(i), y(p.percent), 4, 0, 2 * Math.PI);
     ctx.fill();
@@ -255,16 +257,16 @@ function evolutionChart(a: AnalysisResult): ReportChart | null {
  * Construye los gráficos institucionales aplicables al informe. Devuelve solo
  * los que aportan valor (omite los que no tienen datos).
  */
-export function buildReportCharts(a: AnalysisResult): ReportChart[] {
+export function buildReportCharts(a: AnalysisResult, colors: TrafficColors = DEFAULT_TRAFFIC): ReportChart[] {
   const charts: ReportChart[] = [];
-  charts.push(gaugeChart(a));
-  if (a.complianceByIndicator.length) charts.push(barsChart('Cumplimiento por indicador', a.complianceByIndicator, a.config.goal, { labelW: 170 }));
-  if (a.complianceByShift.length) charts.push(barsChart('Cumplimiento por turno', a.complianceByShift, a.config.goal, { labelW: 90 }));
-  if (a.criticalIndicators.length) charts.push(barsChart('Indicadores bajo la meta (ranking)', a.criticalIndicators, a.config.goal, { labelW: 170 }));
+  charts.push(gaugeChart(a, colors));
+  if (a.complianceByIndicator.length) charts.push(barsChart('Cumplimiento por indicador', a.complianceByIndicator, a.config.goal, colors, { labelW: 170 }));
+  if (a.complianceByShift.length) charts.push(barsChart('Cumplimiento por turno', a.complianceByShift, a.config.goal, colors, { labelW: 90 }));
+  if (a.criticalIndicators.length) charts.push(barsChart('Indicadores bajo la meta (ranking)', a.criticalIndicators, a.config.goal, colors, { labelW: 170 }));
   const donut = lppDonut(a);
   if (donut) charts.push(donut);
   if (showsEvolution(a.config.analysisType) && a.temporal.hasDate) {
-    const ev = evolutionChart(a);
+    const ev = evolutionChart(a, colors);
     if (ev) charts.push(ev);
   }
   return charts;

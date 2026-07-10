@@ -18,6 +18,7 @@ import type { ActionPlanRow, AnalysisResult, ClinicalCharacterization, Complianc
 import { buildExecutiveReport } from './executiveReport';
 import { analysisTypeLabel, showsEvolution } from '../config/options';
 import { buildReportCharts } from './reportCharts';
+import { getProgramConfig } from './programConfig';
 import { summaryKpis } from './reportModel';
 
 /** Convierte un data URL PNG en bytes para incrustar como imagen en Word. */
@@ -30,8 +31,8 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
 }
 
 /** Gráficos institucionales incrustados como imágenes. */
-function chartParagraphs(a: AnalysisResult): Paragraph[] {
-  const charts = buildReportCharts(a);
+function chartParagraphs(a: AnalysisResult, colors: TrafficColors): Paragraph[] {
+  const charts = buildReportCharts(a, colors);
   if (!charts.length) return [];
   const out: Paragraph[] = [
     new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 120 }, children: [new TextRun({ text: 'Gráficos institucionales', bold: true, color: bare(PALETTE.blue), size: 24 })] }),
@@ -47,7 +48,7 @@ function chartParagraphs(a: AnalysisResult): Paragraph[] {
   }
   return out;
 }
-import { PALETTE, bare, complianceHex, trafficHex, trafficLabel, trafficLightFor } from './palette';
+import { PALETTE, bare, complianceHex, trafficHex, trafficLabel, trafficLightFor, type TrafficColors } from './palette';
 
 const SOFT = bare(PALETTE.line);
 const softBorder = { style: BorderStyle.SINGLE, size: 4, color: SOFT };
@@ -75,7 +76,7 @@ function bodyCell(runs: TextRun[], align: (typeof AlignmentType)[keyof typeof Al
 }
 
 /** Tabla de cumplimiento por categoría (indicador / turno / unidad). */
-function complianceTable(groups: ComplianceGroup[], firstHeader: string, goal: number): Table {
+function complianceTable(groups: ComplianceGroup[], firstHeader: string, goal: number, colors?: TrafficColors): Table {
   const rows: TableRow[] = [
     new TableRow({
       tableHeader: true,
@@ -83,7 +84,7 @@ function complianceTable(groups: ComplianceGroup[], firstHeader: string, goal: n
     }),
   ];
   for (const g of groups) {
-    const color = complianceHex(g.percent, goal);
+    const color = complianceHex(g.percent, goal, colors);
     rows.push(
       new TableRow({
         children: [
@@ -167,7 +168,7 @@ function descriptiveTable(vars: DescriptiveVariable[]): Table {
 }
 
 /** Tabla de evolución del cumplimiento por período. */
-function evolutionTable(points: EvolutionPoint[], goal: number): Table {
+function evolutionTable(points: EvolutionPoint[], goal: number, colors?: TrafficColors): Table {
   const rows: TableRow[] = [
     new TableRow({
       tableHeader: true,
@@ -175,7 +176,7 @@ function evolutionTable(points: EvolutionPoint[], goal: number): Table {
     }),
   ];
   for (const p of points) {
-    const color = complianceHex(p.percent, goal);
+    const color = complianceHex(p.percent, goal, colors);
     rows.push(
       new TableRow({
         children: [
@@ -192,8 +193,8 @@ function evolutionTable(points: EvolutionPoint[], goal: number): Table {
 }
 
 /** Fila de tarjetas KPI como tabla de una fila. */
-function kpiTable(a: AnalysisResult): Table {
-  const kpis = summaryKpis(a);
+function kpiTable(a: AnalysisResult, colors?: TrafficColors): Table {
+  const kpis = summaryKpis(a, colors);
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
@@ -269,14 +270,18 @@ function executiveParagraphs(report: ExecutiveReport): (Paragraph | Table)[] {
 /** Genera y descarga el informe en Word editable (.docx) con diseño ejecutivo. */
 export async function exportWord(a: AnalysisResult, fileName: string): Promise<void> {
   const report = buildExecutiveReport(a);
+  const program = getProgramConfig(a.config.reportType);
+  const colors = program.traffic;
   const g = a.global;
   const light = trafficLightFor(g.percent, a.config.goal);
 
   const children: (Paragraph | Table)[] = [
-    new Paragraph({ children: [new TextRun({ text: 'NEX Report', bold: true, size: 44, color: bare(PALETTE.blue) })] }),
+    new Paragraph({
+      children: [new TextRun({ text: `${program.logo} ${program.institutionName}`.trim(), bold: true, size: 40, color: bare(PALETTE.blue) })],
+    }),
     new Paragraph({
       spacing: { after: 120 },
-      children: [new TextRun({ text: `Informe de auditoría clínica · ${report.meta.reportTypeLabel}`, size: 24, color: bare(PALETTE.muted) })],
+      children: [new TextRun({ text: `Informe de auditoría clínica · ${program.programName || report.meta.reportTypeLabel} · Unidad: ${program.unitName}`, size: 22, color: bare(PALETTE.muted) })],
     }),
     new Paragraph({
       spacing: { after: 60 },
@@ -290,13 +295,13 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
     new Paragraph({
       spacing: { after: 160 },
       children: [
-        new TextRun({ text: '● ', color: bare(trafficHex(light)), size: 30 }),
+        new TextRun({ text: '● ', color: bare(trafficHex(light, colors)), size: 30 }),
         text(`Semáforo de cumplimiento: ${trafficLabel(light)} — ${g.percent}% (meta ${a.config.goal}%)`, { bold: true }),
       ],
     }),
 
     heading('Resumen de indicadores (KPIs)'),
-    kpiTable(a),
+    kpiTable(a, colors),
   ];
 
   if (a.config.reportType === 'NT234_LPP') {
@@ -306,16 +311,16 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
     }
   }
 
-  children.push(...chartParagraphs(a));
+  children.push(...chartParagraphs(a, colors));
 
   if (a.complianceByIndicator.length) {
-    children.push(heading('Cumplimiento por indicador'), complianceTable(a.complianceByIndicator, 'Indicador', a.config.goal));
+    children.push(heading('Cumplimiento por indicador'), complianceTable(a.complianceByIndicator, 'Indicador', a.config.goal, colors));
   }
   if (a.complianceByShift.length) {
-    children.push(heading('Cumplimiento por turno'), complianceTable(a.complianceByShift, 'Turno', a.config.goal));
+    children.push(heading('Cumplimiento por turno'), complianceTable(a.complianceByShift, 'Turno', a.config.goal, colors));
   }
   if (a.complianceByUnit.length) {
-    children.push(heading('Cumplimiento por unidad'), complianceTable(a.complianceByUnit, 'Unidad', a.config.goal));
+    children.push(heading('Cumplimiento por unidad'), complianceTable(a.complianceByUnit, 'Unidad', a.config.goal, colors));
   }
 
   if (showsEvolution(a.config.analysisType) && a.temporal.hasDate && a.temporal.evolution.length > 0) {
@@ -323,7 +328,7 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
     const delta = pts.length >= 2 ? Number((pts[pts.length - 1].percent - pts[0].percent).toFixed(1)) : null;
     children.push(
       heading(`Evolución del cumplimiento (${analysisTypeLabel(a.config.analysisType).toLowerCase()})`),
-      evolutionTable(pts, a.config.goal),
+      evolutionTable(pts, a.config.goal, colors),
     );
     if (delta !== null) {
       children.push(
@@ -349,7 +354,12 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
     );
   }
 
-  children.push(heading('Resumen ejecutivo'), ...executiveParagraphs(report));
+  children.push(heading('Resumen ejecutivo'));
+  const baseText = program.executiveBaseText.trim();
+  if (baseText) {
+    children.push(new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: baseText, italics: true, color: bare(PALETTE.muted), size: 19 })] }));
+  }
+  children.push(...executiveParagraphs(report));
 
   // Firma y timbre al final del informe.
   children.push(
