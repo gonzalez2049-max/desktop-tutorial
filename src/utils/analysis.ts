@@ -295,7 +295,10 @@ function clinicalCharacterization(workbook: ParsedWorkbook, config: ReportConfig
   }
   const included = highRisk + moderateRisk;
   const total = patients.size;
-  const riskFilterApplied = isNT234 && riskCol !== null;
+  const riskColumnDetected = riskCol !== null;
+  const riskFilterApplied = isNT234 && riskColumnDetected;
+  // NT 234 sin columna de riesgo: incluidos/excluidos quedan "no determinado".
+  const nt234NeedsRisk = isNT234 && !riskColumnDetected;
   const stagesPresent = stageAcc.size > 0;
   // Con clasificación por estadio, todos los pacientes fueron evaluados para LPP
   // (la ausencia de estadio equivale a "sin LPP"); si solo hay Sí/No, se usan las
@@ -314,8 +317,9 @@ function clinicalCharacterization(workbook: ParsedWorkbook, config: ReportConfig
     totalOriginal: total,
     highRisk,
     moderateRisk,
-    includedByRisk: riskFilterApplied ? included : total,
-    excludedByRisk: riskFilterApplied ? total - included : 0,
+    includedByRisk: nt234NeedsRisk ? null : riskFilterApplied ? included : total,
+    excludedByRisk: nt234NeedsRisk ? null : riskFilterApplied ? total - included : 0,
+    riskColumnDetected,
     riskFilterApplied,
     lppPositive: hasLpp ? lppPos : null,
     lppAnswered: hasLpp ? answered : null,

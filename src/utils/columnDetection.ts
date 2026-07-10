@@ -44,8 +44,20 @@ const ROLE_KEYWORDS: Record<Exclude<ColumnRole, 'desconocido' | 'valor' | 'descr
   cumplimiento: ['cumple', 'cumplimiento', 'resultado', 'evaluacion', 'estado', 'conforme', 'adherencia', 'logro'],
   fecha: ['fecha', 'mes', 'periodo', 'dia', 'date', 'anio', 'ano', 'year'],
   paciente: ['paciente', 'rut', 'ficha', 'id paciente', 'nombre', 'cama', 'identificador'],
-  riesgo: ['riesgo', 'braden', 'morse', 'nivel de riesgo', 'clasificacion', 'severidad', 'gravedad'],
+  riesgo: ['riesgo', 'braden', 'morse', 'nivel de riesgo', 'clasificacion de riesgo', 'categoria de riesgo', 'clasificacion', 'categoria', 'severidad', 'gravedad'],
 };
+
+/**
+ * Señal fuerte de columna de riesgo por su nombre. Reconoce encabezados como
+ * "Riesgo", "Nivel de riesgo", "Clasificación de riesgo", "Riesgo LPP",
+ * "Categoría de riesgo", "Resultado riesgo", "Braden" o "Riesgo Braden".
+ * Tiene prioridad para que no se confunda con "cumplimiento" ("Resultado riesgo").
+ */
+export function looksLikeRiskHeader(header: unknown): boolean {
+  const n = normalize(header);
+  if (!n) return false;
+  return /\briesgo\b/.test(n) || /\bbraden\b/.test(n) || /\bmorse\b/.test(n);
+}
 
 /** Devuelve un puntaje de coincidencia entre un header y un rol. */
 function scoreRole(header: string, keywords: string[]): number {
@@ -104,6 +116,12 @@ export function detectColumns(headers: string[], rows: RawRow[]): DetectedColumn
     // otra clasificación, aunque sus valores parezcan cumplimiento (Sí/No).
     if (isDescriptiveVariable(original)) {
       return { original, role: 'descriptivo', confidence: 1 };
+    }
+
+    // Señal fuerte de riesgo por nombre: gana a "cumplimiento" en encabezados
+    // como "Resultado riesgo" y asegura la detección de la columna de riesgo.
+    if (looksLikeRiskHeader(original)) {
+      return { original, role: 'riesgo', confidence: 0.95 };
     }
 
     return { original, role: bestRole, confidence: Number(bestScore.toFixed(2)) };
