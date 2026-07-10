@@ -157,6 +157,27 @@ function drawCharacterization(ctx: Ctx, c: ClinicalCharacterization): void {
   ctx.y = lastTableY(doc) + 22;
 }
 
+/** Tabla de distribución de LPP por estadio. */
+function drawLppStages(ctx: Ctx, a: AnalysisResult): void {
+  const { doc, margin, pageW } = ctx;
+  const stages = a.characterization.lppStages.filter((s) => s.count > 0);
+  autoTable(doc, {
+    startY: ctx.y,
+    head: [['Clasificación de LPP', 'Cantidad', 'Porcentaje']],
+    body: [
+      ['Total de pacientes con LPP', String(a.characterization.lppPositive ?? 0), '100%'],
+      ...stages.map((s) => [s.stage, String(s.count), `${s.percent}%`]),
+    ],
+    theme: 'grid',
+    headStyles: { fillColor: BLUE, textColor: [255, 255, 255], fontSize: 8.5, halign: 'center', lineColor: LINE, lineWidth: 0.5 },
+    bodyStyles: { fontSize: 8.5, cellPadding: 4, textColor: INK, lineColor: LINE, lineWidth: 0.5 },
+    columnStyles: { 0: { halign: 'left' }, 1: { halign: 'center' }, 2: { halign: 'center', fontStyle: 'bold' } },
+    margin: { left: margin, right: margin },
+    tableWidth: pageW - margin * 2,
+  });
+  ctx.y = lastTableY(doc) + 22;
+}
+
 /** Tabla de variables clínicas descriptivas (prevalencia). */
 function drawDescriptiveTable(ctx: Ctx, a: AnalysisResult): void {
   const { doc, margin, pageW } = ctx;
@@ -258,6 +279,11 @@ export function exportPdf(a: AnalysisResult, fileName: string): void {
     ensure(ctx, 60);
     sectionTitle(ctx, 'Caracterización clínica');
     drawCharacterization(ctx, a.characterization);
+    if (a.characterization.lppStages.some((s) => s.count > 0)) {
+      ensure(ctx, 60);
+      sectionTitle(ctx, 'Caracterización de pacientes con LPP');
+      drawLppStages(ctx, a);
+    }
   }
 
   if (a.complianceByIndicator.length) {

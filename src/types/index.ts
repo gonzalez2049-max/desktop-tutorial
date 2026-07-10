@@ -148,6 +148,13 @@ export interface UnitShiftMatrix {
   rows: UnitShiftRow[];
 }
 
+/** Distribución de LPP por estadio/categoría clínica. */
+export interface LppStageCount {
+  stage: string;
+  count: number;
+  percent: number; // sobre el total de pacientes con LPP
+}
+
 /**
  * Caracterización clínica de la base (NT 234 / LPP): total original, registros
  * incluidos/excluidos por riesgo y prevalencia de LPP.
@@ -160,6 +167,7 @@ export interface ClinicalCharacterization {
   lppPositive: number | null;
   lppAnswered: number | null;
   lppPrevalence: number | null;
+  lppStages: LppStageCount[]; // distribución por estadio (vacío si no hay datos)
 }
 
 /** Resultado completo del motor de análisis. */

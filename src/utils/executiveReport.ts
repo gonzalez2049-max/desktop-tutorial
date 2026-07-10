@@ -198,8 +198,13 @@ export function buildExecutiveReport(a: AnalysisResult): ExecutiveReport {
     findings.push({ text: `El turno ${worstShift.label} presenta el desempeño más descendido, con ${worstShift.percent}% de cumplimiento.`, score: round1(goal - worstShift.percent) - 1 });
   }
   if (c.lppPrevalence !== null && c.lppPositive) {
+    const lc = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+    const top = [...c.lppStages].filter((s) => s.count > 0).sort((a, b) => b.count - a.count).slice(0, 3);
+    let dist = '';
+    if (top.length === 1) dist = `, con predominio de ${lc(top[0].stage)}`;
+    else if (top.length >= 2) dist = `, con predominio de ${lc(top[0].stage)}, seguido de ${top.slice(1).map((s) => lc(s.stage)).join(' y ')}`;
     findings.push({
-      text: `La prevalencia de LPP en la población evaluada asciende a ${c.lppPrevalence}%, dato clínico que refuerza la vigilancia sobre las medidas de prevención.`,
+      text: `Un total de ${c.lppPositive} pacientes presentó lesiones por presión (${c.lppPrevalence}% de los evaluados)${dist}. Corresponde a una caracterización clínica y no incide en el cálculo de cumplimiento de la NT 234.`,
       score: c.lppPrevalence >= 15 ? 12 : 6,
     });
   }

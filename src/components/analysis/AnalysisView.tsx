@@ -9,6 +9,7 @@ import CountTable from './CountTable';
 import DescriptiveVariables from './DescriptiveVariables';
 import UnitShiftMatrixTable from './UnitShiftMatrixTable';
 import CharacterizationSection from './CharacterizationSection';
+import LppCharacterization from './LppCharacterization';
 import AuditorPanel from './AuditorPanel';
 import { isAdminMode } from '../../utils/admin';
 
@@ -130,21 +131,45 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
         </div>
       )}
 
+      {/* 1) Caracterización clínica (datos primero). */}
       {config.reportType === 'NT234_LPP' && <CharacterizationSection c={a.characterization} />}
+      {config.reportType === 'NT234_LPP' && <LppCharacterization c={a.characterization} />}
 
+      {/* 2) KPIs principales. */}
       <KpiCards a={a} />
 
+      {/* 3-5) Cumplimiento por indicador / turno / unidad. */}
+      {a.complianceByIndicator.length > 0 && (
+        <Section title="Cumplimiento por indicador" icon="📊" subtitle="Cumple / no cumple y % por indicador">
+          <ComplianceTable groups={a.complianceByIndicator} firstHeader="Indicador" goal={config.goal} />
+        </Section>
+      )}
+
+      {a.complianceByShift.length > 0 && (
+        <Section
+          title="Cumplimiento por turno"
+          icon="🕐"
+          subtitle={allUnits ? 'Global (todas las unidades)' : `Unidad ${selectedUnit}`}
+        >
+          <ComplianceTable groups={a.complianceByShift} firstHeader="Turno" goal={config.goal} />
+        </Section>
+      )}
+
+      {allUnits && a.complianceByUnit.length > 0 && (
+        <Section title="Cumplimiento por unidad" icon="🏥">
+          <ComplianceTable groups={a.complianceByUnit} firstHeader="Unidad" goal={config.goal} />
+        </Section>
+      )}
+
+      {/* 6) Gráficos. */}
       <Suspense fallback={<div className="card p-8 text-center text-sm text-slate-400">Cargando gráficos…</div>}>
         <VisualDashboard a={a} />
       </Suspense>
 
-      <DescriptiveVariables variables={a.descriptiveVariables} totalRecords={a.totalRecords} />
-
-      <ExecutiveSummary analysis={a} fileName={fileName} />
-
-      {a.complianceByIndicator.length > 0 && (
-        <Section title="Cumplimiento por indicador" icon="📊" subtitle="Cumple / no cumple y % por indicador">
-          <ComplianceTable groups={a.complianceByIndicator} firstHeader="Indicador" goal={config.goal} />
+      {/* 7) Tablas complementarias. */}
+      {allUnits && matrix.rows.length > 0 && (
+        <Section title="Cumplimiento por turno y unidad" icon="🗂️" subtitle="% por turno dentro de cada unidad">
+          <UnitShiftMatrixTable matrix={matrix} goal={config.goal} />
         </Section>
       )}
 
@@ -156,30 +181,6 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
           <IndicatorList items={a.highlightedIndicators} emptyText="Ningún indicador alcanza la meta todavía." tone="green" />
         </Section>
       </div>
-
-      {/* Cumplimiento por turno: global (respeta el filtro de unidad). */}
-      {a.complianceByShift.length > 0 && (
-        <Section
-          title="Cumplimiento por turno"
-          icon="🕐"
-          subtitle={allUnits ? 'Global (todas las unidades)' : `Unidad ${selectedUnit}`}
-        >
-          <ComplianceTable groups={a.complianceByShift} firstHeader="Turno" goal={config.goal} />
-        </Section>
-      )}
-
-      {/* Desglose por turno de cada unidad (solo en la vista global). */}
-      {allUnits && matrix.rows.length > 0 && (
-        <Section title="Cumplimiento por turno y unidad" icon="🗂️" subtitle="% por turno dentro de cada unidad">
-          <UnitShiftMatrixTable matrix={matrix} goal={config.goal} />
-        </Section>
-      )}
-
-      {allUnits && a.complianceByUnit.length > 0 && (
-        <Section title="Cumplimiento por unidad" icon="🏥">
-          <ComplianceTable groups={a.complianceByUnit} firstHeader="Unidad" goal={config.goal} />
-        </Section>
-      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {a.totalByUnit.length > 0 && (
@@ -193,6 +194,12 @@ export default function AnalysisView({ workbook, config, fileName, onReset }: An
           </Section>
         )}
       </div>
+
+      {/* Variables descriptivas (solo fuera de NT 234; en NT 234 lo cubre la caracterización de LPP). */}
+      {config.reportType !== 'NT234_LPP' && <DescriptiveVariables variables={a.descriptiveVariables} totalRecords={a.totalRecords} />}
+
+      {/* 8) Resumen ejecutivo (análisis e interpretación al final) + exportación. */}
+      <ExecutiveSummary analysis={a} fileName={fileName} />
 
       {admin && <AuditorPanel a={a} />}
     </div>
