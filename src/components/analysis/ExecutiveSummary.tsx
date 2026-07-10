@@ -3,19 +3,23 @@ import type { AnalysisResult } from '../../types';
 import { buildExecutiveReport } from '../../utils/executiveReport';
 import { getProgramConfig } from '../../utils/programConfig';
 import { copyReport } from '../../utils/reportExport';
+import ReportPreview from './ReportPreview';
 
 interface ExecutiveSummaryProps {
   analysis: AnalysisResult;
   fileName: string;
+  /** Volver a editar la configuración desde la vista previa (opcional). */
+  onEdit?: () => void;
 }
 
 /** Sección "Resumen ejecutivo del reporte": redacción automática + exportación. */
-export default function ExecutiveSummary({ analysis, fileName }: ExecutiveSummaryProps) {
+export default function ExecutiveSummary({ analysis, fileName, onEdit }: ExecutiveSummaryProps) {
   const report = useMemo(() => buildExecutiveReport(analysis), [analysis]);
   const baseText = getProgramConfig(analysis.config.reportType).executiveBaseText.trim();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<null | 'pdf' | 'word'>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
 
   const handleCopy = async () => {
     const ok = await copyReport(report);
@@ -63,7 +67,10 @@ export default function ExecutiveSummary({ analysis, fileName }: ExecutiveSummar
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="btn-primary" onClick={handleCopy} disabled={busy !== null}>
+          <button className="btn-primary" onClick={() => setPreview(true)} disabled={busy !== null}>
+            👁️ Vista previa del informe
+          </button>
+          <button className="btn-ghost" onClick={handleCopy} disabled={busy !== null}>
             {copied ? '✓ Copiado' : '📋 Copiar resumen'}
           </button>
           <button className="btn-ghost" onClick={handlePdf} disabled={busy !== null}>
@@ -103,6 +110,8 @@ export default function ExecutiveSummary({ analysis, fileName }: ExecutiveSummar
           </div>
         ))}
       </div>
+
+      {preview && <ReportPreview analysis={analysis} fileName={fileName} onEdit={onEdit} onClose={() => setPreview(false)} />}
     </section>
   );
 }

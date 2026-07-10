@@ -12,6 +12,7 @@ import CharacterizationSection from './CharacterizationSection';
 import LppCharacterization from './LppCharacterization';
 import PeriodComparison from './PeriodComparison';
 import TrafficLightCard from './charts/TrafficLightCard';
+import SignatureBlock from './SignatureBlock';
 import AuditorPanel from './AuditorPanel';
 import { analysisTypeLabel, showsEvolution } from '../../config/options';
 import { trafficLabel, trafficLightFor } from '../../utils/palette';
@@ -247,7 +248,7 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
           )}
 
           {/* 8) Resumen ejecutivo completo + botones (Copiar / PDF / Word). */}
-          <ExecutiveSummary analysis={a} fileName={fileName} />
+          <ExecutiveSummary analysis={a} fileName={fileName} onEdit={onEdit} />
 
           {admin && <AuditorPanel a={a} />}
         </>
@@ -312,11 +313,14 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
 
           <DescriptiveVariables variables={a.descriptiveVariables} totalRecords={a.totalRecords} />
 
-          <ExecutiveSummary analysis={a} fileName={fileName} />
+          <ExecutiveSummary analysis={a} fileName={fileName} onEdit={onEdit} />
 
           {admin && <AuditorPanel a={a} />}
         </>
       )}
+
+      {/* Firma y timbre al final del informe (todas las versiones). */}
+      {!nt234NeedsRisk && <SignatureBlock />}
     </div>
   );
 }
