@@ -298,6 +298,28 @@ function drawExecutive(ctx: Ctx, report: ExecutiveReport): void {
   }
 }
 
+/** Bloque de firma y timbre al final del informe. */
+function drawSignature(ctx: Ctx): void {
+  const { doc, pageW } = ctx;
+  ensure(ctx, 100);
+  ctx.y += 44; // espacio para firmar
+  const lineW = 240;
+  const cx = pageW / 2;
+  doc.setDrawColor(...INK);
+  doc.setLineWidth(0.8);
+  doc.line(cx - lineW / 2, ctx.y, cx + lineW / 2, ctx.y);
+  ctx.y += 16;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10.5);
+  doc.setTextColor(...INK);
+  doc.text('Firma y Timbre', cx, ctx.y, { align: 'center' });
+  ctx.y += 14;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  doc.setTextColor(...MUTED);
+  doc.text('Responsable de la Estrategia', cx, ctx.y, { align: 'center' });
+}
+
 /** Pie de página con numeración, en todas las páginas. */
 function drawFooters(doc: jsPDF, margin: number): void {
   const pages = doc.getNumberOfPages();
@@ -313,8 +335,8 @@ function drawFooters(doc: jsPDF, margin: number): void {
   }
 }
 
-/** Genera y descarga el informe ejecutivo en PDF con diseño institucional. */
-export function exportPdf(a: AnalysisResult, fileName: string): void {
+/** Construye el documento PDF del informe (sin guardarlo). */
+function buildPdfDoc(a: AnalysisResult, fileName: string): jsPDF {
   const report = buildExecutiveReport(a);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const ctx: Ctx = { doc, pageW: doc.internal.pageSize.getWidth(), pageH: doc.internal.pageSize.getHeight(), margin: 40, y: 0 };
@@ -364,6 +386,17 @@ export function exportPdf(a: AnalysisResult, fileName: string): void {
   ctx.y += 4;
   drawExecutive(ctx, report);
 
+  drawSignature(ctx);
   drawFooters(doc, ctx.margin);
-  doc.save(fileName.replace(/\.[^.]+$/, '') + '_NEX-Report.pdf');
+  return doc;
+}
+
+/** Genera y descarga el informe ejecutivo en PDF con diseño institucional. */
+export function exportPdf(a: AnalysisResult, fileName: string): void {
+  buildPdfDoc(a, fileName).save(fileName.replace(/\.[^.]+$/, '') + '_NEX-Report.pdf');
+}
+
+/** URL de blob del PDF para la vista previa en pantalla (liberar con URL.revokeObjectURL). */
+export function pdfBlobUrl(a: AnalysisResult, fileName: string): string {
+  return URL.createObjectURL(buildPdfDoc(a, fileName).output('blob'));
 }

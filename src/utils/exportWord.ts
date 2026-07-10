@@ -319,6 +319,14 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
 
   children.push(heading('Resumen ejecutivo'), ...executiveParagraphs(report));
 
+  // Firma y timbre al final del informe.
+  children.push(
+    new Paragraph({ spacing: { before: 700 }, children: [] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, children: [text('_____________________________________')] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60 }, children: [text('Firma y Timbre', { bold: true })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20 }, children: [text('Responsable de la Estrategia', { color: PALETTE.muted })] }),
+  );
+
   const doc = new Document({
     styles: { default: { document: { run: { font: 'Calibri', color: bare(PALETTE.ink) } } } },
     sections: [{ properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } }, children }],
