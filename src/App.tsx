@@ -1,32 +1,41 @@
 import { useMemo, useState } from 'react';
 import Stepper from './components/Stepper';
+import Home from './components/Home';
 import FileUpload from './components/FileUpload';
 import ColumnReview from './components/ColumnReview';
 import DataPreview from './components/DataPreview';
 import Wizard from './components/wizard/Wizard';
 import AnalysisView from './components/analysis/AnalysisView';
-import type { DetectedColumn, ParsedWorkbook, ReportConfig } from './types';
+import type { DetectedColumn, ParsedWorkbook, ReportConfig, ReportType } from './types';
 
-type Stage = 'upload' | 'review' | 'wizard' | 'generating' | 'result';
+type Stage = 'home' | 'upload' | 'review' | 'wizard' | 'generating' | 'result';
 
 const STEPS = [
+  { key: 'home', label: 'Programa' },
   { key: 'upload', label: 'Subir Excel' },
   { key: 'review', label: 'Leer datos' },
   { key: 'wizard', label: 'Configurar' },
   { key: 'result', label: 'Reporte' },
 ];
 
-const STAGE_INDEX: Record<Stage, number> = { upload: 0, review: 1, wizard: 2, generating: 2, result: 3 };
+const STAGE_INDEX: Record<Stage, number> = { home: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4 };
 
 export default function App() {
-  const [stage, setStage] = useState<Stage>('upload');
+  const [stage, setStage] = useState<Stage>('home');
+  const [reportType, setReportType] = useState<ReportType | null>(null);
   const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null);
   const [config, setConfig] = useState<ReportConfig | null>(null);
 
   const reset = () => {
-    setStage('upload');
+    setStage('home');
+    setReportType(null);
     setWorkbook(null);
     setConfig(null);
+  };
+
+  const handleSelectProgram = (rt: ReportType) => {
+    setReportType(rt);
+    setStage('upload');
   };
 
   const handleParsed = (wb: ParsedWorkbook) => {
@@ -56,7 +65,7 @@ export default function App() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-nex-600 text-lg font-black text-white">N</div>
             <div>
               <p className="text-lg font-extrabold leading-none text-slate-800">NEX Report</p>
-              <p className="text-xs text-slate-400">Informes de auditorías clínicas</p>
+              <p className="text-xs text-slate-400">Plataforma de Auditorías Clínicas</p>
             </div>
           </div>
           <Stepper steps={STEPS} current={currentStep} />
@@ -64,20 +73,22 @@ export default function App() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
-        {stage === 'upload' && <FileUpload onParsed={handleParsed} />}
+        {stage === 'home' && <Home onSelect={handleSelectProgram} />}
+
+        {stage === 'upload' && <FileUpload onParsed={handleParsed} onBack={reset} />}
 
         {stage === 'review' && workbook && (
           <ColumnReview
             columns={workbook.columns}
             onChange={handleColumns}
             onConfirm={() => setStage('wizard')}
-            onBack={reset}
+            onBack={() => setStage('upload')}
             preview={<DataPreview workbook={workbook} />}
           />
         )}
 
-        {stage === 'wizard' && workbook && (
-          <Wizard workbook={workbook} onComplete={handleWizardComplete} onBack={() => setStage('review')} />
+        {stage === 'wizard' && workbook && reportType && (
+          <Wizard reportType={reportType} workbook={workbook} onComplete={handleWizardComplete} onBack={() => setStage('review')} />
         )}
 
         {stage === 'generating' && (

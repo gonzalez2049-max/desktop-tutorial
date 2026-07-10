@@ -4,10 +4,11 @@ import type { ParsedWorkbook } from '../types';
 
 interface FileUploadProps {
   onParsed: (workbook: ParsedWorkbook) => void;
+  onBack?: () => void;
 }
 
-/** Paso 1: carga del archivo Excel con soporte de arrastrar y soltar. */
-export default function FileUpload({ onParsed }: FileUploadProps) {
+/** Paso 2: carga del archivo Excel con soporte de arrastrar y soltar. */
+export default function FileUpload({ onParsed, onBack }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -80,6 +81,14 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
 
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">⚠️ {error}</div>
+      )}
+
+      {onBack && (
+        <div className="mt-6 text-center">
+          <button type="button" onClick={onBack} className="text-sm font-semibold text-slate-500 hover:text-nex-700">
+            ← Volver a los programas
+          </button>
+        </div>
       )}
     </div>
   );

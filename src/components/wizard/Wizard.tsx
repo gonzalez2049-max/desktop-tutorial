@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import QuestionLayout from './QuestionLayout';
 import OptionCard from '../OptionCard';
-import { ANALYSIS_TYPES, GOAL_PRESETS, HIGHLIGHTS, REPORT_TYPES } from '../../config/options';
+import { ANALYSIS_TYPES, GOAL_PRESETS, HIGHLIGHTS, reportTypeLabel } from '../../config/options';
 import type { AnalysisType, Highlight, ParsedWorkbook, ReportConfig, ReportType } from '../../types';
 
 interface WizardProps {
+  /** Programa clínico elegido en la pantalla inicial (queda fijado). */
+  reportType: ReportType;
   workbook: ParsedWorkbook;
   onComplete: (config: ReportConfig) => void;
   onBack: () => void;
@@ -23,61 +25,40 @@ function availableDimensions(workbook: ParsedWorkbook) {
 }
 
 /**
- * Asistente de 4 preguntas: tipo de informe, tipo de análisis temporal, datos a
- * destacar y meta. Primero pregunta; el análisis y la generación vienen después.
+ * Asistente de 3 preguntas: tipo de análisis temporal, datos a destacar y meta.
+ * El programa clínico (tipo de informe) ya viene elegido desde la pantalla inicial.
  */
-export default function Wizard({ workbook, onComplete, onBack }: WizardProps) {
+export default function Wizard({ reportType, workbook, onComplete, onBack }: WizardProps) {
   const [step, setStep] = useState(0);
-  const [reportType, setReportType] = useState<ReportType | null>(null);
   const [analysisType, setAnalysisType] = useState<AnalysisType | null>(null);
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [goal, setGoal] = useState<number>(90);
 
   const dims = availableDimensions(workbook);
-  const TOTAL = 4;
+  const TOTAL = 3;
 
   const toggleHighlight = (h: Highlight) => {
     setHighlights((prev) => (prev.includes(h) ? prev.filter((x) => x !== h) : [...prev, h]));
   };
+
+  const programBadge = (
+    <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-nex-50 px-3 py-1 text-xs font-semibold text-nex-700">
+      🩺 Programa: {reportTypeLabel(reportType)}
+    </p>
+  );
 
   if (step === 0) {
     return (
       <QuestionLayout
         step={1}
         total={TOTAL}
-        title="¿Qué tipo de informe quieres generar?"
-        subtitle="Elige el ámbito de la auditoría para adaptar el análisis y las recomendaciones."
-        onBack={onBack}
-        onNext={() => setStep(1)}
-        nextDisabled={!reportType}
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          {REPORT_TYPES.map((r) => (
-            <OptionCard
-              key={r.value}
-              label={r.label}
-              description={r.description}
-              icon={r.icon}
-              selected={reportType === r.value}
-              onClick={() => setReportType(r.value)}
-            />
-          ))}
-        </div>
-      </QuestionLayout>
-    );
-  }
-
-  if (step === 1) {
-    return (
-      <QuestionLayout
-        step={2}
-        total={TOTAL}
         title="¿Qué tipo de análisis desea realizar?"
         subtitle="Segmenta la base por período para ver la evolución del cumplimiento, o compara dos períodos lado a lado."
-        onBack={() => setStep(0)}
-        onNext={() => setStep(2)}
+        onBack={onBack}
+        onNext={() => setStep(1)}
         nextDisabled={!analysisType}
       >
+        {programBadge}
         {!dims.fecha && (
           <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
             ⚠️ No se detectó una columna de fecha en tu Excel. Puedes continuar, pero la evolución y la comparación por
@@ -100,15 +81,15 @@ export default function Wizard({ workbook, onComplete, onBack }: WizardProps) {
     );
   }
 
-  if (step === 2) {
+  if (step === 1) {
     return (
       <QuestionLayout
-        step={3}
+        step={2}
         total={TOTAL}
         title="¿Qué datos quieres destacar?"
         subtitle="Puedes elegir varios. Las opciones sin datos en tu Excel aparecen deshabilitadas."
-        onBack={() => setStep(1)}
-        onNext={() => setStep(3)}
+        onBack={() => setStep(0)}
+        onNext={() => setStep(2)}
         nextDisabled={highlights.length === 0}
       >
         <div className="grid gap-3 sm:grid-cols-2">
@@ -132,12 +113,12 @@ export default function Wizard({ workbook, onComplete, onBack }: WizardProps) {
 
   return (
     <QuestionLayout
-      step={4}
+      step={3}
       total={TOTAL}
       title="¿Cuál es la meta de cumplimiento?"
       subtitle="Se usará como referencia para el semáforo, las brechas y las recomendaciones."
-      onBack={() => setStep(2)}
-      onNext={() => onComplete({ reportType: reportType!, analysisType: analysisType!, highlights, goal })}
+      onBack={() => setStep(1)}
+      onNext={() => onComplete({ reportType, analysisType: analysisType!, highlights, goal })}
       nextLabel="Generar reporte ✨"
       nextDisabled={goal <= 0 || goal > 100}
     >
