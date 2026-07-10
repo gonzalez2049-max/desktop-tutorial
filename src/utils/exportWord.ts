@@ -3,6 +3,7 @@ import {
   BorderStyle,
   Document,
   HeadingLevel,
+  ImageRun,
   Packer,
   Paragraph,
   ShadingType,
@@ -16,7 +17,36 @@ import { saveAs } from 'file-saver';
 import type { ActionPlanRow, AnalysisResult, ClinicalCharacterization, ComplianceGroup, DescriptiveVariable, EvolutionPoint, ExecutiveReport } from '../types';
 import { buildExecutiveReport } from './executiveReport';
 import { analysisTypeLabel, showsEvolution } from '../config/options';
+import { buildReportCharts } from './reportCharts';
 import { summaryKpis } from './reportModel';
+
+/** Convierte un data URL PNG en bytes para incrustar como imagen en Word. */
+function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const b64 = dataUrl.split(',')[1] ?? '';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+
+/** Gráficos institucionales incrustados como imágenes. */
+function chartParagraphs(a: AnalysisResult): Paragraph[] {
+  const charts = buildReportCharts(a);
+  if (!charts.length) return [];
+  const out: Paragraph[] = [
+    new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 120 }, children: [new TextRun({ text: 'Gráficos institucionales', bold: true, color: bare(PALETTE.blue), size: 24 })] }),
+  ];
+  for (const ch of charts) {
+    out.push(
+      new Paragraph({ spacing: { before: 120, after: 40 }, children: [new TextRun({ text: ch.title, bold: true, color: bare(PALETTE.blue), size: 20 })] }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new ImageRun({ data: dataUrlToBytes(ch.dataUrl), transformation: { width: ch.width, height: ch.height } })],
+      }),
+    );
+  }
+  return out;
+}
 import { PALETTE, bare, complianceHex, trafficHex, trafficLabel, trafficLightFor } from './palette';
 
 const SOFT = bare(PALETTE.line);
@@ -275,6 +305,8 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
       children.push(heading('Caracterización de pacientes con LPP'), lppStageTable(a.characterization));
     }
   }
+
+  children.push(...chartParagraphs(a));
 
   if (a.complianceByIndicator.length) {
     children.push(heading('Cumplimiento por indicador'), complianceTable(a.complianceByIndicator, 'Indicador', a.config.goal));
