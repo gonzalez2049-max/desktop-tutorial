@@ -11,7 +11,7 @@ interface StepperProps {
 /** Indicador de progreso del asistente paso a paso. */
 export default function Stepper({ steps, current }: StepperProps) {
   return (
-    <nav className="flex items-center gap-2" aria-label="Progreso">
+    <nav className="hidden items-center gap-2 sm:flex" aria-label="Progreso">
       {steps.map((s, i) => {
         const done = i < current;
         const active = i === current;

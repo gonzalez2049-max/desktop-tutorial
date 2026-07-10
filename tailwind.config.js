@@ -18,7 +18,9 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'Segoe UI', 'sans-serif'],
+        // Tipografía del sistema (sin dependencias externas): funciona sin red
+        // y respeta la fuente nativa de cada sistema operativo.
+        sans: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
       },
     },
   },
