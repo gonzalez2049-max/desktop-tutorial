@@ -56,7 +56,7 @@ const ROLE_KEYWORDS: Record<Exclude<ColumnRole, 'desconocido' | 'valor' | 'descr
   indicador: ['indicador', 'item', 'criterio', 'pregunta', 'variable', 'parametro', 'medida', 'estandar', 'verificacion'],
   cumplimiento: ['cumple', 'cumplimiento', 'resultado', 'evaluacion', 'estado', 'conforme', 'adherencia', 'logro'],
   fecha: ['fecha', 'mes', 'periodo', 'dia', 'date', 'anio', 'ano', 'year'],
-  paciente: ['paciente', 'rut', 'ficha', 'id paciente', 'nombre', 'cama', 'identificador'],
+  paciente: ['paciente', 'rut', 'run', 'ficha', 'ficha clinica', 'id paciente', 'nombre', 'cama', 'identificador'],
   riesgo: ['riesgo', 'braden', 'morse', 'nivel de riesgo', 'clasificacion de riesgo', 'categoria de riesgo', 'clasificacion', 'categoria', 'severidad', 'gravedad'],
 };
 

@@ -1,12 +1,14 @@
 import * as XLSX from 'xlsx';
-import type { ParsedWorkbook, RawRow } from '../types';
+import type { ParsedWorkbook, RawRow, ReportType } from '../types';
 import { detectColumns } from './columnDetection';
+import { applyDetectionProfile } from './detectionProfiles';
 
 /**
  * Lee un archivo Excel (o CSV) con SheetJS y devuelve las filas, los headers
- * y la detección automática de columnas.
+ * y la detección automática de columnas. Si se indica el programa, aplica su
+ * perfil de reconocimiento (p. ej. NT 234 HUAP) para afinar la asignación.
  */
-export async function parseExcelFile(file: File): Promise<ParsedWorkbook> {
+export async function parseExcelFile(file: File, reportType?: ReportType): Promise<ParsedWorkbook> {
   const data = await file.arrayBuffer();
   const workbook = XLSX.read(data, { cellDates: true });
 
@@ -27,7 +29,8 @@ export async function parseExcelFile(file: File): Promise<ParsedWorkbook> {
   // orden de aparición de la primera fila.
   const headers = Object.keys(rows[0]);
 
-  const columns = detectColumns(headers, rows);
+  const base = detectColumns(headers, rows);
+  const columns = reportType ? applyDetectionProfile(reportType, base, rows) : base;
 
   return {
     fileName: file.name,
