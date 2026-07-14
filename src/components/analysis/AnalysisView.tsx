@@ -16,7 +16,7 @@ import SignatureBlock from './SignatureBlock';
 import AuditorPanel from './AuditorPanel';
 import { analysisTypeLabel, showsEvolution } from '../../config/options';
 import { trafficLabel, trafficLightFor } from '../../utils/palette';
-import { getProgramConfig } from '../../utils/programConfig';
+import { resolveProgramConfig } from '../../utils/programConfig';
 import { isAdminMode } from '../../utils/admin';
 
 // Recharts se carga solo al llegar a los resultados, no en la pantalla inicial.
@@ -87,7 +87,8 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
   const admin = useMemo(() => isAdminMode(), []);
 
   const isNT234 = config.reportType === 'NT234_LPP';
-  const program = useMemo(() => getProgramConfig(config.reportType), [config.reportType]);
+  const program = useMemo(() => resolveProgramConfig(config), [config]);
+  const auditName = program.audits?.find((x) => x.id === config.auditId)?.name;
   // Un programa con filtro de riesgo requiere columna de riesgo para calcular el cumplimiento.
   const nt234NeedsRisk = program.riskFilter && !a.characterization.riskColumnDetected;
 
@@ -125,7 +126,8 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
           </p>
           <h2 className="text-2xl font-bold text-slate-800">Análisis del reporte</h2>
           <p className="mt-1 text-sm text-slate-500">
-            {program.programName || reportTypeLabel(config.reportType)} · <span className="text-slate-400">{fileName}</span>
+            {program.programName || reportTypeLabel(config.reportType)}
+            {auditName ? ` · ${auditName}` : ''} · <span className="text-slate-400">{fileName}</span>
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {config.highlights.map((h) => (

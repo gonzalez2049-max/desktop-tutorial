@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { AnalysisResult } from '../../types';
 import { buildExecutiveReport } from '../../utils/executiveReport';
-import { getProgramConfig } from '../../utils/programConfig';
+import { resolveProgramConfig } from '../../utils/programConfig';
 import { copyReport } from '../../utils/reportExport';
 import ReportPreview from './ReportPreview';
 
@@ -15,7 +15,7 @@ interface ExecutiveSummaryProps {
 /** Sección "Resumen ejecutivo del reporte": redacción automática + exportación. */
 export default function ExecutiveSummary({ analysis, fileName, onEdit }: ExecutiveSummaryProps) {
   const report = useMemo(() => buildExecutiveReport(analysis), [analysis]);
-  const baseText = getProgramConfig(analysis.config.reportType).executiveBaseText.trim();
+  const baseText = resolveProgramConfig(analysis.config).executiveBaseText.trim();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<null | 'pdf' | 'word'>(null);
   const [notice, setNotice] = useState<string | null>(null);

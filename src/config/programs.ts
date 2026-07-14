@@ -35,9 +35,30 @@ export interface ProgramConfigEditable {
   descriptiveVariables: string[];
 }
 
+/**
+ * Variante de auditoría dentro de un programa (p. ej. IAAS → Higiene de Manos,
+ * NAVM, ITU/CUP, ITS/CVC). Cada variante aporta sus propios indicadores y reglas
+ * sin duplicar el motor: se fusiona sobre el programa al analizar.
+ */
+export interface AuditVariant {
+  id: string;
+  name: string;
+  description?: string;
+  /** Indicadores oficiales de la variante (vacío = detección genérica). */
+  officialIndicators: string[];
+  /** Variables descriptivas (no cumplimiento) de la variante. */
+  descriptiveVariables: string[];
+  /** ¿Filtra por riesgo alto/moderado? (como NT 234). */
+  riskFilter: boolean;
+  /** Meta específica; si se omite usa la del programa. */
+  goal?: number;
+}
+
 /** Configuración completa de un programa (editable + lógica no editable). */
 export interface ProgramConfig extends ProgramConfigEditable {
   reportType: ReportType;
+  /** Sub-auditorías del programa (p. ej. IAAS). Ausente = programa simple. */
+  audits?: AuditVariant[];
   /**
    * ¿El cumplimiento se calcula solo sobre pacientes de riesgo alto/moderado?
    * Es un parámetro de lógica del programa, no editable desde la UI.
@@ -97,7 +118,20 @@ export const DEFAULT_PROGRAMS: Record<ReportType, ProgramConfig> = {
     riskFilter: true,
     canonicalizeIndicator: canonicalIndicatorNT234,
   },
-  IAAS: stubProgram('IAAS', 'IAAS'),
+  IAAS: {
+    ...stubProgram('IAAS', 'IAAS'),
+    logo: '🦠',
+    executiveBaseText:
+      'Informe de auditoría del programa de prevención y control de Infecciones Asociadas a la Atención en Salud (IAAS).',
+    // Sub-auditorías IAAS: por ahora plantillas sin indicadores (se completan
+    // más adelante sin modificar el motor).
+    audits: [
+      { id: 'higiene_manos', name: 'Higiene de Manos', description: 'Adherencia a la higiene de manos (5 momentos)', officialIndicators: [], descriptiveVariables: [], riskFilter: false },
+      { id: 'navm', name: 'NAVM', description: 'Neumonía asociada a ventilación mecánica', officialIndicators: [], descriptiveVariables: [], riskFilter: false },
+      { id: 'itu_cup', name: 'ITU / CUP', description: 'Infección urinaria asociada a catéter urinario permanente', officialIndicators: [], descriptiveVariables: [], riskFilter: false },
+      { id: 'its_cvc', name: 'ITS / CVC', description: 'Infección del torrente sanguíneo asociada a catéter venoso central', officialIndicators: [], descriptiveVariables: [], riskFilter: false },
+    ],
+  },
   Dolor: stubProgram('Dolor', 'Dolor'),
   Caidas: stubProgram('Caidas', 'Caídas'),
   AccesosVasculares: stubProgram('AccesosVasculares', 'Accesos Vasculares'),

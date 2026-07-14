@@ -15,7 +15,7 @@ import type {
 import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDescriptiveVariable, matchesDescriptivePatterns, normalize } from './columnDetection';
 import { classifyLppStage, isLppStageColumn, LPP_STAGES } from './lpp';
 import { granularityFor } from '../config/options';
-import { getProgramConfig } from './programConfig';
+import { resolveProgramConfig } from './programConfig';
 import { detectDateOrder, periodKey, periodLabel, type DateOrder, type Granularity } from './periods';
 
 const UNGROUPED = 'Sin especificar';
@@ -173,7 +173,7 @@ function complianceByIndicator(
  */
 function complianceRowsFor(workbook: ParsedWorkbook, config: ReportConfig): RawRow[] {
   const { columns } = workbook;
-  const pc = getProgramConfig(config.reportType);
+  const pc = resolveProgramConfig(config);
   const indicatorCol = columnForRole(columns, 'indicador');
   const riskCol = columnForRole(columns, 'riesgo');
   // Parte de las filas reales (sin resumen/vacías) y excluye variables descriptivas.
@@ -248,7 +248,7 @@ function descriptiveVariables(
  */
 function clinicalCharacterization(workbook: ParsedWorkbook, config: ReportConfig): ClinicalCharacterization {
   const { rows, columns } = workbook;
-  const pc = getProgramConfig(config.reportType);
+  const pc = resolveProgramConfig(config);
   const riskCol = columnForRole(columns, 'riesgo');
   const indicatorCol = columnForRole(columns, 'indicador');
   const complianceCols = columnsForRole(columns, 'cumplimiento');
@@ -423,7 +423,7 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
   const unitCol = columnForRole(columns, 'unidad');
   const shiftCol = columnForRole(columns, 'turno');
   const indicatorCol = columnForRole(columns, 'indicador');
-  const pc = getProgramConfig(config.reportType);
+  const pc = resolveProgramConfig(config);
 
   // Filas descriptivas (formato largo) para la prevalencia.
   const isDescRow = (row: RawRow) => (indicatorCol ? isDescriptive(row[indicatorCol], pc.descriptiveVariables) : false);

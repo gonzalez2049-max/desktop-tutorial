@@ -61,6 +61,8 @@ export type AnalysisType =
 /** Configuración final del informe elegida en el wizard. */
 export interface ReportConfig {
   reportType: ReportType;
+  /** Sub-auditoría dentro del programa (p. ej. IAAS → Higiene de Manos). */
+  auditId?: string;
   analysisType: AnalysisType;
   highlights: Highlight[];
   goal: number; // meta de cumplimiento en % (0..100)
