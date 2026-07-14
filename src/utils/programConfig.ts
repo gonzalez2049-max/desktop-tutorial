@@ -81,12 +81,17 @@ export function resolveProgramConfig(config: ReportConfig): ProgramConfig {
   const base = getProgramConfig(config.reportType);
   const audit = config.auditId ? base.audits?.find((a) => a.id === config.auditId) : undefined;
   if (!audit) return base;
+  // Indicadores de la auditoría (obligatorios + complementarios) por nombre.
+  const officialIndicators = audit.indicators.map((i) => i.name);
   return {
     ...base,
-    officialIndicators: audit.officialIndicators,
+    auditMode: audit.mode,
+    officialIndicators,
     descriptiveVariables: audit.descriptiveVariables,
-    riskFilter: audit.riskFilter,
+    // IAAS no usa el filtro de riesgo de NT 234 (salvo que una variante lo pida).
+    riskFilter: audit.riskFilter ?? false,
     goal: audit.goal ?? base.goal,
-    canonicalizeIndicator: canonicalizerFor(config.reportType, audit.officialIndicators),
+    executiveBaseText: audit.executiveText || base.executiveBaseText,
+    canonicalizeIndicator: canonicalizerFor(config.reportType, officialIndicators),
   };
 }
