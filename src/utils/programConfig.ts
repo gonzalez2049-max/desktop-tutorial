@@ -2,7 +2,7 @@
 // defecto viven en config/programs.ts; aquí se aplican los ajustes que el
 // usuario guarda (localStorage), de forma independiente para cada programa.
 import { DEFAULT_PROGRAMS, canonicalizerFor, type ProgramConfig, type ProgramConfigEditable } from '../config/programs';
-import type { ReportType } from '../types';
+import type { ReportConfig, ReportType } from '../types';
 
 const storageKey = (rt: ReportType) => `nex-program-config:${rt}`;
 
@@ -69,4 +69,24 @@ export function resetProgramConfig(rt: ReportType): void {
 /** Configuración por defecto (sin ajustes) de un programa. */
 export function getProgramDefaults(rt: ReportType): ProgramConfig {
   return DEFAULT_PROGRAMS[rt];
+}
+
+/**
+ * Configuración efectiva para un informe: la del programa con la variante de
+ * auditoría elegida fusionada encima (indicadores, descriptivas, filtro de
+ * riesgo, meta y canonicalizador). Si no hay variante, devuelve el programa tal
+ * cual — por eso NT 234 (sin sub-auditorías) se comporta idéntico.
+ */
+export function resolveProgramConfig(config: ReportConfig): ProgramConfig {
+  const base = getProgramConfig(config.reportType);
+  const audit = config.auditId ? base.audits?.find((a) => a.id === config.auditId) : undefined;
+  if (!audit) return base;
+  return {
+    ...base,
+    officialIndicators: audit.officialIndicators,
+    descriptiveVariables: audit.descriptiveVariables,
+    riskFilter: audit.riskFilter,
+    goal: audit.goal ?? base.goal,
+    canonicalizeIndicator: canonicalizerFor(config.reportType, audit.officialIndicators),
+  };
 }

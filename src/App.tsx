@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react';
 import Stepper from './components/Stepper';
 import Home from './components/Home';
+import AuditPicker from './components/AuditPicker';
 import ProgramSettings from './components/ProgramSettings';
 import FileUpload from './components/FileUpload';
 import ColumnReview from './components/ColumnReview';
 import DataPreview from './components/DataPreview';
 import Wizard from './components/wizard/Wizard';
 import AnalysisView from './components/analysis/AnalysisView';
+import { getProgramConfig } from './utils/programConfig';
 import type { DetectedColumn, ParsedWorkbook, ReportConfig, ReportType } from './types';
 
-type Stage = 'home' | 'settings' | 'upload' | 'review' | 'wizard' | 'generating' | 'result';
+type Stage = 'home' | 'audit' | 'settings' | 'upload' | 'review' | 'wizard' | 'generating' | 'result';
 
 const STEPS = [
   { key: 'home', label: 'Programa' },
@@ -19,11 +21,12 @@ const STEPS = [
   { key: 'result', label: 'Reporte' },
 ];
 
-const STAGE_INDEX: Record<Stage, number> = { home: 0, settings: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4 };
+const STAGE_INDEX: Record<Stage, number> = { home: 0, audit: 0, settings: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4 };
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('home');
   const [reportType, setReportType] = useState<ReportType | null>(null);
+  const [auditId, setAuditId] = useState<string | undefined>(undefined);
   const [configProgram, setConfigProgram] = useState<ReportType | null>(null);
   const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null);
   const [config, setConfig] = useState<ReportConfig | null>(null);
@@ -31,12 +34,21 @@ export default function App() {
   const reset = () => {
     setStage('home');
     setReportType(null);
+    setAuditId(undefined);
     setWorkbook(null);
     setConfig(null);
   };
 
   const handleSelectProgram = (rt: ReportType) => {
     setReportType(rt);
+    setAuditId(undefined);
+    // Programas con sub-auditorías (p. ej. IAAS) piden primero la auditoría.
+    if (getProgramConfig(rt).audits?.length) setStage('audit');
+    else setStage('upload');
+  };
+
+  const handleSelectAudit = (id: string) => {
+    setAuditId(id);
     setStage('upload');
   };
 
@@ -57,7 +69,7 @@ export default function App() {
   const handleWizardComplete = (cfg: ReportConfig) => {
     if (!workbook) return;
     // "Primero pregunta, luego analiza, luego genera": pequeña transición.
-    setConfig(cfg);
+    setConfig({ ...cfg, auditId });
     setStage('generating');
     setTimeout(() => setStage('result'), 500);
   };
@@ -84,6 +96,16 @@ export default function App() {
 
       <main className="mx-auto max-w-5xl px-4 py-8">
         {stage === 'home' && <Home onSelect={handleSelectProgram} onConfigure={handleConfigureProgram} />}
+
+        {stage === 'audit' && reportType && (
+          <AuditPicker
+            programName={getProgramConfig(reportType).programName}
+            programLogo={getProgramConfig(reportType).logo}
+            audits={getProgramConfig(reportType).audits ?? []}
+            onSelect={handleSelectAudit}
+            onBack={reset}
+          />
+        )}
 
         {stage === 'settings' && configProgram && (
           <ProgramSettings reportType={configProgram} onBack={() => setStage('home')} />

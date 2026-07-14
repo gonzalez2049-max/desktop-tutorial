@@ -4,7 +4,7 @@ import type { AnalysisResult, ClinicalCharacterization, ComplianceGroup, Executi
 import { buildExecutiveReport } from './executiveReport';
 import { analysisTypeLabel, showsEvolution } from '../config/options';
 import { buildReportCharts } from './reportCharts';
-import { getProgramConfig } from './programConfig';
+import { resolveProgramConfig } from './programConfig';
 import type { ProgramConfig } from '../config/programs';
 import { summaryKpis } from './reportModel';
 import { PALETTE, complianceHex, hexToRgb, trafficHex, trafficLabel, trafficLightFor, type TrafficColors } from './palette';
@@ -362,7 +362,7 @@ function drawFooters(doc: jsPDF, margin: number): void {
 /** Construye el documento PDF del informe (sin guardarlo). */
 function buildPdfDoc(a: AnalysisResult, fileName: string): jsPDF {
   const report = buildExecutiveReport(a);
-  const program = getProgramConfig(a.config.reportType);
+  const program = resolveProgramConfig(a.config);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const ctx: Ctx = { doc, pageW: doc.internal.pageSize.getWidth(), pageH: doc.internal.pageSize.getHeight(), margin: 40, y: 0, colors: program.traffic, program };
 

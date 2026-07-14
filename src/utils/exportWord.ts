@@ -18,7 +18,7 @@ import type { ActionPlanRow, AnalysisResult, ClinicalCharacterization, Complianc
 import { buildExecutiveReport } from './executiveReport';
 import { analysisTypeLabel, showsEvolution } from '../config/options';
 import { buildReportCharts } from './reportCharts';
-import { getProgramConfig } from './programConfig';
+import { resolveProgramConfig } from './programConfig';
 import { summaryKpis } from './reportModel';
 
 /** Convierte un data URL PNG en bytes para incrustar como imagen en Word. */
@@ -270,7 +270,7 @@ function executiveParagraphs(report: ExecutiveReport): (Paragraph | Table)[] {
 /** Genera y descarga el informe en Word editable (.docx) con diseño ejecutivo. */
 export async function exportWord(a: AnalysisResult, fileName: string): Promise<void> {
   const report = buildExecutiveReport(a);
-  const program = getProgramConfig(a.config.reportType);
+  const program = resolveProgramConfig(a.config);
   const colors = program.traffic;
   const g = a.global;
   const light = trafficLightFor(g.percent, a.config.goal);
