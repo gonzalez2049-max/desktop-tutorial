@@ -36,22 +36,59 @@ export interface ProgramConfigEditable {
 }
 
 /**
+ * Modo de análisis de una auditoría:
+ * - 'practicas': cumplimiento = cumple / (cumple + no cumple) × 100 (excluye N/A).
+ * - 'vigilancia': tasas epidemiológicas (numerador/denominador). No aplica la
+ *   fórmula de cumplimiento automáticamente.
+ */
+export type AuditMode = 'practicas' | 'vigilancia';
+
+/** Indicador de una auditoría (obligatorio o complementario). */
+export interface AuditIndicator {
+  name: string;
+  kind: 'obligatorio' | 'complementario';
+}
+
+/** Tasa de vigilancia epidemiológica (numerador / denominador × factor). */
+export interface SurveillanceRate {
+  name: string;
+  numerator: string; // descripción del numerador
+  denominator: string; // descripción del denominador (p. ej. días dispositivo)
+  factor: number; // p. ej. 1000
+  unit: string; // p. ej. "por 1000 días de VM"
+  reference?: number; // referencia / meta
+}
+
+/**
  * Variante de auditoría dentro de un programa (p. ej. IAAS → Higiene de Manos,
- * NAVM, ITU/CUP, ITS/CVC). Cada variante aporta sus propios indicadores y reglas
- * sin duplicar el motor: se fusiona sobre el programa al analizar.
+ * NAVM, ITU/CUP, ITS/CVC, Bundle…). Cada variante define TODA su lógica por
+ * configuración y se fusiona sobre el programa al analizar, sin duplicar el motor.
  */
 export interface AuditVariant {
   id: string;
   name: string;
   description?: string;
-  /** Indicadores oficiales de la variante (vacío = detección genérica). */
-  officialIndicators: string[];
-  /** Variables descriptivas (no cumplimiento) de la variante. */
+  /** Modo de análisis: auditoría de prácticas o vigilancia epidemiológica. */
+  mode: AuditMode;
+  /** Indicadores obligatorios y complementarios (modo prácticas). */
+  indicators: AuditIndicator[];
+  /** Variables descriptivas (no forman parte del cumplimiento). */
   descriptiveVariables: string[];
-  /** ¿Filtra por riesgo alto/moderado? (como NT 234). */
-  riskFilter: boolean;
-  /** Meta específica; si se omite usa la del programa. */
+  /** Meta o referencia de cumplimiento (modo prácticas). */
   goal?: number;
+  /** Filtros de inclusión / exclusión (reglas por auditoría). */
+  inclusion: string[];
+  exclusion: string[];
+  /** Tasas de vigilancia epidemiológica (numerador/denominador/factor). */
+  rates: SurveillanceRate[];
+  /** KPIs y gráficos a destacar (identificadores, configurables). */
+  kpis: string[];
+  charts: string[];
+  /** Resumen ejecutivo y recomendaciones propias de la auditoría. */
+  executiveText: string;
+  recommendations: string[];
+  /** ¿Aplica filtro de riesgo? IAAS = false (no usa el filtro de NT 234). */
+  riskFilter?: boolean;
 }
 
 /** Configuración completa de un programa (editable + lógica no editable). */
@@ -59,6 +96,8 @@ export interface ProgramConfig extends ProgramConfigEditable {
   reportType: ReportType;
   /** Sub-auditorías del programa (p. ej. IAAS). Ausente = programa simple. */
   audits?: AuditVariant[];
+  /** Modo de la auditoría resuelta (lo fija resolveProgramConfig). */
+  auditMode?: AuditMode;
   /**
    * ¿El cumplimiento se calcula solo sobre pacientes de riesgo alto/moderado?
    * Es un parámetro de lógica del programa, no editable desde la UI.
@@ -101,6 +140,26 @@ function stubProgram(reportType: ReportType, programName: string): ProgramConfig
   };
 }
 
+/** Plantilla de auditoría IAAS: estructura completa vacía, lista para configurar. */
+function auditTemplate(id: string, name: string, description: string, mode: AuditMode): AuditVariant {
+  return {
+    id,
+    name,
+    description,
+    mode,
+    indicators: [],
+    descriptiveVariables: [],
+    inclusion: [],
+    exclusion: [],
+    rates: [],
+    kpis: [],
+    charts: [],
+    executiveText: '',
+    recommendations: [],
+    riskFilter: false,
+  };
+}
+
 /** Configuración por defecto de cada programa. Solo NT 234 está configurado. */
 export const DEFAULT_PROGRAMS: Record<ReportType, ProgramConfig> = {
   NT234_LPP: {
@@ -123,13 +182,16 @@ export const DEFAULT_PROGRAMS: Record<ReportType, ProgramConfig> = {
     logo: '🦠',
     executiveBaseText:
       'Informe de auditoría del programa de prevención y control de Infecciones Asociadas a la Atención en Salud (IAAS).',
-    // Sub-auditorías IAAS: por ahora plantillas sin indicadores (se completan
-    // más adelante sin modificar el motor).
+    // Sub-auditorías IAAS: plantillas configurables. Aún sin indicadores ni
+    // fórmulas específicas; cada una se completará por configuración sin tocar
+    // el motor. IAAS nunca usa el filtro de riesgo ni la caracterización de LPP.
     audits: [
-      { id: 'higiene_manos', name: 'Higiene de Manos', description: 'Adherencia a la higiene de manos (5 momentos)', officialIndicators: [], descriptiveVariables: [], riskFilter: false },
-      { id: 'navm', name: 'NAVM', description: 'Neumonía asociada a ventilación mecánica', officialIndicators: [], descriptiveVariables: [], riskFilter: false },
-      { id: 'itu_cup', name: 'ITU / CUP', description: 'Infección urinaria asociada a catéter urinario permanente', officialIndicators: [], descriptiveVariables: [], riskFilter: false },
-      { id: 'its_cvc', name: 'ITS / CVC', description: 'Infección del torrente sanguíneo asociada a catéter venoso central', officialIndicators: [], descriptiveVariables: [], riskFilter: false },
+      auditTemplate('higiene_manos', 'Higiene de Manos', 'Adherencia a la higiene de manos (5 momentos de la OMS)', 'practicas'),
+      auditTemplate('navm', 'NAVM', 'Neumonía asociada a ventilación mecánica', 'vigilancia'),
+      auditTemplate('itu_cup', 'ITU asociada a CUP', 'Infección urinaria asociada a catéter urinario permanente', 'vigilancia'),
+      auditTemplate('its_cvc', 'ITS asociada a CVC', 'Infección del torrente sanguíneo asociada a catéter venoso central', 'vigilancia'),
+      auditTemplate('bundle', 'Bundle IAAS', 'Cumplimiento de paquetes de medidas (bundles) de prevención', 'practicas'),
+      auditTemplate('otra', 'Otra auditoría IAAS', 'Auditoría IAAS genérica configurable', 'practicas'),
     ],
   },
   Dolor: stubProgram('Dolor', 'Dolor'),
