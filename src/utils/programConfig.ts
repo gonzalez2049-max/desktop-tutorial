@@ -1,10 +1,11 @@
 // Lectura y persistencia de la configuración por programa. Los valores por
 // defecto viven en config/programs.ts; aquí se aplican los ajustes que el
 // usuario guarda (localStorage), de forma independiente para cada programa.
-import { DEFAULT_PROGRAMS, canonicalizerFor, type ProgramConfig, type ProgramConfigEditable } from '../config/programs';
+import { DEFAULT_PROGRAMS, canonicalizerFor, type AuditVariant, type ProgramConfig, type ProgramConfigEditable } from '../config/programs';
 import type { ReportConfig, ReportType } from '../types';
 
 const storageKey = (rt: ReportType) => `nex-program-config:${rt}`;
+const auditsKey = (rt: ReportType) => `nex-program-audits:${rt}`;
 
 /** ¿Hay localStorage disponible? (falso en Node / SSR / entornos restringidos). */
 function hasStorage(): boolean {
@@ -27,6 +28,24 @@ function loadOverride(rt: ReportType): Partial<ProgramConfigEditable> {
 }
 
 /**
+ * Auditorías guardadas de un programa (lista completa que reemplaza a las de
+ * fábrica). Null si el usuario no ha personalizado ninguna → se usan las
+ * plantillas por defecto. Las auditorías son datos puros (sin funciones), por lo
+ * que se serializan directamente.
+ */
+function loadAudits(rt: ReportType): AuditVariant[] | null {
+  if (!hasStorage()) return null;
+  try {
+    const raw = localStorage.getItem(auditsKey(rt));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AuditVariant[];
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Configuración efectiva de un programa: valores por defecto combinados con los
  * ajustes guardados por el usuario. Reconstruye el canonicalizador a partir de
  * los indicadores oficiales (las funciones no se persisten).
@@ -35,12 +54,16 @@ export function getProgramConfig(rt: ReportType): ProgramConfig {
   const base = DEFAULT_PROGRAMS[rt];
   const ov = loadOverride(rt);
   const officialIndicators = ov.officialIndicators ?? base.officialIndicators;
+  // Auditorías personalizadas (si las hay) reemplazan a las de fábrica; si no,
+  // se mantienen las plantillas por defecto del programa.
+  const audits = loadAudits(rt) ?? base.audits;
   return {
     ...base,
     ...ov,
     reportType: base.reportType,
     traffic: { ...base.traffic, ...(ov.traffic ?? {}) },
     officialIndicators,
+    audits,
     canonicalizeIndicator: canonicalizerFor(rt, officialIndicators),
   };
 }
@@ -69,6 +92,48 @@ export function resetProgramConfig(rt: ReportType): void {
 /** Configuración por defecto (sin ajustes) de un programa. */
 export function getProgramDefaults(rt: ReportType): ProgramConfig {
   return DEFAULT_PROGRAMS[rt];
+}
+
+/** Auditorías efectivas de un programa (personalizadas o por defecto). */
+export function getProgramAudits(rt: ReportType): AuditVariant[] {
+  return getProgramConfig(rt).audits ?? [];
+}
+
+/** Persiste la lista completa de auditorías de un programa. */
+function saveAudits(rt: ReportType, audits: AuditVariant[]): void {
+  if (!hasStorage()) return;
+  try {
+    localStorage.setItem(auditsKey(rt), JSON.stringify(audits));
+  } catch {
+    /* almacenamiento no disponible: se ignora */
+  }
+}
+
+/**
+ * Crea o actualiza una auditoría del programa (upsert por id). Parte de la lista
+ * efectiva actual (personalizada o de fábrica) para no perder las demás.
+ */
+export function saveAudit(rt: ReportType, audit: AuditVariant): void {
+  const current = getProgramAudits(rt);
+  const idx = current.findIndex((a) => a.id === audit.id);
+  const next = idx >= 0 ? current.map((a) => (a.id === audit.id ? audit : a)) : [...current, audit];
+  saveAudits(rt, next);
+}
+
+/** Elimina una auditoría del programa por id. */
+export function deleteAudit(rt: ReportType, id: string): void {
+  const next = getProgramAudits(rt).filter((a) => a.id !== id);
+  saveAudits(rt, next);
+}
+
+/** Restablece las auditorías del programa a las plantillas por defecto. */
+export function resetAudits(rt: ReportType): void {
+  if (!hasStorage()) return;
+  try {
+    localStorage.removeItem(auditsKey(rt));
+  } catch {
+    /* noop */
+  }
 }
 
 /**
