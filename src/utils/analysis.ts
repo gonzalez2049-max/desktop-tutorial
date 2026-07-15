@@ -1,5 +1,7 @@
 import type {
   AnalysisResult,
+  BreakdownCompliance,
+  DetectedColumn,
   ClinicalCharacterization,
   ComplianceGroup,
   DescriptiveVariable,
@@ -12,6 +14,7 @@ import type {
   TemporalAnalysis,
   UnitShiftMatrix,
 } from '../types';
+import type { AuditBreakdown } from '../config/programs';
 import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDescriptiveVariable, matchesDescriptivePatterns, normalize } from './columnDetection';
 import { classifyLppStage, isLppStageColumn, LPP_STAGES } from './lpp';
 import { granularityFor } from '../config/options';
@@ -164,6 +167,39 @@ function complianceByIndicator(
       return makeGroup(canon(col), cumple, noCumple, noAplica, goal);
     })
     .sort((a, b) => b.percent - a.percent);
+}
+
+/**
+ * Cumplimiento por cada dimensión de desglose configurada (p. ej. estamento,
+ * tipo de higiene, observador). La columna se localiza por coincidencia del
+ * encabezado con los fragmentos `match` de la dimensión, ignorando las columnas
+ * que ya son de cumplimiento/indicador/riesgo. Solo se devuelven los desgloses
+ * cuya columna existe y tiene al menos un grupo con casos aplicables. Sin
+ * dimensiones configuradas (NT 234) devuelve una lista vacía.
+ */
+function complianceByBreakdowns(
+  columns: DetectedColumn[],
+  breakdowns: AuditBreakdown[],
+  rows: RawRow[],
+  complianceCols: string[],
+  goal: number,
+): BreakdownCompliance[] {
+  const skipRoles = new Set<DetectedColumn['role']>(['cumplimiento', 'indicador', 'riesgo']);
+  const out: BreakdownCompliance[] = [];
+  for (const bd of breakdowns) {
+    const col = columns.find((c) => {
+      if (skipRoles.has(c.role)) return false;
+      const header = normalize(c.original);
+      return header !== '' && bd.match.some((m) => {
+        const nm = normalize(m);
+        return nm !== '' && header.includes(nm);
+      });
+    });
+    if (!col) continue;
+    const groups = complianceBy(rows, col.original, complianceCols, goal);
+    if (groups.some((g) => g.aplicables > 0)) out.push({ key: bd.key, label: bd.label, groups });
+  }
+  return out;
 }
 
 /**
@@ -454,6 +490,7 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
   };
 
   const byIndicator = complianceByIndicator(complianceRows, indicatorCol, complianceCols, goal, pc.canonicalizeIndicator, pc.descriptiveVariables);
+  const byBreakdown = complianceByBreakdowns(columns, pc.breakdowns ?? [], complianceRows, complianceCols, goal);
   const descriptiveVars = descriptiveVariables(dataRows, descriptiveCols, descriptiveRows, indicatorCol, complianceCols);
 
   // Caracterización clínica por paciente (filtro de riesgo solo en NT 234 / LPP).
@@ -471,6 +508,7 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
     complianceByUnit: complianceBy(complianceRows, unitCol, complianceCols, goal),
     complianceByShift: complianceBy(complianceRows, shiftCol, complianceCols, goal),
     complianceByIndicator: byIndicator,
+    complianceByBreakdown: byBreakdown,
     criticalIndicators: byIndicator.filter((i) => i.aplicables > 0 && !i.meetsGoal).sort((a, b) => a.percent - b.percent),
     highlightedIndicators: byIndicator.filter((i) => i.meetsGoal).sort((a, b) => b.percent - a.percent),
     descriptiveVariables: descriptiveVars,

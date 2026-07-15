@@ -98,6 +98,13 @@ export interface ComplianceGroup {
   meetsGoal: boolean;
 }
 
+/** Cumplimiento agrupado por una dimensión de desglose configurada. */
+export interface BreakdownCompliance {
+  key: string;
+  label: string;
+  groups: ComplianceGroup[];
+}
+
 /** Cumplimiento global de toda la auditoría. */
 export interface GlobalCompliance {
   cumple: number;
@@ -235,6 +242,8 @@ export interface AnalysisResult {
   complianceByUnit: ComplianceGroup[];
   complianceByShift: ComplianceGroup[];
   complianceByIndicator: ComplianceGroup[];
+  /** Desgloses adicionales por dimensión configurada (p. ej. estamento). */
+  complianceByBreakdown: BreakdownCompliance[];
   criticalIndicators: ComplianceGroup[]; // bajo la meta
   highlightedIndicators: ComplianceGroup[]; // sobre o en la meta
   descriptiveVariables: DescriptiveVariable[]; // prevalencia (no cumplimiento)

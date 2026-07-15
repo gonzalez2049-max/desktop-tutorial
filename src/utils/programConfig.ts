@@ -151,6 +151,7 @@ export function resolveProgramConfig(config: ReportConfig): ProgramConfig {
   return {
     ...base,
     auditMode: audit.mode,
+    breakdowns: audit.breakdowns ?? [],
     officialIndicators,
     descriptiveVariables: audit.descriptiveVariables,
     // IAAS no usa el filtro de riesgo de NT 234 (salvo que una variante lo pida).

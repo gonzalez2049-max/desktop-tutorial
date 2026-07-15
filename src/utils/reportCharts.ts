@@ -262,6 +262,14 @@ export function buildReportCharts(a: AnalysisResult, colors: TrafficColors = DEF
   charts.push(gaugeChart(a, colors));
   if (a.complianceByIndicator.length) charts.push(barsChart('Cumplimiento por indicador', a.complianceByIndicator, a.config.goal, colors, { labelW: 170 }));
   if (a.complianceByShift.length) charts.push(barsChart('Cumplimiento por turno', a.complianceByShift, a.config.goal, colors, { labelW: 90 }));
+  // Desgloses adicionales (p. ej. estamento) y cumplimiento por unidad: solo en
+  // auditorías distintas de NT 234, para no alterar sus gráficos.
+  if (a.config.reportType !== 'NT234_LPP') {
+    if (a.complianceByUnit.length) charts.push(barsChart('Cumplimiento por unidad', a.complianceByUnit, a.config.goal, colors, { labelW: 150 }));
+    for (const bd of a.complianceByBreakdown) {
+      if (bd.groups.length) charts.push(barsChart(`Cumplimiento por ${bd.label.toLowerCase()}`, bd.groups, a.config.goal, colors, { labelW: 150 }));
+    }
+  }
   if (a.criticalIndicators.length) charts.push(barsChart('Indicadores bajo la meta (ranking)', a.criticalIndicators, a.config.goal, colors, { labelW: 170 }));
   const donut = lppDonut(a);
   if (donut) charts.push(donut);

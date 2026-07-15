@@ -72,6 +72,10 @@ export function looksLikeRiskHeader(header: unknown): boolean {
   return /\briesgo\b/.test(n) || /\bbraden\b/.test(n) || /\bmorse\b/.test(n);
 }
 
+// Palabras vacías: no deben producir coincidencias por token (p. ej. "de" en
+// "Tipo de higiene" no debe emparejar con "nivel de riesgo").
+const STOPWORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 'o', 'u', 'en', 'con', 'por', 'para', 'a', 'al', 'un', 'una', 'se', 'su', 'the']);
+
 /** Devuelve un puntaje de coincidencia entre un header y un rol. */
 function scoreRole(header: string, keywords: string[]): number {
   const tokens = new Set(header.split(' '));
@@ -79,9 +83,9 @@ function scoreRole(header: string, keywords: string[]): number {
   for (const kw of keywords) {
     if (header === kw) return 1;
     if (header.includes(kw)) best = Math.max(best, 0.85);
-    // coincidencia por token individual
+    // coincidencia por token individual (ignorando palabras vacías y muy cortas)
     for (const t of kw.split(' ')) {
-      if (tokens.has(t)) best = Math.max(best, 0.7);
+      if (t.length >= 3 && !STOPWORDS.has(t) && tokens.has(t)) best = Math.max(best, 0.7);
     }
   }
   return best;

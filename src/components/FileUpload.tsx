@@ -7,10 +7,12 @@ interface FileUploadProps {
   onBack?: () => void;
   /** Programa seleccionado: activa su perfil de reconocimiento de columnas. */
   reportType?: ReportType;
+  /** Sub-auditoría elegida: afina el perfil con sus indicadores oficiales. */
+  auditId?: string;
 }
 
 /** Paso 2: carga del archivo Excel con soporte de arrastrar y soltar. */
-export default function FileUpload({ onParsed, onBack, reportType }: FileUploadProps) {
+export default function FileUpload({ onParsed, onBack, reportType, auditId }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -21,7 +23,7 @@ export default function FileUpload({ onParsed, onBack, reportType }: FileUploadP
       setError(null);
       setLoading(true);
       try {
-        const wb = await parseExcelFile(file, reportType);
+        const wb = await parseExcelFile(file, reportType, auditId);
         onParsed(wb);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'No se pudo leer el archivo.');
@@ -29,7 +31,7 @@ export default function FileUpload({ onParsed, onBack, reportType }: FileUploadP
         setLoading(false);
       }
     },
-    [onParsed, reportType],
+    [onParsed, reportType, auditId],
   );
 
   return (

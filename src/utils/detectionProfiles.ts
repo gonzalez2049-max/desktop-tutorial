@@ -4,6 +4,8 @@ import type { DetectedColumn, RawRow, ReportType } from '../types';
 import { classifyCompliance, isDescriptiveVariable, normalize } from './columnDetection';
 import { isLppStageColumn } from './lpp';
 import { canonicalIndicatorNT234 } from './nt234';
+import { canonicalizerFor } from '../config/programs';
+import { getProgramConfig } from './programConfig';
 
 /** Nombre del perfil de reconocimiento del módulo NT 234 (estructura HUAP). */
 export const NT234_HUAP_PROFILE = 'NT 234 HUAP';
@@ -78,13 +80,52 @@ function applyNt234HuapProfile(columns: DetectedColumn[], rows: RawRow[]): Detec
   });
 }
 
+/**
+ * Perfil por auditoría (IAAS y futuras): reconoce los indicadores oficiales de
+ * la auditoría elegida para asignarles el rol correcto sin intervención manual.
+ * - Formato ancho: una columna cuyo encabezado coincide con un indicador oficial
+ *   y cuyo contenido es Sí/No → columna de cumplimiento (aunque el encabezado
+ *   contenga palabras como "paciente" o "entorno").
+ * - Formato largo: una columna cuyos valores son los indicadores oficiales →
+ *   columna de indicador.
+ * No altera las columnas de dimensión (unidad, turno, estamento, etc.).
+ */
+function applyAuditProfile(reportType: ReportType, auditId: string, columns: DetectedColumn[], rows: RawRow[]): DetectedColumn[] {
+  const audit = getProgramConfig(reportType).audits?.find((a) => a.id === auditId);
+  const officialNames = audit?.indicators.map((i) => i.name) ?? [];
+  if (officialNames.length === 0) return columns;
+  const canon = canonicalizerFor(reportType, officialNames);
+
+  /** Proporción de valores de la columna que son indicadores oficiales. */
+  const indicatorRatio = (col: string): number => {
+    const sample = rows.slice(0, 50).map((r) => r[col]);
+    if (sample.length === 0) return 0;
+    return sample.filter((v) => canon(v) !== null).length / sample.length;
+  };
+
+  return columns.map((col) => {
+    // Ancho: encabezado = indicador oficial + contenido Sí/No → cumplimiento.
+    if (canon(col.original) !== null && complianceRatio(rows, col.original) >= 0.5) {
+      return { ...col, role: 'cumplimiento', confidence: 0.95 };
+    }
+    // Largo: valores = indicadores oficiales → indicador.
+    if (col.role !== 'cumplimiento' && indicatorRatio(col.original) >= 0.5) {
+      return { ...col, role: 'indicador', confidence: 0.9 };
+    }
+    return col;
+  });
+}
+
 /** Nombre del perfil de reconocimiento aplicable a un programa (o null). */
 export function profileNameFor(reportType: ReportType): string | null {
-  return reportType === 'NT234_LPP' ? NT234_HUAP_PROFILE : null;
+  if (reportType === 'NT234_LPP') return NT234_HUAP_PROFILE;
+  if (reportType === 'IAAS') return 'IAAS';
+  return null;
 }
 
 /** Aplica el perfil de reconocimiento del programa a las columnas detectadas. */
-export function applyDetectionProfile(reportType: ReportType, columns: DetectedColumn[], rows: RawRow[]): DetectedColumn[] {
+export function applyDetectionProfile(reportType: ReportType, columns: DetectedColumn[], rows: RawRow[], auditId?: string): DetectedColumn[] {
   if (reportType === 'NT234_LPP') return applyNt234HuapProfile(columns, rows);
+  if (auditId) return applyAuditProfile(reportType, auditId, columns, rows);
   return columns;
 }

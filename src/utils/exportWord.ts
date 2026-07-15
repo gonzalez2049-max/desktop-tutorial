@@ -322,6 +322,10 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
   if (a.complianceByUnit.length) {
     children.push(heading('Cumplimiento por unidad'), complianceTable(a.complianceByUnit, 'Unidad', a.config.goal, colors));
   }
+  // Desgloses configurados (p. ej. estamento). Vacío en NT 234.
+  for (const bd of a.complianceByBreakdown) {
+    children.push(heading(`Cumplimiento por ${bd.label.toLowerCase()}`), complianceTable(bd.groups, bd.label, a.config.goal, colors));
+  }
 
   if (showsEvolution(a.config.analysisType) && a.temporal.hasDate && a.temporal.evolution.length > 0) {
     const pts = a.temporal.evolution;
