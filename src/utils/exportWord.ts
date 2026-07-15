@@ -314,7 +314,17 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
   children.push(...chartParagraphs(a, colors));
 
   if (a.complianceByIndicator.length) {
-    children.push(heading('Cumplimiento por indicador'), complianceTable(a.complianceByIndicator, 'Indicador', a.config.goal, colors));
+    const compl = a.complianceByIndicator.filter((g) => g.kind === 'complementario');
+    if (compl.length) {
+      const mand = a.complianceByIndicator.filter((g) => g.kind !== 'complementario');
+      children.push(heading('Cumplimiento por indicador obligatorio (oficial)'), complianceTable(mand, 'Indicador obligatorio', a.config.goal, colors));
+      children.push(
+        heading('Indicadores complementarios (no alteran el cumplimiento oficial)'),
+        complianceTable(compl, 'Indicador complementario', a.config.goal, colors),
+      );
+    } else {
+      children.push(heading('Cumplimiento por indicador'), complianceTable(a.complianceByIndicator, 'Indicador', a.config.goal, colors));
+    }
   }
   if (a.complianceByShift.length) {
     children.push(heading('Cumplimiento por turno'), complianceTable(a.complianceByShift, 'Turno', a.config.goal, colors));

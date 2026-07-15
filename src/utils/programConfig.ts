@@ -152,6 +152,8 @@ export function resolveProgramConfig(config: ReportConfig): ProgramConfig {
     ...base,
     auditMode: audit.mode,
     breakdowns: audit.breakdowns ?? [],
+    // Complementarios: se informan pero no cuentan para el cumplimiento oficial.
+    complementaryIndicators: audit.indicators.filter((i) => i.kind === 'complementario').map((i) => i.name),
     officialIndicators,
     descriptiveVariables: audit.descriptiveVariables,
     // IAAS no usa el filtro de riesgo de NT 234 (salvo que una variante lo pida).
