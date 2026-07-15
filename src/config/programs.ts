@@ -163,6 +163,11 @@ export interface ProgramConfig extends ProgramConfigEditable {
   /** Dimensiones de desglose de la auditoría resuelta (lo fija resolveProgramConfig). */
   breakdowns?: AuditBreakdown[];
   /**
+   * Indicadores complementarios de la auditoría resuelta: se informan pero NO
+   * cuentan para el cumplimiento oficial (lo fija resolveProgramConfig).
+   */
+  complementaryIndicators?: string[];
+  /**
    * ¿El cumplimiento se calcula solo sobre pacientes de riesgo alto/moderado?
    * Es un parámetro de lógica del programa, no editable desde la UI.
    */

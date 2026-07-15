@@ -468,12 +468,21 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
   // Base de cumplimiento: sin descriptivas y, en NT 234 / LPP, solo riesgo moderado/alto.
   const complianceRows = complianceRowsFor(data, config);
 
-  // Cumplimiento global.
+  // Indicadores complementarios: se informan pero NO cuentan para el cumplimiento
+  // oficial. Sin complementarios (NT 234, Higiene de Manos) todo esto es un no-op.
+  const complementarySet = new Set((pc.complementaryIndicators ?? []).map((n) => normalize(pc.canonicalizeIndicator(n) ?? n)));
+  const isComplementaryLabel = (label: unknown) => complementarySet.has(normalize(pc.canonicalizeIndicator(label) ?? String(label ?? '')));
+  // Columnas de cumplimiento OFICIALES (formato ancho): excluye complementarias.
+  const officialCols = complementarySet.size === 0 ? complianceCols : complianceCols.filter((c) => !isComplementaryLabel(c));
+
+  // Cumplimiento global OFICIAL (solo obligatorios).
   let cumple = 0;
   let noCumple = 0;
   let noAplica = 0;
   for (const row of complianceRows) {
-    const t = tally(row, complianceCols);
+    // Formato largo: excluye las filas cuyo indicador es complementario.
+    if (indicatorCol && complementarySet.size > 0 && isComplementaryLabel(row[indicatorCol])) continue;
+    const t = tally(row, indicatorCol ? complianceCols : officialCols);
     cumple += t.cumple;
     noCumple += t.noCumple;
     noAplica += t.noAplica;
@@ -489,7 +498,15 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
     meetsGoal: aplicables > 0 && globalPercent >= goal,
   };
 
-  const byIndicator = complianceByIndicator(complianceRows, indicatorCol, complianceCols, goal, pc.canonicalizeIndicator, pc.descriptiveVariables);
+  const byIndicatorRaw = complianceByIndicator(complianceRows, indicatorCol, complianceCols, goal, pc.canonicalizeIndicator, pc.descriptiveVariables);
+  // Con complementarios: marca el tipo de cada indicador para separarlos en el
+  // informe. Sin complementarios: se deja tal cual (kind indefinido) → sin cambios.
+  const byIndicator =
+    complementarySet.size === 0
+      ? byIndicatorRaw
+      : byIndicatorRaw.map((g) => ({ ...g, kind: isComplementaryLabel(g.label) ? ('complementario' as const) : ('obligatorio' as const) }));
+  // Indicadores oficiales (obligatorios) para KPIs de críticos/destacados.
+  const officialGroups = complementarySet.size === 0 ? byIndicator : byIndicator.filter((g) => g.kind !== 'complementario');
   const byBreakdown = complianceByBreakdowns(columns, pc.breakdowns ?? [], complianceRows, complianceCols, goal);
   const descriptiveVars = descriptiveVariables(dataRows, descriptiveCols, descriptiveRows, indicatorCol, complianceCols);
 
@@ -509,8 +526,8 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
     complianceByShift: complianceBy(complianceRows, shiftCol, complianceCols, goal),
     complianceByIndicator: byIndicator,
     complianceByBreakdown: byBreakdown,
-    criticalIndicators: byIndicator.filter((i) => i.aplicables > 0 && !i.meetsGoal).sort((a, b) => a.percent - b.percent),
-    highlightedIndicators: byIndicator.filter((i) => i.meetsGoal).sort((a, b) => b.percent - a.percent),
+    criticalIndicators: officialGroups.filter((i) => i.aplicables > 0 && !i.meetsGoal).sort((a, b) => a.percent - b.percent),
+    highlightedIndicators: officialGroups.filter((i) => i.meetsGoal).sort((a, b) => b.percent - a.percent),
     descriptiveVariables: descriptiveVars,
     characterization,
     temporal,

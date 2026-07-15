@@ -384,8 +384,17 @@ function buildPdfDoc(a: AnalysisResult, fileName: string): jsPDF {
   drawCharts(ctx, a);
 
   if (a.complianceByIndicator.length) {
-    sectionTitle(ctx, 'Cumplimiento por indicador');
-    drawComplianceTable(ctx, a.complianceByIndicator, 'Indicador', a.config.goal);
+    const compl = a.complianceByIndicator.filter((g) => g.kind === 'complementario');
+    if (compl.length) {
+      const mand = a.complianceByIndicator.filter((g) => g.kind !== 'complementario');
+      sectionTitle(ctx, 'Cumplimiento por indicador obligatorio (oficial)');
+      drawComplianceTable(ctx, mand, 'Indicador obligatorio', a.config.goal);
+      sectionTitle(ctx, 'Indicadores complementarios (no alteran el cumplimiento oficial)');
+      drawComplianceTable(ctx, compl, 'Indicador complementario', a.config.goal);
+    } else {
+      sectionTitle(ctx, 'Cumplimiento por indicador');
+      drawComplianceTable(ctx, a.complianceByIndicator, 'Indicador', a.config.goal);
+    }
   }
   if (a.complianceByShift.length) {
     sectionTitle(ctx, 'Cumplimiento por turno');

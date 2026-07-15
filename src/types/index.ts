@@ -96,6 +96,11 @@ export interface ComplianceGroup {
   aplicables: number; // cumple + noCumple
   percent: number; // cumple / aplicables * 100
   meetsGoal: boolean;
+  /**
+   * Solo en «cumplimiento por indicador»: tipo del indicador. Los
+   * complementarios se muestran aparte y NO alteran el cumplimiento oficial.
+   */
+  kind?: 'obligatorio' | 'complementario';
 }
 
 /** Cumplimiento agrupado por una dimensión de desglose configurada. */

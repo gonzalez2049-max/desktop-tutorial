@@ -332,7 +332,8 @@ function computeGenericGaps(a: AnalysisResult): GenericGap[] {
       if (g.percent < goal) out.push({ dimension, label: g.label, percent: g.percent, gap: round1(goal - g.percent) });
     });
   };
-  add('Indicador', a.complianceByIndicator);
+  // Solo indicadores obligatorios: los complementarios no alteran el cumplimiento oficial.
+  add('Indicador', a.complianceByIndicator.filter((g) => g.kind !== 'complementario'));
   add('Unidad', a.complianceByUnit);
   add('Turno', a.complianceByShift);
   for (const bd of a.complianceByBreakdown) add(bd.label, bd.groups);

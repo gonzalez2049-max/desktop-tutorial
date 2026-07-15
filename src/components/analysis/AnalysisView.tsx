@@ -314,9 +314,39 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
           {temporalSection}
 
           {a.complianceByIndicator.length > 0 && (
-            <Section title="Cumplimiento por indicador" icon="📊" subtitle="Cumple / no cumple y % por indicador">
-              <ComplianceTable groups={a.complianceByIndicator} firstHeader="Indicador" goal={config.goal} />
-            </Section>
+            (() => {
+              const mand = a.complianceByIndicator.filter((g) => g.kind !== 'complementario');
+              const comp = a.complianceByIndicator.filter((g) => g.kind === 'complementario');
+              if (comp.length === 0) {
+                return (
+                  <Section title="Cumplimiento por indicador" icon="📊" subtitle="Cumple / no cumple y % por indicador">
+                    <ComplianceTable groups={a.complianceByIndicator} firstHeader="Indicador" goal={config.goal} />
+                  </Section>
+                );
+              }
+              return (
+                <Section
+                  title="Cumplimiento por indicador"
+                  icon="📊"
+                  subtitle="Obligatorios (cumplimiento oficial) y complementarios (informativos, no alteran el oficial)"
+                >
+                  <div className="space-y-5">
+                    <div>
+                      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Obligatorios · {mand.length} · cumplimiento oficial
+                      </p>
+                      <ComplianceTable groups={mand} firstHeader="Indicador obligatorio" goal={config.goal} />
+                    </div>
+                    <div>
+                      <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Complementarios · {comp.length} · no cuentan para el cumplimiento oficial
+                      </p>
+                      <ComplianceTable groups={comp} firstHeader="Indicador complementario" goal={config.goal} />
+                    </div>
+                  </div>
+                </Section>
+              );
+            })()
           )}
 
           {a.complianceByShift.length > 0 && (
