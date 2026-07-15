@@ -395,6 +395,11 @@ function buildPdfDoc(a: AnalysisResult, fileName: string): jsPDF {
     sectionTitle(ctx, 'Cumplimiento por unidad');
     drawComplianceTable(ctx, a.complianceByUnit, 'Unidad', a.config.goal);
   }
+  // Desgloses configurados (p. ej. estamento). Vacío en NT 234.
+  for (const bd of a.complianceByBreakdown) {
+    sectionTitle(ctx, `Cumplimiento por ${bd.label.toLowerCase()}`);
+    drawComplianceTable(ctx, bd.groups, bd.label, a.config.goal);
+  }
 
   if (showsEvolution(a.config.analysisType) && a.temporal.hasDate && a.temporal.evolution.length > 0) {
     ensure(ctx, 60);

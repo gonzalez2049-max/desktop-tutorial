@@ -141,6 +141,7 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
             ))}
             <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">Meta {config.goal}%</span>
           </div>
+          {audit?.formula && !vigilancia && <p className="mt-2 text-xs text-slate-400">🧮 Fórmula: {audit.formula}</p>}
         </div>
         <div className="flex shrink-0 gap-2">
           {onEdit && (
@@ -329,6 +330,13 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
               <ComplianceTable groups={a.complianceByUnit} firstHeader="Unidad" goal={config.goal} />
             </Section>
           )}
+
+          {/* Desgloses configurados por la auditoría (p. ej. estamento, tipo de higiene). */}
+          {a.complianceByBreakdown.map((bd) => (
+            <Section key={bd.key} title={`Cumplimiento por ${bd.label.toLowerCase()}`} icon="🧑‍⚕️" subtitle="Cumple / no cumple y % por categoría">
+              <ComplianceTable groups={bd.groups} firstHeader={bd.label} goal={config.goal} />
+            </Section>
+          ))}
 
           <Suspense fallback={<div className="card p-8 text-center text-sm text-slate-400">Cargando gráficos…</div>}>
             <VisualDashboard a={a} />

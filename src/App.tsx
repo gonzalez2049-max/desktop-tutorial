@@ -111,7 +111,7 @@ export default function App() {
           <ProgramSettings reportType={configProgram} onBack={() => setStage('home')} />
         )}
 
-        {stage === 'upload' && reportType && <FileUpload onParsed={handleParsed} onBack={reset} reportType={reportType} />}
+        {stage === 'upload' && reportType && <FileUpload onParsed={handleParsed} onBack={reset} reportType={reportType} auditId={auditId} />}
 
         {stage === 'review' && workbook && (
           <ColumnReview

@@ -59,6 +59,19 @@ export interface SurveillanceRate {
   reference?: number; // referencia / meta
 }
 
+/**
+ * Dimensión adicional de desglose del cumplimiento (además de unidad/turno, que
+ * son roles nativos del motor). Permite, por configuración, calcular el
+ * cumplimiento por estamento, tipo de higiene, observador, etc. La columna se
+ * localiza en el Excel por coincidencia del encabezado con `match`.
+ */
+export interface AuditBreakdown {
+  key: string;
+  label: string;
+  /** Fragmentos de encabezado (normalizados) que identifican la columna. */
+  match: string[];
+}
+
 /** Condición que dispara una recomendación automática. */
 export type RecommendationTrigger = 'always' | 'below_goal' | 'at_or_above_goal';
 
@@ -123,6 +136,8 @@ export interface AuditVariant {
   rates: SurveillanceRate[];
   /** Fórmula de cálculo (descriptiva/configurable, propia de la auditoría). */
   formula?: string;
+  /** Dimensiones adicionales de desglose del cumplimiento (p. ej. estamento). */
+  breakdowns?: AuditBreakdown[];
   /** KPIs, gráficos y tablas a destacar (identificadores, configurables). */
   kpis: string[];
   charts: string[];
@@ -145,6 +160,8 @@ export interface ProgramConfig extends ProgramConfigEditable {
   audits?: AuditVariant[];
   /** Modo de la auditoría resuelta (lo fija resolveProgramConfig). */
   auditMode?: AuditMode;
+  /** Dimensiones de desglose de la auditoría resuelta (lo fija resolveProgramConfig). */
+  breakdowns?: AuditBreakdown[];
   /**
    * ¿El cumplimiento se calcula solo sobre pacientes de riesgo alto/moderado?
    * Es un parámetro de lógica del programa, no editable desde la UI.
@@ -200,6 +217,7 @@ function auditTemplate(id: string, name: string, description: string, mode: Audi
     exclusion: [],
     rates: [],
     formula: '',
+    breakdowns: [],
     kpis: [],
     charts: [],
     tables: [],
@@ -242,7 +260,42 @@ export const DEFAULT_PROGRAMS: Record<ReportType, ProgramConfig> = {
     // fórmulas específicas; cada una se completará por configuración sin tocar
     // el motor. IAAS nunca usa el filtro de riesgo ni la caracterización de LPP.
     audits: [
-      auditTemplate('higiene_manos', 'Higiene de Manos', 'Adherencia a la higiene de manos (5 momentos de la OMS)', 'practicas'),
+      {
+        ...auditTemplate('higiene_manos', 'Higiene de Manos', 'Adherencia a la higiene de manos (5 momentos de la OMS)', 'practicas'),
+        goal: 90,
+        formula: 'Cumplimiento = Cumple / (Cumple + No cumple) × 100, excluyendo N/A.',
+        indicators: [
+          { name: 'Antes del contacto con el paciente', kind: 'obligatorio' },
+          { name: 'Antes de una tarea limpia/aséptica', kind: 'obligatorio' },
+          { name: 'Después de exposición a fluidos', kind: 'obligatorio' },
+          { name: 'Después del contacto con el paciente', kind: 'obligatorio' },
+          { name: 'Después del contacto con el entorno', kind: 'obligatorio' },
+        ],
+        descriptiveVariables: ['Unidad', 'Turno', 'Estamento', 'Observador', 'Fecha', 'Tipo de higiene'],
+        breakdowns: [
+          { key: 'estamento', label: 'Estamento', match: ['estamento', 'profesion', 'cargo', 'categoria'] },
+          { key: 'tipo_higiene', label: 'Tipo de higiene', match: ['tipo de higiene', 'tipo higiene', 'metodo de higiene', 'tecnica de higiene'] },
+          { key: 'observador', label: 'Observador', match: ['observador', 'observadora', 'auditor'] },
+        ],
+        inclusion: ['Oportunidades de higiene de manos observadas en la atención directa de pacientes.'],
+        exclusion: ['Registros sin momento de la OMS identificado o sin resultado (Cumple / No cumple / N/A).'],
+        kpis: ['Cumplimiento global', 'Cumplimiento por momento de la OMS', 'Cumplimiento por estamento', 'Oportunidades observadas'],
+        charts: ['Velocímetro de cumplimiento global', 'Barras por momento de la OMS', 'Barras por unidad', 'Barras por estamento'],
+        tables: [
+          'Cumplimiento por indicador (5 momentos)',
+          'Cumplimiento por unidad',
+          'Cumplimiento por turno',
+          'Cumplimiento por estamento',
+        ],
+        executiveText:
+          'Informe de auditoría de adherencia a la higiene de manos según los cinco momentos de la OMS. El cumplimiento se calcula sobre las oportunidades observadas —Cumple / (Cumple + No cumple)—, excluyendo las no aplicables.',
+        autoRecommendations: [
+          { when: 'below_goal', text: 'Reforzar la técnica y los cinco momentos de la OMS mediante capacitación breve en terreno y retroalimentación inmediata al equipo.' },
+          { when: 'below_goal', text: 'Asegurar la disponibilidad y accesibilidad de alcohol gel en el punto de atención.' },
+          { when: 'at_or_above_goal', text: 'Sostener el desempeño con observación periódica y reconocimiento al equipo; documentar las prácticas que explican el buen resultado.' },
+          { when: 'always', text: 'Garantizar la representatividad de las oportunidades auditadas por unidad, turno y estamento, con observadores capacitados.' },
+        ],
+      },
       auditTemplate('navm', 'NAVM', 'Neumonía asociada a ventilación mecánica', 'vigilancia'),
       auditTemplate('itu_cup', 'ITU asociada a CUP', 'Infección urinaria asociada a catéter urinario permanente', 'vigilancia'),
       auditTemplate('its_cvc', 'ITS asociada a CVC', 'Infección del torrente sanguíneo asociada a catéter venoso central', 'vigilancia'),

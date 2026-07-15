@@ -8,7 +8,7 @@ import { applyDetectionProfile } from './detectionProfiles';
  * y la detección automática de columnas. Si se indica el programa, aplica su
  * perfil de reconocimiento (p. ej. NT 234 HUAP) para afinar la asignación.
  */
-export async function parseExcelFile(file: File, reportType?: ReportType): Promise<ParsedWorkbook> {
+export async function parseExcelFile(file: File, reportType?: ReportType, auditId?: string): Promise<ParsedWorkbook> {
   const data = await file.arrayBuffer();
   const workbook = XLSX.read(data, { cellDates: true });
 
@@ -34,7 +34,7 @@ export async function parseExcelFile(file: File, reportType?: ReportType): Promi
   const headers = Object.keys(rows[0]).filter((h) => !isBlankHeader(h) && !isEmptyColumn(h));
 
   const base = detectColumns(headers, rows);
-  const columns = reportType ? applyDetectionProfile(reportType, base, rows) : base;
+  const columns = reportType ? applyDetectionProfile(reportType, base, rows, auditId) : base;
 
   return {
     fileName: file.name,

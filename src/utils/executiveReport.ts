@@ -1,6 +1,7 @@
 import type { ActionPlanRow, AnalysisResult, ComplianceGroup, ExecutiveReport, ReportSection } from '../types';
 import { reportTypeLabel } from '../config/options';
 import { normalize } from './columnDetection';
+import { resolveProgramConfig } from './programConfig';
 
 const UNGROUPED = 'Sin especificar';
 
@@ -114,11 +115,11 @@ function actionFor(gp: Gap, goal: number): ActionPlanRow {
 }
 
 /**
- * Redacta el informe ejecutivo clínico a partir de los resultados calculados.
- * Estilo de Referente Técnico de Buenas Prácticas Clínicas; sin repetir cifras
- * entre secciones y sin inventar datos.
+ * Redacta el informe ejecutivo clínico de NT 234 / LPP a partir de los
+ * resultados calculados. Estilo de Referente Técnico de Buenas Prácticas
+ * Clínicas; sin repetir cifras entre secciones y sin inventar datos.
  */
-export function buildExecutiveReport(a: AnalysisResult): ExecutiveReport {
+function buildNT234Report(a: AnalysisResult): ExecutiveReport {
   const goal = a.config.goal;
   const g = a.global;
   const c = a.characterization;
@@ -306,4 +307,187 @@ export function buildExecutiveReport(a: AnalysisResult): ExecutiveReport {
     },
     sections,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Informe ejecutivo neutro para auditorías de cumplimiento (no NT 234): IAAS
+// Higiene de Manos y futuras auditorías de prácticas. Se apoya en los datos
+// calculados y en la configuración de la auditoría (texto ejecutivo y
+// recomendaciones automáticas). No usa vocabulario de LPP.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface GenericGap {
+  dimension: string; // etiqueta de la dimensión (Indicador, Unidad, Turno, o breakdown)
+  label: string;
+  percent: number;
+  gap: number;
+}
+
+/** Brechas frente a la meta, incluyendo indicador, unidad, turno y desgloses. */
+function computeGenericGaps(a: AnalysisResult): GenericGap[] {
+  const goal = a.config.goal;
+  const out: GenericGap[] = [];
+  const add = (dimension: string, groups: ComplianceGroup[]) => {
+    named(groups).forEach((g) => {
+      if (g.percent < goal) out.push({ dimension, label: g.label, percent: g.percent, gap: round1(goal - g.percent) });
+    });
+  };
+  add('Indicador', a.complianceByIndicator);
+  add('Unidad', a.complianceByUnit);
+  add('Turno', a.complianceByShift);
+  for (const bd of a.complianceByBreakdown) add(bd.label, bd.groups);
+  return out.sort((x, y) => y.gap - x.gap);
+}
+
+/** Acción, responsable y plazo genéricos según la brecha (auditoría de prácticas). */
+function genericActionFor(gp: GenericGap, goal: number): ActionPlanRow {
+  const priority: ActionPlanRow['priority'] = gp.gap >= 15 ? 'Alta' : gp.gap >= 7 ? 'Media' : 'Baja';
+  const deadline = priority === 'Alta' ? '30 días' : priority === 'Media' ? '45 días' : '60 días';
+  const dim = gp.dimension.toLowerCase();
+  return {
+    priority,
+    finding: `Adherencia bajo la meta en ${dim} «${gp.label}» (${gp.percent}%).`,
+    action: 'Retroalimentación dirigida al equipo, capacitación breve en terreno y verificación de la práctica mediante observación.',
+    responsible: 'Referente de la estrategia / Jefatura de la unidad.',
+    deadline,
+    target: `≥ ${goal}%`,
+  };
+}
+
+/** Recomendaciones automáticas de la auditoría que aplican según el resultado. */
+function autoRecommendationTexts(a: AnalysisResult): string[] {
+  const program = resolveProgramConfig(a.config);
+  const audit = program.audits?.find((x) => x.id === a.config.auditId);
+  const recs = audit?.autoRecommendations ?? [];
+  if (recs.length === 0) return [];
+  const meets = a.global.meetsGoal;
+  return recs
+    .filter((r) => r.when === 'always' || (r.when === 'below_goal' && !meets) || (r.when === 'at_or_above_goal' && meets))
+    .map((r) => r.text.trim())
+    .filter((t) => t !== '');
+}
+
+/** Informe ejecutivo neutro para auditorías de cumplimiento (prácticas). */
+function buildPracticesReport(a: AnalysisResult): ExecutiveReport {
+  const goal = a.config.goal;
+  const g = a.global;
+  const program = resolveProgramConfig(a.config);
+  const audit = program.audits?.find((x) => x.id === a.config.auditId);
+  const tipo = audit?.name || program.programName || reportTypeLabel(a.config.reportType);
+  const gap = round1(goal - g.percent);
+  const over = round1(g.percent - goal);
+  const meets = g.meetsGoal;
+
+  const worstInd = a.criticalIndicators[0] ?? null;
+  const bestInd = a.highlightedIndicators[0] ?? null;
+  const worstUnit = lowest(a.complianceByUnit);
+  const worstShift = lowest(a.complianceByShift);
+  const gaps = computeGenericGaps(a);
+
+  const sections: ReportSection[] = [];
+
+  // ── RESUMEN EJECUTIVO ───────────────────────────────────────────────
+  const resumen: string[] = [
+    `La auditoría de ${tipo} consideró ${a.totalRecords} observaciones registradas, sobre las cuales se evaluó la adherencia a las prácticas definidas por el estándar institucional.`,
+  ];
+  if (g.aplicables === 0) {
+    resumen.push('La medición no registró casos aplicables, por lo que no es posible emitir un juicio de cumplimiento en este período.');
+  } else {
+    const comparacion = meets
+      ? `situándose ${over} puntos por sobre la meta institucional de ${goal}%`
+      : `${gap} puntos por debajo de la meta institucional de ${goal}%`;
+    resumen.push(`El cumplimiento global alcanzó ${g.percent}%, ${comparacion}. En su conjunto, la auditoría evidencia ${estadoServicio(g.percent, goal)}.`);
+  }
+  sections.push({ id: 'resumen', title: 'Resumen ejecutivo', paragraphs: resumen });
+
+  // ── ANÁLISIS DE RESULTADOS ──────────────────────────────────────────
+  const analisis: string[] = [];
+  if (g.aplicables === 0) {
+    analisis.push('Sin casos aplicables no es posible interpretar el nivel de adherencia; se sugiere revisar el instrumento de observación y repetir la medición.');
+  } else if (meets) {
+    analisis.push(
+      'El resultado da cuenta de una práctica consolidada e incorporada a la rutina asistencial. El foco de gestión se orienta a sostener el desempeño en el tiempo, resguardando que la rotación de personal o la carga asistencial no erosionen el estándar alcanzado.',
+    );
+  } else {
+    analisis.push(
+      'El nivel de adherencia observado indica que la práctica auditada aún no se ejecuta de manera sistemática. El patrón suele concentrarse en momentos, turnos o estamentos específicos, susceptibles de intervención focalizada de alto rendimiento.',
+    );
+  }
+  sections.push({ id: 'analisis', title: 'Análisis de resultados', paragraphs: analisis });
+
+  // ── PRINCIPALES HALLAZGOS ───────────────────────────────────────────
+  const hallazgos: string[] = [];
+  if (worstInd && worstInd.percent < goal) hallazgos.push(`El indicador con menor adherencia es «${worstInd.label}», con ${worstInd.percent}% de cumplimiento.`);
+  if (worstUnit && worstUnit.percent < goal) hallazgos.push(`La unidad «${worstUnit.label}» concentra la mayor oportunidad de mejora (${worstUnit.percent}%).`);
+  if (worstShift && worstShift.percent < goal) hallazgos.push(`El turno ${worstShift.label} presenta el desempeño más descendido (${worstShift.percent}%).`);
+  for (const bd of a.complianceByBreakdown) {
+    const low = lowest(bd.groups);
+    if (low && low.percent < goal) hallazgos.push(`En ${bd.label.toLowerCase()}, «${low.label}» muestra la menor adherencia (${low.percent}%).`);
+  }
+  if (bestInd && bestInd.meetsGoal) hallazgos.push(`La práctica mejor consolidada es «${bestInd.label}» (${bestInd.percent}%), que supera el estándar definido.`);
+  if (hallazgos.length === 0) hallazgos.push('La adherencia se distribuye de manera homogénea y sobre el estándar definido: no se identifican hallazgos críticos.');
+  sections.push({ id: 'hallazgos', title: 'Principales hallazgos', paragraphs: [], bullets: hallazgos.slice(0, 6) });
+
+  // ── RECOMENDACIONES (automáticas de la auditoría + por brecha) ──────
+  const recomendaciones = [...autoRecommendationTexts(a)];
+  gaps.slice(0, 3).forEach((gp) => {
+    recomendaciones.push(`Intervenir la brecha en ${gp.dimension.toLowerCase()} «${gp.label}» (${gp.gap} puntos bajo la meta) con retroalimentación y verificación en terreno.`);
+  });
+  if (recomendaciones.length === 0) {
+    recomendaciones.push('Sostener el desempeño mediante supervisión periódica y documentación de las prácticas que explican el buen resultado.');
+  }
+  sections.push({ id: 'recomendaciones', title: 'Recomendaciones', paragraphs: [], bullets: recomendaciones });
+
+  // ── PLAN DE ACCIÓN SUGERIDO (tabla) ─────────────────────────────────
+  const seen = new Set<string>();
+  const actionPlan: ActionPlanRow[] = [];
+  for (const gp of gaps) {
+    const row = genericActionFor(gp, goal);
+    if (seen.has(row.finding)) continue;
+    seen.add(row.finding);
+    actionPlan.push(row);
+    if (actionPlan.length >= 5) break;
+  }
+  if (actionPlan.length === 0) {
+    actionPlan.push({
+      priority: 'Baja',
+      finding: 'Cumplimiento conforme al estándar.',
+      action: 'Sostener la observación periódica y estandarizar las buenas prácticas.',
+      responsible: 'Referente de la estrategia / Calidad.',
+      deadline: 'Continuo',
+      target: `≥ ${goal}%`,
+    });
+  }
+  sections.push({ id: 'plan', title: 'Plan de acción sugerido', paragraphs: [], actionPlan });
+
+  // ── CONCLUSIÓN EJECUTIVA ────────────────────────────────────────────
+  let conclusion: string;
+  if (g.aplicables === 0) {
+    conclusion = 'En síntesis, la medición no arroja resultados interpretables. Se recomienda revisar el instrumento y repetir la auditoría antes de emitir conclusiones.';
+  } else if (meets && a.criticalIndicators.length === 0) {
+    conclusion = `En síntesis, la auditoría exhibe un cumplimiento conforme al estándar institucional. La prioridad se orienta a sostener y estandarizar las buenas prácticas, evitando su deterioro ante la rotación de personal o la carga asistencial, y a mantener la supervisión periódica.`;
+  } else {
+    const foco = worstInd ? `en «${worstInd.label}»` : worstUnit ? `en la unidad «${worstUnit.label}»` : 'en las prácticas de mayor rezago';
+    conclusion = `En síntesis, la auditoría se sitúa bajo el estándar institucional, con brechas concentradas ${foco}. La prioridad inmediata es reforzar la práctica en los grupos de menor desempeño y verificar el avance mediante cortes intermedios, elevando las medidas al comité local de calidad.`;
+  }
+  sections.push({ id: 'conclusion', title: 'Conclusión ejecutiva', paragraphs: [conclusion] });
+
+  return {
+    title: 'Resumen ejecutivo del reporte',
+    meta: {
+      reportTypeLabel: tipo,
+      goal,
+      generatedAt: new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }),
+    },
+    sections,
+  };
+}
+
+/**
+ * Informe ejecutivo del reporte. Despacha según el programa: NT 234 / LPP
+ * conserva su redacción clínica original; el resto de auditorías (IAAS y
+ * futuras) usan el informe neutro de prácticas, dirigido por su configuración.
+ */
+export function buildExecutiveReport(a: AnalysisResult): ExecutiveReport {
+  return a.config.reportType === 'NT234_LPP' ? buildNT234Report(a) : buildPracticesReport(a);
 }
