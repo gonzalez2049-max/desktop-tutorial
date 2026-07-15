@@ -127,6 +127,7 @@ export default function App() {
         {stage === 'wizard' && workbook && reportType && (
           <Wizard
             reportType={reportType}
+            auditId={auditId}
             workbook={workbook}
             onComplete={handleWizardComplete}
             onBack={() => setStage('review')}

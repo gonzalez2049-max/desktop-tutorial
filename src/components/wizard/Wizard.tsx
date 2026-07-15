@@ -8,11 +8,20 @@ import type { AnalysisType, Highlight, ParsedWorkbook, ReportConfig, ReportType 
 interface WizardProps {
   /** Programa clínico elegido en la pantalla inicial (queda fijado). */
   reportType: ReportType;
+  /** Sub-auditoría elegida (p. ej. IAAS → Bundle CVC): fija la meta por defecto. */
+  auditId?: string;
   workbook: ParsedWorkbook;
   onComplete: (config: ReportConfig) => void;
   onBack: () => void;
   /** Configuración previa (al volver a editar): precarga las respuestas. */
   initialConfig?: ReportConfig;
+}
+
+/** Meta por defecto: la de la auditoría elegida si existe; si no, la del programa. */
+function defaultGoalFor(reportType: ReportType, auditId?: string): number {
+  const pc = getProgramConfig(reportType);
+  const audit = auditId ? pc.audits?.find((a) => a.id === auditId) : undefined;
+  return audit?.goal ?? pc.goal;
 }
 
 /** Detecta qué dimensiones existen para deshabilitar highlights no disponibles. */
@@ -31,13 +40,13 @@ function availableDimensions(workbook: ParsedWorkbook) {
  * Asistente de 3 preguntas: tipo de análisis temporal, datos a destacar y meta.
  * El programa clínico (tipo de informe) ya viene elegido desde la pantalla inicial.
  */
-export default function Wizard({ reportType, workbook, onComplete, onBack, initialConfig }: WizardProps) {
+export default function Wizard({ reportType, auditId, workbook, onComplete, onBack, initialConfig }: WizardProps) {
   const [step, setStep] = useState(0);
   // Al volver a editar se recuperan las respuestas anteriores; si no, valores por defecto.
   const [analysisType, setAnalysisType] = useState<AnalysisType | null>(initialConfig?.analysisType ?? null);
   const [highlights, setHighlights] = useState<Highlight[]>(initialConfig?.highlights ?? []);
-  // Meta inicial: la configuración previa o la meta institucional del programa.
-  const [goal, setGoal] = useState<number>(() => initialConfig?.goal ?? getProgramConfig(reportType).goal);
+  // Meta inicial: la configuración previa o la meta de la auditoría/programa.
+  const [goal, setGoal] = useState<number>(() => initialConfig?.goal ?? defaultGoalFor(reportType, auditId));
 
   const dims = availableDimensions(workbook);
   const TOTAL = 3;

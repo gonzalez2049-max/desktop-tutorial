@@ -96,20 +96,30 @@ function applyAuditProfile(reportType: ReportType, auditId: string, columns: Det
   if (officialNames.length === 0) return columns;
   const canon = canonicalizerFor(reportType, officialNames);
 
-  /** Proporción de valores de la columna que son indicadores oficiales. */
+  /**
+   * Proporción de valores de la columna que son indicadores oficiales. Ignora
+   * valores cortos (≤ 3 caracteres, p. ej. "UCI") para evitar falsos positivos
+   * por coincidencia de subcadena contra nombres largos de indicador.
+   */
   const indicatorRatio = (col: string): number => {
-    const sample = rows.slice(0, 50).map((r) => r[col]);
+    const sample = rows.slice(0, 50).map((r) => r[col]).filter((v) => String(v ?? '').trim().length > 3);
     if (sample.length === 0) return 0;
     return sample.filter((v) => canon(v) !== null).length / sample.length;
   };
+
+  // Dimensiones estructurales ya reconocidas: el reconocimiento de indicador en
+  // formato largo NO debe secuestrarlas (una columna «Unidad» o «Turno» no es un
+  // indicador aunque algún valor corto coincida por subcadena).
+  const dimensionRoles = new Set<DetectedColumn['role']>(['unidad', 'turno', 'fecha', 'paciente', 'riesgo']);
 
   return columns.map((col) => {
     // Ancho: encabezado = indicador oficial + contenido Sí/No → cumplimiento.
     if (canon(col.original) !== null && complianceRatio(rows, col.original) >= 0.5) {
       return { ...col, role: 'cumplimiento', confidence: 0.95 };
     }
-    // Largo: valores = indicadores oficiales → indicador.
-    if (col.role !== 'cumplimiento' && indicatorRatio(col.original) >= 0.5) {
+    // Largo: valores = indicadores oficiales → indicador. Solo en columnas que no
+    // son ya cumplimiento ni una dimensión estructural.
+    if (col.role !== 'cumplimiento' && !dimensionRoles.has(col.role) && indicatorRatio(col.original) >= 0.5) {
       return { ...col, role: 'indicador', confidence: 0.9 };
     }
     return col;

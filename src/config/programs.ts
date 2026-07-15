@@ -299,7 +299,50 @@ export const DEFAULT_PROGRAMS: Record<ReportType, ProgramConfig> = {
       auditTemplate('navm', 'NAVM', 'Neumonía asociada a ventilación mecánica', 'vigilancia'),
       auditTemplate('itu_cup', 'ITU asociada a CUP', 'Infección urinaria asociada a catéter urinario permanente', 'vigilancia'),
       auditTemplate('its_cvc', 'ITS asociada a CVC', 'Infección del torrente sanguíneo asociada a catéter venoso central', 'vigilancia'),
-      auditTemplate('bundle', 'Bundle IAAS', 'Cumplimiento de paquetes de medidas (bundles) de prevención', 'practicas'),
+      {
+        ...auditTemplate('bundle_cvc', 'Bundle CVC', 'Cumplimiento del paquete de medidas (bundle) de catéter venoso central: inserción y mantención', 'practicas'),
+        goal: 95,
+        formula: 'Cumplimiento = Cumple / (Cumple + No cumple) × 100, excluyendo N/A.',
+        indicators: [
+          // Bundle de inserción (obligatorios)
+          { name: 'Higiene de manos previa a la inserción', kind: 'obligatorio' },
+          { name: 'Precauciones de barrera máxima estéril', kind: 'obligatorio' },
+          { name: 'Antisepsia de piel con clorhexidina alcohólica ≥ 0,5 %', kind: 'obligatorio' },
+          { name: 'Selección adecuada del sitio de inserción', kind: 'obligatorio' },
+          // Bundle de mantención (obligatorios)
+          { name: 'Higiene de manos antes de manipular el catéter', kind: 'obligatorio' },
+          { name: 'Desinfección de conexiones y puertos (scrub the hub)', kind: 'obligatorio' },
+          { name: 'Apósito estéril íntegro y limpio', kind: 'obligatorio' },
+          { name: 'Evaluación diaria de la necesidad del catéter', kind: 'obligatorio' },
+          // Complementarios (soporte y registro)
+          { name: 'Uso de checklist de inserción', kind: 'complementario' },
+          { name: 'Registro de fecha y hora de inserción', kind: 'complementario' },
+          { name: 'Curación del sitio con técnica aséptica', kind: 'complementario' },
+          { name: 'Registro de días de permanencia del catéter', kind: 'complementario' },
+        ],
+        descriptiveVariables: ['Unidad', 'Turno', 'Estamento', 'Fecha'],
+        breakdowns: [
+          { key: 'estamento', label: 'Estamento', match: ['estamento', 'profesion', 'cargo', 'categoria'] },
+        ],
+        inclusion: ['Pacientes con catéter venoso central instalado o en mantención, observados durante la atención.'],
+        exclusion: ['Registros sin ítem del bundle identificado o sin resultado (Cumple / No cumple / N/A).'],
+        kpis: ['Cumplimiento global del bundle', 'Cumplimiento por indicador', 'Cumplimiento por unidad', 'Cumplimiento por estamento'],
+        charts: ['Velocímetro de cumplimiento global', 'Barras por indicador del bundle', 'Barras por unidad', 'Barras por estamento'],
+        tables: [
+          'Cumplimiento por indicador (bundle CVC)',
+          'Cumplimiento por unidad',
+          'Cumplimiento por turno',
+          'Cumplimiento por estamento',
+        ],
+        executiveText:
+          'Informe de auditoría de cumplimiento del paquete de medidas (bundle) para catéter venoso central, en sus fases de inserción y mantención. El cumplimiento se calcula sobre los ítems observados —Cumple / (Cumple + No cumple)—, excluyendo los no aplicables.',
+        autoRecommendations: [
+          { when: 'below_goal', text: 'Reforzar la técnica aséptica en inserción y mantención del CVC (barrera máxima estéril, clorhexidina y desinfección de conexiones) mediante capacitación y verificación en terreno.' },
+          { when: 'below_goal', text: 'Implementar checklist de inserción y evaluación diaria de la necesidad del catéter para el retiro precoz de líneas innecesarias.' },
+          { when: 'at_or_above_goal', text: 'Sostener el cumplimiento del bundle con auditorías periódicas y retroalimentación al equipo; documentar las prácticas que explican el buen resultado.' },
+          { when: 'always', text: 'Asegurar la representatividad de las observaciones por unidad, turno y estamento, con observadores capacitados.' },
+        ],
+      },
       auditTemplate('otra', 'Otra auditoría IAAS', 'Auditoría IAAS genérica configurable', 'practicas'),
     ],
   },
