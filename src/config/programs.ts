@@ -59,6 +59,46 @@ export interface SurveillanceRate {
   reference?: number; // referencia / meta
 }
 
+/** Condición que dispara una recomendación automática. */
+export type RecommendationTrigger = 'always' | 'below_goal' | 'at_or_above_goal';
+
+/** Recomendación automática: se muestra según el resultado (meta) de la auditoría. */
+export interface AutoRecommendation {
+  when: RecommendationTrigger;
+  text: string;
+}
+
+/**
+ * Plantilla de exportación (Word y PDF) de una auditoría: títulos, notas
+ * institucionales y qué secciones incluir. La consume el motor de exportación.
+ */
+export interface AuditReportTemplate {
+  pdfTitle: string;
+  wordTitle: string;
+  headerNote: string;
+  footerNote: string;
+  includeExecutiveSummary: boolean;
+  includeKpis: boolean;
+  includeCharts: boolean;
+  includeTables: boolean;
+  includeRecommendations: boolean;
+  includeSignature: boolean;
+}
+
+/** Plantilla de exportación por defecto (todas las secciones activas). */
+export const DEFAULT_REPORT_TEMPLATE: AuditReportTemplate = {
+  pdfTitle: '',
+  wordTitle: '',
+  headerNote: '',
+  footerNote: '',
+  includeExecutiveSummary: true,
+  includeKpis: true,
+  includeCharts: true,
+  includeTables: true,
+  includeRecommendations: true,
+  includeSignature: true,
+};
+
 /**
  * Variante de auditoría dentro de un programa (p. ej. IAAS → Higiene de Manos,
  * NAVM, ITU/CUP, ITS/CVC, Bundle…). Cada variante define TODA su lógica por
@@ -81,12 +121,19 @@ export interface AuditVariant {
   exclusion: string[];
   /** Tasas de vigilancia epidemiológica (numerador/denominador/factor). */
   rates: SurveillanceRate[];
-  /** KPIs y gráficos a destacar (identificadores, configurables). */
+  /** Fórmula de cálculo (descriptiva/configurable, propia de la auditoría). */
+  formula?: string;
+  /** KPIs, gráficos y tablas a destacar (identificadores, configurables). */
   kpis: string[];
   charts: string[];
+  tables?: string[];
   /** Resumen ejecutivo y recomendaciones propias de la auditoría. */
   executiveText: string;
   recommendations: string[];
+  /** Recomendaciones automáticas según el resultado (meta) de la auditoría. */
+  autoRecommendations?: AutoRecommendation[];
+  /** Plantilla de exportación (Word y PDF) propia de la auditoría. */
+  template?: AuditReportTemplate;
   /** ¿Aplica filtro de riesgo? IAAS = false (no usa el filtro de NT 234). */
   riskFilter?: boolean;
 }
@@ -152,12 +199,21 @@ function auditTemplate(id: string, name: string, description: string, mode: Audi
     inclusion: [],
     exclusion: [],
     rates: [],
+    formula: '',
     kpis: [],
     charts: [],
+    tables: [],
     executiveText: '',
     recommendations: [],
+    autoRecommendations: [],
+    template: { ...DEFAULT_REPORT_TEMPLATE },
     riskFilter: false,
   };
+}
+
+/** Auditoría vacía lista para el asistente de configuración (id provisional). */
+export function createEmptyAudit(mode: AuditMode = 'practicas'): AuditVariant {
+  return auditTemplate('', '', '', mode);
 }
 
 /** Configuración por defecto de cada programa. Solo NT 234 está configurado. */

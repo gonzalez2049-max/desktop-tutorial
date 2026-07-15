@@ -1,7 +1,16 @@
 import { useMemo, useState } from 'react';
 import type { ReportType } from '../types';
-import type { ProgramConfigEditable } from '../config/programs';
-import { getProgramConfig, saveProgramConfig, resetProgramConfig } from '../utils/programConfig';
+import { createEmptyAudit, type AuditVariant, type ProgramConfigEditable } from '../config/programs';
+import {
+  getProgramConfig,
+  saveProgramConfig,
+  resetProgramConfig,
+  getProgramAudits,
+  saveAudit,
+  deleteAudit,
+  resetAudits,
+} from '../utils/programConfig';
+import AuditBuilder from './AuditBuilder';
 
 interface ProgramSettingsProps {
   reportType: ReportType;
@@ -37,6 +46,27 @@ export default function ProgramSettings({ reportType, onBack }: ProgramSettingsP
   });
   const [saved, setSaved] = useState(false);
 
+  // Gestión de auditorías (programas con sub-auditorías, p. ej. IAAS).
+  const supportsAudits = initial.audits !== undefined;
+  const [audits, setAudits] = useState<AuditVariant[]>(() => getProgramAudits(reportType));
+  const [editing, setEditing] = useState<{ audit: AuditVariant; isNew: boolean } | null>(null);
+  const refreshAudits = () => setAudits(getProgramAudits(reportType));
+  const handleNewAudit = () => setEditing({ audit: createEmptyAudit(), isNew: true });
+  const handleEditAudit = (a: AuditVariant) => setEditing({ audit: a, isNew: false });
+  const handleDeleteAudit = (id: string) => {
+    deleteAudit(reportType, id);
+    refreshAudits();
+  };
+  const handleSaveAudit = (a: AuditVariant) => {
+    saveAudit(reportType, a);
+    setEditing(null);
+    refreshAudits();
+  };
+  const handleResetAudits = () => {
+    resetAudits(reportType);
+    refreshAudits();
+  };
+
   const set = <K extends keyof ProgramConfigEditable>(key: K, value: ProgramConfigEditable[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
     setSaved(false);
@@ -67,6 +97,19 @@ export default function ProgramSettings({ reportType, onBack }: ProgramSettingsP
   const label = 'block text-sm font-semibold text-slate-700';
   const input =
     'mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-nex-500 focus:outline-none focus:ring-2 focus:ring-nex-200';
+
+  // Modo asistente: editar/crear una auditoría ocupa toda la vista.
+  if (editing) {
+    return (
+      <AuditBuilder
+        initial={editing.audit}
+        isNew={editing.isNew}
+        existingIds={audits.map((a) => a.id)}
+        onSave={handleSaveAudit}
+        onCancel={() => setEditing(null)}
+      />
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -188,6 +231,55 @@ export default function ProgramSettings({ reportType, onBack }: ProgramSettingsP
         </button>
         {saved && <span className="text-sm font-semibold text-green-600">✓ Configuración guardada</span>}
       </div>
+
+      {supportsAudits && (
+        <section className="card space-y-4 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold text-slate-800">🧩 Auditorías configurables</h3>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Defina cada auditoría de {initial.programName} con el asistente, sin tocar código. Cada una es independiente.
+              </p>
+            </div>
+            <button className="btn-primary shrink-0" onClick={handleNewAudit}>
+              ➕ Nueva auditoría
+            </button>
+          </div>
+
+          {audits.length === 0 ? (
+            <p className="text-sm text-slate-400">Aún no hay auditorías. Cree la primera con «Nueva auditoría».</p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {audits.map((a) => (
+                <li key={a.id} className="flex items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-slate-800">{a.name}</p>
+                    <p className="truncate text-xs text-slate-400">
+                      {a.mode === 'vigilancia' ? 'Vigilancia epidemiológica' : 'Auditoría de cumplimiento'}
+                      {a.indicators.length > 0 ? ` · ${a.indicators.length} indicador(es)` : ''}
+                      {a.description ? ` · ${a.description}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <button className="btn-ghost" onClick={() => handleEditAudit(a)}>
+                      Editar
+                    </button>
+                    <button className="text-sm font-semibold text-red-600 hover:underline" onClick={() => handleDeleteAudit(a.id)}>
+                      Eliminar
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div>
+            <button className="btn-ghost" onClick={handleResetAudits}>
+              ↺ Restablecer auditorías por defecto
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
