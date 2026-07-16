@@ -484,11 +484,108 @@ function buildPracticesReport(a: AnalysisResult): ExecutiveReport {
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Informe ejecutivo de vigilancia epidemiológica (tasas). No usa vocabulario ni
+// fórmula de cumplimiento.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildSurveillanceReport(a: AnalysisResult): ExecutiveReport {
+  const s = a.surveillance!;
+  const program = resolveProgramConfig(a.config);
+  const audit = program.audits?.find((x) => x.id === a.config.auditId);
+  const tipo = audit?.name || program.programName;
+  const ref = s.reference;
+  const rateTxt = s.overallRate === null ? 'no calculable (sin días de exposición)' : `${s.overallRate} ${s.unitLabel}`;
+  const meetsRef = !s.exceedsReference;
+
+  const sections: ReportSection[] = [];
+
+  // Resumen ejecutivo
+  const resumen: string[] = [
+    `La vigilancia de ${tipo} registró ${s.totalCases} caso(s) sobre ${s.totalDeviceDays} días de exposición, con una tasa global de ${rateTxt}.`,
+  ];
+  if (ref !== null && s.overallRate !== null) {
+    resumen.push(
+      s.exceedsReference
+        ? `La tasa global se sitúa por sobre la referencia institucional de ${ref} ${s.unitLabel}, lo que constituye una señal de alerta epidemiológica.`
+        : `La tasa global se mantiene en o bajo la referencia institucional de ${ref} ${s.unitLabel}.`,
+    );
+  }
+  if (s.utilizationRatio !== null) {
+    resumen.push(`La razón de utilización de dispositivo fue de ${s.utilizationRatio} (días de dispositivo / días paciente), indicador del nivel de exposición.`);
+  }
+  sections.push({ id: 'resumen', title: 'Resumen ejecutivo', paragraphs: resumen });
+
+  // Análisis de resultados
+  const analisis: string[] = [];
+  const worst = s.byUnit.filter((u) => u.rate !== null).sort((x, y) => (y.rate ?? 0) - (x.rate ?? 0))[0];
+  const overUnits = s.byUnit.filter((u) => u.exceedsReference);
+  if (s.totalDeviceDays === 0) {
+    analisis.push('No se registraron días de exposición, por lo que la tasa no es calculable. Se recomienda verificar el registro del denominador (días-dispositivo).');
+  } else {
+    analisis.push(
+      overUnits.length > 0
+        ? `El patrón observado concentra el riesgo en ${overUnits.length} unidad(es) sobre la referencia; el foco de gestión son esas unidades y la reducción de la exposición al dispositivo.`
+        : 'La distribución de la tasa entre unidades no muestra unidades sobre la referencia en el período; el foco es sostener la vigilancia y la adherencia a las medidas de prevención.',
+    );
+    if (s.hasDate && s.byPeriod.length >= 2) {
+      const first = s.byPeriod[0].rate;
+      const last = s.byPeriod[s.byPeriod.length - 1].rate;
+      if (first !== null && last !== null) {
+        const delta = round1(last - first);
+        analisis.push(
+          `En la evolución ${s.granularityLabel}, la tasa pasó de ${first} a ${last} ${s.unitLabel} (${delta >= 0 ? '+' : ''}${delta}) entre el primer y el último período.`,
+        );
+      }
+    }
+  }
+  sections.push({ id: 'analisis', title: 'Análisis de resultados', paragraphs: analisis });
+
+  // Principales hallazgos
+  const hallazgos: string[] = [];
+  if (worst && worst.rate !== null) hallazgos.push(`La unidad con mayor tasa es «${worst.label}» (${worst.rate} ${s.unitLabel}, ${worst.cases} caso(s) / ${worst.deviceDays} días).`);
+  for (const u of overUnits.slice(0, 3)) if (u.key !== worst?.key) hallazgos.push(`«${u.label}» supera la referencia (${u.rate} ${s.unitLabel}).`);
+  const overPeriods = s.byPeriod.filter((p) => p.exceedsReference);
+  if (overPeriods.length) hallazgos.push(`${overPeriods.length} período(s) presentan tasa sobre la referencia: ${overPeriods.map((p) => p.label).join(', ')}.`);
+  if (hallazgos.length === 0) hallazgos.push('No se identifican unidades ni períodos sobre la referencia en la vigilancia del período.');
+  sections.push({ id: 'hallazgos', title: 'Principales hallazgos', paragraphs: [], bullets: hallazgos.slice(0, 6) });
+
+  // Recomendaciones (automáticas según referencia + genéricas)
+  const recs = audit?.autoRecommendations ?? [];
+  const recTexts = recs
+    .filter((r) => r.when === 'always' || (r.when === 'below_goal' && !meetsRef) || (r.when === 'at_or_above_goal' && meetsRef))
+    .map((r) => r.text.trim())
+    .filter(Boolean);
+  if (s.exceedsReference) recTexts.push('Activar la investigación de los casos y revisar la técnica de inserción y mantención del dispositivo en las unidades sobre la referencia.');
+  if (recTexts.length === 0) recTexts.push('Sostener la vigilancia activa y la adherencia a las medidas de prevención; documentar las prácticas que explican el buen resultado.');
+  sections.push({ id: 'recomendaciones', title: 'Recomendaciones', paragraphs: [], bullets: recTexts });
+
+  // Conclusión
+  const conclusion =
+    s.totalDeviceDays === 0
+      ? 'En síntesis, sin denominador registrado no es posible emitir una tasa; se recomienda asegurar la calidad del dato antes de concluir.'
+      : s.exceedsReference
+        ? `En síntesis, la tasa de ${tipo} se ubica sobre la referencia institucional, con concentración en unidades específicas. La prioridad es la intervención focalizada, la reducción de la exposición al dispositivo y el seguimiento de la evolución en los próximos períodos.`
+        : `En síntesis, la tasa de ${tipo} se mantiene dentro de la referencia institucional. La prioridad es sostener la vigilancia activa y las medidas de prevención, monitoreando la evolución para detectar oportunamente cualquier alza.`;
+  sections.push({ id: 'conclusion', title: 'Conclusión ejecutiva', paragraphs: [conclusion] });
+
+  return {
+    title: 'Resumen ejecutivo de vigilancia',
+    meta: {
+      reportTypeLabel: tipo,
+      goal: a.config.goal,
+      generatedAt: new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }),
+    },
+    sections,
+  };
+}
+
 /**
- * Informe ejecutivo del reporte. Despacha según el programa: NT 234 / LPP
- * conserva su redacción clínica original; el resto de auditorías (IAAS y
- * futuras) usan el informe neutro de prácticas, dirigido por su configuración.
+ * Informe ejecutivo del reporte. Despacha según el tipo: vigilancia (tasas) →
+ * informe epidemiológico; NT 234 / LPP → su redacción clínica original; el resto
+ * de auditorías (prácticas) → informe neutro dirigido por su configuración.
  */
 export function buildExecutiveReport(a: AnalysisResult): ExecutiveReport {
+  if (a.surveillance) return buildSurveillanceReport(a);
   return a.config.reportType === 'NT234_LPP' ? buildNT234Report(a) : buildPracticesReport(a);
 }

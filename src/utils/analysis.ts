@@ -14,7 +14,8 @@ import type {
   TemporalAnalysis,
   UnitShiftMatrix,
 } from '../types';
-import type { AuditBreakdown } from '../config/programs';
+import type { AuditBreakdown, SurveillanceRate } from '../config/programs';
+import type { SurveillanceAnalysis, SurveillanceRatePoint } from '../types';
 import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDescriptiveVariable, matchesDescriptivePatterns, normalize } from './columnDetection';
 import { classifyLppStage, isLppStageColumn, LPP_STAGES } from './lpp';
 import { granularityFor } from '../config/options';
@@ -445,6 +446,114 @@ export function filterWorkbookByPeriod(workbook: ParsedWorkbook, key: string, gr
   return { ...workbook, rows: workbook.rows.filter((r) => periodKey(r[dateCol], gran, order) === key) };
 }
 
+/** Convierte un valor de celda a número (tolera separadores). Null si no aplica. */
+function toNumber(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (v === null || v === undefined) return null;
+  let s = String(v).trim();
+  if (!s) return null;
+  s = s.replace(/[^\d.,-]/g, '');
+  if (s.includes('.') && s.includes(',')) s = s.replace(/\./g, '').replace(',', '.'); // 1.200,5 → 1200.5
+  else if (s.includes(',')) s = s.replace(',', '.');
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Localiza una columna por coincidencia de su encabezado con fragmentos. */
+function findColumnByHeader(columns: DetectedColumn[], match: string[] | undefined): string | null {
+  if (!match || match.length === 0) return null;
+  const col = columns.find((c) => {
+    const h = normalize(c.original);
+    return h !== '' && match.some((m) => { const nm = normalize(m); return nm !== '' && h.includes(nm); });
+  });
+  return col ? col.original : null;
+}
+
+/** Redondea a n decimales devolviendo número. */
+function roundN(x: number, n: number): number {
+  const f = 10 ** n;
+  return Math.round(x * f) / f;
+}
+
+/**
+ * Motor de vigilancia epidemiológica (formato agregado unidad × período): lee el
+ * numerador (casos) y el denominador (días de exposición) por sus encabezados,
+ * agrega por unidad y por período, y calcula la tasa num/den × factor. NO usa la
+ * fórmula de cumplimiento. Devuelve tasas por unidad, por período (evolución),
+ * global, referencia y alertas.
+ */
+export function analyzeSurveillance(workbook: ParsedWorkbook, config: ReportConfig, rate: SurveillanceRate): SurveillanceAnalysis {
+  const { columns } = workbook;
+  const rows = validPatientRows(workbook);
+  const unitCol = columnForRole(columns, 'unidad');
+  const dateCol = columnForRole(columns, 'fecha');
+  const numCol = findColumnByHeader(columns, rate.numeratorMatch);
+  const denCol = findColumnByHeader(columns, rate.denominatorMatch);
+  const pdCol = findColumnByHeader(columns, rate.patientDaysMatch);
+  const factor = rate.factor || 1000;
+  const reference = rate.reference ?? null;
+  const gran = granularityFor(config.analysisType);
+  const order = dateCol ? detectDateOrder(rows.map((r) => r[dateCol])) : 'dmy';
+
+  const rateOf = (cases: number, days: number): number | null => (days > 0 ? roundN((cases / days) * factor, 2) : null);
+  const exceeds = (r: number | null): boolean => r !== null && reference !== null && r > reference;
+
+  // Totales globales.
+  let totalCases = 0;
+  let totalDays = 0;
+  let totalPatientDays = 0;
+  let anyPatientDays = false;
+  // Agregación por unidad y por período.
+  const unitAcc = new Map<string, { cases: number; days: number }>();
+  const periodAcc = new Map<string, { cases: number; days: number }>();
+
+  for (const row of rows) {
+    const cases = numCol ? toNumber(row[numCol]) ?? 0 : 0;
+    const days = denCol ? toNumber(row[denCol]) ?? 0 : 0;
+    if (pdCol) { const pd = toNumber(row[pdCol]); if (pd !== null) { totalPatientDays += pd; anyPatientDays = true; } }
+    totalCases += cases;
+    totalDays += days;
+    if (unitCol) {
+      const u = labelOf(row[unitCol]);
+      const g = unitAcc.get(u) ?? { cases: 0, days: 0 };
+      g.cases += cases; g.days += days; unitAcc.set(u, g);
+    }
+    if (dateCol) {
+      const key = periodKey(row[dateCol], gran, order);
+      if (key) { const g = periodAcc.get(key) ?? { cases: 0, days: 0 }; g.cases += cases; g.days += days; periodAcc.set(key, g); }
+    }
+  }
+
+  const byUnit: SurveillanceRatePoint[] = Array.from(unitAcc.entries())
+    .map(([label, g]) => { const r = rateOf(g.cases, g.days); return { key: label, label, cases: g.cases, deviceDays: g.days, rate: r, exceedsReference: exceeds(r) }; })
+    .sort((a, b) => (b.rate ?? -1) - (a.rate ?? -1));
+  const byPeriod: SurveillanceRatePoint[] = Array.from(periodAcc.entries())
+    .map(([key, g]) => { const r = rateOf(g.cases, g.days); return { key, label: periodLabel(key, gran), cases: g.cases, deviceDays: g.days, rate: r, exceedsReference: exceeds(r) }; })
+    .sort((a, b) => a.key.localeCompare(b.key));
+
+  const overallRate = rateOf(totalCases, totalDays);
+  const granLabels: Record<typeof gran, string> = { mensual: 'mensual', trimestral: 'trimestral', semestral: 'semestral', anual: 'anual' };
+
+  return {
+    rateName: rate.name,
+    unitLabel: rate.unit,
+    factor,
+    reference,
+    totalCases,
+    totalDeviceDays: totalDays,
+    overallRate,
+    exceedsReference: exceeds(overallRate),
+    byUnit,
+    byPeriod,
+    hasDate: dateCol !== null && byPeriod.length > 0,
+    granularityLabel: granLabels[gran],
+    totalPatientDays: anyPatientDays ? totalPatientDays : null,
+    utilizationRatio: anyPatientDays && totalPatientDays > 0 ? roundN(totalDays / totalPatientDays, 2) : null,
+    numeratorFound: numCol !== null,
+    denominatorFound: denCol !== null,
+  };
+}
+
 /** Ejecuta el motor de análisis completo. */
 export function analyze(workbook: ParsedWorkbook, config: ReportConfig): AnalysisResult {
   const goal = config.goal;
@@ -516,6 +625,13 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
   // Análisis temporal (evolución + períodos disponibles) sobre la misma base.
   const temporal = buildTemporal(data, config, complianceRows);
 
+  // Vigilancia epidemiológica (solo auditorías en modo 'vigilancia' con tasa).
+  const audit = pc.audits?.find((x) => x.id === config.auditId);
+  const surveillance =
+    pc.auditMode === 'vigilancia' && audit && audit.rates.length > 0
+      ? analyzeSurveillance(data, config, audit.rates[0])
+      : undefined;
+
   return {
     config,
     totalRecords: dataRows.length,
@@ -531,6 +647,7 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
     descriptiveVariables: descriptiveVars,
     characterization,
     temporal,
+    surveillance,
     detected: {
       unidad: unitCol !== null,
       turno: shiftCol !== null,

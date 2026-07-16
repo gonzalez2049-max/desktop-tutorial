@@ -1,7 +1,7 @@
 // Gráficos institucionales del informe, renderizados a imagen (PNG) para poder
 // incrustarlos igual en el PDF y en el Word (y, por tanto, en la vista previa).
 // Estilo limpio y ejecutivo; sin dependencias externas.
-import type { AnalysisResult, ComplianceGroup } from '../types';
+import type { AnalysisResult, ComplianceGroup, SurveillanceAnalysis, SurveillanceRatePoint } from '../types';
 import { PALETTE, complianceHex, type TrafficColors } from './palette';
 import { analysisTypeLabel, showsEvolution } from '../config/options';
 
@@ -251,6 +251,129 @@ function evolutionChart(a: AnalysisResult, colors: TrafficColors): ReportChart |
     ctx.fillText(truncate(ctx, p.label, 70), x(i), h - 14);
   });
   return { title: `Evolución del cumplimiento (${analysisTypeLabel(a.config.analysisType).toLowerCase()})`, dataUrl: canvas.toDataURL('image/png'), width: 340, height: 179 };
+}
+
+// ── Gráficos de vigilancia epidemiológica (tasas, no cumplimiento) ──────────
+
+/** Color de una tasa según la referencia: rojo si la supera, verde si no. */
+function rateColor(rate: number | null, reference: number | null, colors: TrafficColors): string {
+  if (rate === null) return PALETTE.gray;
+  if (reference !== null && rate > reference) return colors.rojo;
+  return colors.verde;
+}
+
+/** Barras horizontales de tasa por categoría (unidad), con línea de referencia. */
+function rateBars(title: string, points: SurveillanceRatePoint[], reference: number | null, colors: TrafficColors): ReportChart {
+  const labelW = 130;
+  const rowH = 26;
+  const padT = 14;
+  const padB = 26;
+  const barMaxW = 280;
+  const maxVal = Math.max(reference ?? 0, ...points.map((p) => p.rate ?? 0), 0.1) * 1.15;
+  const w = labelW + barMaxW + 64;
+  const h = padT + points.length * rowH + padB;
+  const { canvas, ctx } = makeCanvas(w, h);
+  const x0 = labelW + 8;
+
+  if (reference !== null) {
+    const rx = x0 + (reference / maxVal) * barMaxW;
+    ctx.strokeStyle = PALETTE.blue;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(rx, padT - 4);
+    ctx.lineTo(rx, padT + points.length * rowH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = PALETTE.blue;
+    ctx.font = `10px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`Ref. ${reference}`, rx, h - 10);
+  }
+
+  points.forEach((p, i) => {
+    const y = padT + i * rowH + rowH / 2;
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `12px ${FONT}`;
+    ctx.textAlign = 'left';
+    ctx.fillText(truncate(ctx, p.label, labelW - 4), 4, y);
+    ctx.fillStyle = PALETTE.gray;
+    ctx.fillRect(x0, y - 8, barMaxW, 16);
+    const val = p.rate ?? 0;
+    ctx.fillStyle = rateColor(p.rate, reference, colors);
+    ctx.fillRect(x0, y - 8, (val / maxVal) * barMaxW, 16);
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `bold 12px ${FONT}`;
+    ctx.fillText(p.rate === null ? 's/d' : String(p.rate), x0 + barMaxW + 8, y);
+  });
+
+  return { title, dataUrl: canvas.toDataURL('image/png'), width: Math.min(360, w), height: (Math.min(360, w) / w) * h };
+}
+
+/** Evolución de la tasa por período (línea) con referencia. */
+function rateEvolution(points: SurveillanceRatePoint[], reference: number | null, colors: TrafficColors, granLabel: string): ReportChart {
+  const w = 380;
+  const h = 200;
+  const { canvas, ctx } = makeCanvas(w, h);
+  const padL = 34;
+  const padR = 14;
+  const padT = 16;
+  const padB = 30;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+  const maxVal = Math.max(reference ?? 0, ...points.map((p) => p.rate ?? 0), 0.1) * 1.2;
+  const x = (i: number) => padL + (points.length === 1 ? plotW / 2 : (i / (points.length - 1)) * plotW);
+  const y = (v: number) => padT + (1 - v / maxVal) * plotH;
+
+  ctx.strokeStyle = PALETTE.gray;
+  ctx.lineWidth = 1;
+  for (let g = 0; g <= 4; g++) {
+    const v = (maxVal / 4) * g;
+    ctx.beginPath();
+    ctx.moveTo(padL, y(v));
+    ctx.lineTo(w - padR, y(v));
+    ctx.stroke();
+    ctx.fillStyle = PALETTE.muted;
+    ctx.font = `9px ${FONT}`;
+    ctx.textAlign = 'right';
+    ctx.fillText(String(roundTo1(v)), padL - 4, y(v));
+  }
+  if (reference !== null) {
+    ctx.strokeStyle = PALETTE.blue;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(padL, y(reference));
+    ctx.lineTo(w - padR, y(reference));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.strokeStyle = PALETTE.blue;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((p, i) => (i === 0 ? ctx.moveTo(x(i), y(p.rate ?? 0)) : ctx.lineTo(x(i), y(p.rate ?? 0))));
+  ctx.stroke();
+  points.forEach((p, i) => {
+    ctx.fillStyle = rateColor(p.rate, reference, colors);
+    ctx.beginPath();
+    ctx.arc(x(i), y(p.rate ?? 0), 4, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.muted;
+    ctx.font = `9px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.fillText(truncate(ctx, p.label, 70), x(i), h - 14);
+  });
+  return { title: `Evolución de la tasa (${granLabel})`, dataUrl: canvas.toDataURL('image/png'), width: 340, height: 179 };
+}
+
+function roundTo1(x: number): number {
+  return Math.round(x * 10) / 10;
+}
+
+/** Gráficos de vigilancia: tasa por unidad y evolución (los que aporten datos). */
+export function buildSurveillanceCharts(s: SurveillanceAnalysis, colors: TrafficColors = DEFAULT_TRAFFIC): ReportChart[] {
+  const charts: ReportChart[] = [];
+  if (s.byUnit.length) charts.push(rateBars('Tasa por unidad', s.byUnit, s.reference, colors));
+  if (s.hasDate && s.byPeriod.length) charts.push(rateEvolution(s.byPeriod, s.reference, colors, s.granularityLabel));
+  return charts;
 }
 
 /**

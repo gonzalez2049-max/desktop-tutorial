@@ -237,6 +237,39 @@ export interface TemporalAnalysis {
   periods: { key: string; label: string }[]; // períodos disponibles para comparar
 }
 
+/** Tasa de vigilancia de una categoría (unidad o período): num/den × factor. */
+export interface SurveillanceRatePoint {
+  key: string; // clave ordenable (unidad o período)
+  label: string; // etiqueta legible
+  cases: number; // numerador (p. ej. casos ITS-CVC)
+  deviceDays: number; // denominador (p. ej. días CVC)
+  rate: number | null; // cases/deviceDays × factor; null si deviceDays = 0
+  exceedsReference: boolean; // rate > reference
+}
+
+/**
+ * Análisis de vigilancia epidemiológica (tasas num/den × factor). NO usa la
+ * fórmula de cumplimiento. Se calcula solo para auditorías en modo 'vigilancia'.
+ */
+export interface SurveillanceAnalysis {
+  rateName: string; // p. ej. "Tasa de ITS-CVC"
+  unitLabel: string; // p. ej. "por 1.000 días de CVC"
+  factor: number; // p. ej. 1000
+  reference: number | null; // referencia configurable
+  totalCases: number; // Σ numerador
+  totalDeviceDays: number; // Σ denominador
+  overallRate: number | null; // Σcasos / Σdías × factor
+  exceedsReference: boolean; // tasa global > referencia
+  byUnit: SurveillanceRatePoint[]; // resultado por unidad
+  byPeriod: SurveillanceRatePoint[]; // resultado por período (evolución)
+  hasDate: boolean; // existe columna de período utilizable
+  granularityLabel: string; // etiqueta del período (mensual/trimestral…)
+  totalPatientDays: number | null; // Σ días paciente (si existe)
+  utilizationRatio: number | null; // días dispositivo / días paciente
+  numeratorFound: boolean; // se localizó la columna del numerador
+  denominatorFound: boolean; // se localizó la columna del denominador
+}
+
 /** Resultado completo del motor de análisis. */
 export interface AnalysisResult {
   config: ReportConfig;
@@ -254,6 +287,8 @@ export interface AnalysisResult {
   descriptiveVariables: DescriptiveVariable[]; // prevalencia (no cumplimiento)
   characterization: ClinicalCharacterization;
   temporal: TemporalAnalysis;
+  /** Análisis de vigilancia (solo auditorías en modo 'vigilancia'). */
+  surveillance?: SurveillanceAnalysis;
   detected: {
     unidad: boolean;
     turno: boolean;

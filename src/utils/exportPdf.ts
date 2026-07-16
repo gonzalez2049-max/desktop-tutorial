@@ -3,7 +3,7 @@ import autoTable from 'jspdf-autotable';
 import type { AnalysisResult, ClinicalCharacterization, ComplianceGroup, ExecutiveReport } from '../types';
 import { buildExecutiveReport } from './executiveReport';
 import { analysisTypeLabel, showsEvolution } from '../config/options';
-import { buildReportCharts } from './reportCharts';
+import { buildReportCharts, buildSurveillanceCharts } from './reportCharts';
 import { resolveProgramConfig } from './programConfig';
 import type { ProgramConfig } from '../config/programs';
 import { summaryKpis } from './reportModel';
@@ -303,6 +303,91 @@ function drawExecutive(ctx: Ctx, report: ExecutiveReport): void {
   }
 }
 
+/** Sección de vigilancia epidemiológica (tasas por unidad/período). */
+function drawSurveillance(ctx: Ctx, a: AnalysisResult): void {
+  const { doc, margin, pageW } = ctx;
+  const s = a.surveillance!;
+  const fmt = (r: number | null) => (r === null ? 's/d' : String(r));
+
+  // Alerta / estado global.
+  ensure(ctx, 26);
+  const alert = s.exceedsReference;
+  const [r, g, b] = hexToRgb(alert ? ctx.colors.rojo : ctx.colors.verde);
+  doc.setFillColor(r, g, b);
+  doc.circle(margin + 6, ctx.y - 3, 6, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(...INK);
+  const estado = s.overallRate === null ? 'Tasa no calculable (sin días de exposición)' : alert ? `ALERTA: tasa ${s.overallRate} sobre la referencia ${s.reference}` : `Tasa ${s.overallRate} en o bajo la referencia ${s.reference ?? '—'}`;
+  doc.text(`${s.rateName} (${s.unitLabel}) — ${estado}`, margin + 18, ctx.y);
+  ctx.y += 22;
+
+  // KPIs de vigilancia.
+  const kpiRows: string[][] = [
+    ['Casos de ITS-CVC', String(s.totalCases)],
+    ['Días CVC (denominador)', String(s.totalDeviceDays)],
+    [`Tasa global (${s.unitLabel})`, fmt(s.overallRate)],
+    ['Referencia', s.reference !== null ? String(s.reference) : '—'],
+  ];
+  if (s.utilizationRatio !== null) kpiRows.push(['Razón de utilización de CVC', String(s.utilizationRatio)]);
+  autoTable(doc, {
+    startY: ctx.y,
+    head: [['Indicador de vigilancia', 'Valor']],
+    body: kpiRows,
+    theme: 'grid',
+    headStyles: { fillColor: BLUE, textColor: [255, 255, 255], fontSize: 8.5, halign: 'center', lineColor: LINE, lineWidth: 0.5 },
+    bodyStyles: { fontSize: 8.5, cellPadding: 4, textColor: INK, lineColor: LINE, lineWidth: 0.5 },
+    columnStyles: { 0: { halign: 'left' }, 1: { halign: 'center', fontStyle: 'bold' } },
+    margin: { left: margin, right: margin },
+    tableWidth: pageW - margin * 2,
+  });
+  ctx.y = lastTableY(doc) + 22;
+
+  // Gráficos de vigilancia.
+  const charts = buildSurveillanceCharts(s, ctx.colors);
+  if (charts.length) {
+    sectionTitle(ctx, 'Gráficos de vigilancia');
+    ctx.y += 6;
+    for (const ch of charts) {
+      ensure(ctx, ch.height + 26);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
+      doc.setTextColor(...BLUE);
+      doc.text(ch.title, margin, ctx.y + 8);
+      ctx.y += 14;
+      doc.addImage(ch.dataUrl, 'PNG', margin, ctx.y, ch.width, ch.height, undefined, 'FAST');
+      ctx.y += ch.height + 16;
+    }
+  }
+
+  // Tablas por unidad y por período.
+  const rateTable = (title: string, points: typeof s.byUnit, firstHeader: string) => {
+    if (!points.length) return;
+    ensure(ctx, 40);
+    sectionTitle(ctx, title);
+    autoTable(doc, {
+      startY: ctx.y,
+      head: [[firstHeader, 'Casos', 'Días CVC', 'Tasa', 'Estado']],
+      body: points.map((p) => [p.label, String(p.cases), String(p.deviceDays), fmt(p.rate), p.rate === null ? 'Sin datos' : p.exceedsReference ? 'Sobre referencia' : 'En referencia']),
+      theme: 'grid',
+      headStyles: { fillColor: BLUE, textColor: [255, 255, 255], fontSize: 8.5, halign: 'center', lineColor: LINE, lineWidth: 0.5 },
+      bodyStyles: { fontSize: 8.5, cellPadding: 4, textColor: INK, lineColor: LINE, lineWidth: 0.5 },
+      columnStyles: { 0: { halign: 'left' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center', fontStyle: 'bold' }, 4: { halign: 'center', fontStyle: 'bold' } },
+      margin: { left: margin, right: margin },
+      tableWidth: pageW - margin * 2,
+      didParseCell: (data) => {
+        if (data.section === 'body' && (data.column.index === 3 || data.column.index === 4)) {
+          const p = points[data.row.index];
+          if (p && p.exceedsReference) data.cell.styles.textColor = hexToRgb(ctx.colors.rojo);
+        }
+      },
+    });
+    ctx.y = lastTableY(doc) + 22;
+  };
+  rateTable('Resultado por unidad', s.byUnit, 'Unidad');
+  if (s.hasDate) rateTable(`Resultado por período (${s.granularityLabel})`, s.byPeriod, 'Período');
+}
+
 /** Gráficos institucionales (velocímetro, barras, ranking, dona, evolución). */
 function drawCharts(ctx: Ctx, a: AnalysisResult): void {
   const charts = buildReportCharts(a, ctx.colors);
@@ -367,6 +452,30 @@ function buildPdfDoc(a: AnalysisResult, fileName: string): jsPDF {
   const ctx: Ctx = { doc, pageW: doc.internal.pageSize.getWidth(), pageH: doc.internal.pageSize.getHeight(), margin: 40, y: 0, colors: program.traffic, program };
 
   drawHeader(ctx, report, fileName, a);
+
+  // Vigilancia epidemiológica: sección propia de tasas (sin semáforo/cumplimiento).
+  if (a.surveillance) {
+    drawSurveillance(ctx, a);
+    ensure(ctx, 40);
+    sectionTitle(ctx, 'Resumen ejecutivo');
+    ctx.y += 4;
+    const baseTextV = program.executiveBaseText.trim();
+    if (baseTextV) {
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9.5);
+      doc.setTextColor(...MUTED);
+      const lines = doc.splitTextToSize(baseTextV, ctx.pageW - ctx.margin * 2);
+      ensure(ctx, lines.length * 12 + 6);
+      doc.text(lines, ctx.margin, (ctx.y += 12));
+      ctx.y += (lines.length - 1) * 12 + 8;
+      doc.setFont('helvetica', 'normal');
+    }
+    drawExecutive(ctx, report);
+    drawSignature(ctx);
+    drawFooters(doc, ctx.margin);
+    return doc;
+  }
+
   drawTrafficLight(ctx, a);
   drawKpis(ctx, a);
 
