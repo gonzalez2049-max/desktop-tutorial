@@ -63,6 +63,17 @@ export interface SurveillanceRate {
   denominatorMatch?: string[];
   /** Fragmentos para localizar la columna de días paciente (razón de utilización). */
   patientDaysMatch?: string[];
+  /** Referencias por tipo de servicio (la referencia se adapta al servicio). */
+  serviceReferences?: ServiceReference[];
+}
+
+/** Referencia de una tasa según el tipo de servicio (p. ej. Medicina 2,9). */
+export interface ServiceReference {
+  service: string; // clave (p. ej. "medicina")
+  label: string; // etiqueta (p. ej. "Medicina")
+  reference: number; // referencia por 1.000 días de dispositivo
+  /** Fragmentos de nombre de unidad para detectar el servicio automáticamente. */
+  match: string[];
 }
 
 /**
@@ -308,7 +319,49 @@ export const DEFAULT_PROGRAMS: Record<ReportType, ProgramConfig> = {
         ],
       },
       auditTemplate('navm', 'NAVM', 'Neumonía asociada a ventilación mecánica', 'vigilancia'),
-      auditTemplate('itu_cup', 'ITU asociada a CUP', 'Infección urinaria asociada a catéter urinario permanente', 'vigilancia'),
+      {
+        ...auditTemplate('itu_cup', 'ITU asociada a CUP', 'Vigilancia de infección urinaria asociada a catéter urinario permanente (tasa por 1.000 días de CUP)', 'vigilancia'),
+        formula: 'Tasa ITU-CUP = (Casos de ITU-CUP / Días de exposición a CUP) × 1.000',
+        descriptiveVariables: ['Unidad', 'Período', 'Casos de ITU-CUP', 'Días CUP', 'Días paciente'],
+        inclusion: [
+          'Unidades bajo vigilancia con pacientes portadores de CUP durante el período.',
+          'Casos de ITU-CUP confirmados según la definición institucional (paciente con CUP ≥ 48 h, criterios clínicos + urocultivo positivo con recuento significativo, sin otra fuente).',
+          'Todos los días-catéter (device-days) de los pacientes con CUP suman al denominador.',
+        ],
+        exclusion: [
+          'ITU no asociada a catéter (sin CUP o CUP < 48 h).',
+          'Bacteriuria asintomática (sin criterios clínicos de infección).',
+          'Urocultivo contaminado o polimicrobiano sin significancia clínica.',
+          'Registros/períodos sin días CUP (denominador 0): tasa no calculable.',
+        ],
+        rates: [
+          {
+            name: 'Tasa de ITU-CUP',
+            numerator: 'Casos de ITU-CUP',
+            denominator: 'Días de exposición a CUP',
+            factor: 1000,
+            unit: 'por 1.000 días de CUP',
+            numeratorMatch: ['casos itu', 'casos de itu', 'itu cup', 'itu-cup', 'cauti', 'infecciones', 'casos'],
+            denominatorMatch: ['dias cup', 'dias de cup', 'dias de exposicion', 'dias cateter urinario', 'dias de cateter', 'device days', 'dias dispositivo'],
+            patientDaysMatch: ['dias paciente', 'dias cama', 'dias de estada', 'dias de hospitalizacion', 'patient days'],
+            // Referencia por tipo de servicio (no se asume una única).
+            serviceReferences: [
+              { service: 'medicina', label: 'Medicina', reference: 2.9, match: ['medicina', 'medicina interna', 'med interna', 'medico interna'] },
+              { service: 'cirugia', label: 'Cirugía', reference: 1.6, match: ['cirugia', 'quirurgic', 'cirug', 'cx'] },
+              { service: 'upc', label: 'UPC', reference: 2.3, match: ['upc', 'uci', 'uti', 'cuidados intensivos', 'paciente critico', 'intensivo', 'critico', 'coronaria'] },
+            ],
+          },
+        ],
+        kpis: ['Casos de ITU-CUP', 'Días CUP', 'Tasa por 1.000 días CUP', 'Razón de utilización de CUP'],
+        charts: ['Tasa por unidad', 'Evolución de la tasa', 'Comparación entre períodos'],
+        tables: ['Resultado por unidad', 'Resultado por período'],
+        executiveText:
+          'Informe de vigilancia epidemiológica de la infección urinaria asociada a catéter urinario permanente (ITU-CUP). La tasa se calcula como casos de ITU-CUP por 1.000 días de exposición a CUP; se analiza por unidad y período, con evolución temporal y comparación frente a la referencia institucional, que se adapta al tipo de servicio.',
+        autoRecommendations: [
+          { when: 'always', text: 'Mantener la vigilancia activa de ITU-CUP con verificación de la definición de caso y del registro completo de días-catéter (denominador).' },
+          { when: 'always', text: 'Reforzar la indicación apropiada del catéter urinario y su retiro precoz mediante evaluación diaria de la necesidad, en las unidades con tasa sobre la referencia de su servicio.' },
+        ],
+      },
       {
         ...auditTemplate('its_cvc', 'ITS asociada a CVC', 'Vigilancia de infección del torrente sanguíneo asociada a catéter venoso central (tasa por 1.000 días de CVC)', 'vigilancia'),
         formula: 'Tasa ITS-CVC = (Casos de ITS-CVC / Días de exposición a CVC) × 1.000',

@@ -66,6 +66,8 @@ export interface ReportConfig {
   analysisType: AnalysisType;
   highlights: Highlight[];
   goal: number; // meta de cumplimiento en % (0..100)
+  /** Vigilancia: tipo de servicio elegido manualmente para fijar la referencia. */
+  serviceType?: string;
 }
 
 /** Fila cruda leída del Excel. */
@@ -244,7 +246,17 @@ export interface SurveillanceRatePoint {
   cases: number; // numerador (p. ej. casos ITS-CVC)
   deviceDays: number; // denominador (p. ej. días CVC)
   rate: number | null; // cases/deviceDays × factor; null si deviceDays = 0
+  reference: number | null; // referencia aplicable (por servicio) o null si no determinada
   exceedsReference: boolean; // rate > reference
+  service?: string; // tipo de servicio detectado (solo por unidad)
+  serviceLabel?: string; // etiqueta del servicio (p. ej. "Medicina")
+}
+
+/** Referencia por tipo de servicio disponible para el selector. */
+export interface ServiceReferenceOption {
+  service: string;
+  label: string;
+  reference: number;
 }
 
 /**
@@ -254,12 +266,14 @@ export interface SurveillanceRatePoint {
 export interface SurveillanceAnalysis {
   rateName: string; // p. ej. "Tasa de ITS-CVC"
   unitLabel: string; // p. ej. "por 1.000 días de CVC"
+  numeratorLabel: string; // p. ej. "Casos de ITS-CVC"
+  denominatorLabel: string; // p. ej. "Días de exposición a CVC"
   factor: number; // p. ej. 1000
-  reference: number | null; // referencia configurable
+  reference: number | null; // referencia global (uniforme o manual) o null si mixta
   totalCases: number; // Σ numerador
   totalDeviceDays: number; // Σ denominador
   overallRate: number | null; // Σcasos / Σdías × factor
-  exceedsReference: boolean; // tasa global > referencia
+  exceedsReference: boolean; // tasa global > referencia (si aplica)
   byUnit: SurveillanceRatePoint[]; // resultado por unidad
   byPeriod: SurveillanceRatePoint[]; // resultado por período (evolución)
   hasDate: boolean; // existe columna de período utilizable
@@ -268,6 +282,16 @@ export interface SurveillanceAnalysis {
   utilizationRatio: number | null; // días dispositivo / días paciente
   numeratorFound: boolean; // se localizó la columna del numerador
   denominatorFound: boolean; // se localizó la columna del denominador
+  /** Formato detectado del Excel: agregado (unidad×período) o línea por caso. */
+  format: 'aggregated' | 'line_list';
+  /** Referencias por tipo de servicio disponibles (para el selector). */
+  services: ServiceReferenceOption[];
+  /** Servicio elegido manualmente (o null si automático por nombre de unidad). */
+  selectedService: string | null;
+  /** Modo de referencia: uniforme, por unidad (mixta), manual o sin referencia. */
+  referenceMode: 'uniform' | 'per_unit' | 'manual' | 'none';
+  /** Hay unidades cuyo servicio no se identificó y no hay selección manual. */
+  hasUnresolvedService: boolean;
 }
 
 /** Resultado completo del motor de análisis. */

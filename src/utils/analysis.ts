@@ -15,7 +15,7 @@ import type {
   UnitShiftMatrix,
 } from '../types';
 import type { AuditBreakdown, SurveillanceRate } from '../config/programs';
-import type { SurveillanceAnalysis, SurveillanceRatePoint } from '../types';
+import type { SurveillanceAnalysis, SurveillanceRatePoint, ServiceReferenceOption } from '../types';
 import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDescriptiveVariable, matchesDescriptivePatterns, normalize } from './columnDetection';
 import { classifyLppStage, isLppStageColumn, LPP_STAGES } from './lpp';
 import { granularityFor } from '../config/options';
@@ -491,58 +491,114 @@ export function analyzeSurveillance(workbook: ParsedWorkbook, config: ReportConf
   const denCol = findColumnByHeader(columns, rate.denominatorMatch);
   const pdCol = findColumnByHeader(columns, rate.patientDaysMatch);
   const factor = rate.factor || 1000;
-  const reference = rate.reference ?? null;
   const gran = granularityFor(config.analysisType);
   const order = dateCol ? detectDateOrder(rows.map((r) => r[dateCol])) : 'dmy';
-
   const rateOf = (cases: number, days: number): number | null => (days > 0 ? roundN((cases / days) * factor, 2) : null);
-  const exceeds = (r: number | null): boolean => r !== null && reference !== null && r > reference;
 
-  // Totales globales.
-  let totalCases = 0;
-  let totalDays = 0;
-  let totalPatientDays = 0;
-  let anyPatientDays = false;
-  // Agregación por unidad y por período.
-  const unitAcc = new Map<string, { cases: number; days: number }>();
-  const periodAcc = new Map<string, { cases: number; days: number }>();
+  // Formato: si hay columna de numerador (Casos) → agregado (una fila por
+  // unidad-período: se SUMAN casos y días). Si no → línea por caso (cada fila es
+  // un caso: se CUENTAN por unidad-período y el denominador se toma como el valor
+  // por unidad-período, sin sumarlo entre filas repetidas).
+  const format: 'aggregated' | 'line_list' = numCol ? 'aggregated' : 'line_list';
 
+  // Celdas (unidad × período): agrega según el formato.
+  interface Cell { unit: string; period: string; cases: number; days: number; pdays: number; anyPd: boolean }
+  const cells = new Map<string, Cell>();
   for (const row of rows) {
-    const cases = numCol ? toNumber(row[numCol]) ?? 0 : 0;
-    const days = denCol ? toNumber(row[denCol]) ?? 0 : 0;
-    if (pdCol) { const pd = toNumber(row[pdCol]); if (pd !== null) { totalPatientDays += pd; anyPatientDays = true; } }
-    totalCases += cases;
-    totalDays += days;
-    if (unitCol) {
-      const u = labelOf(row[unitCol]);
-      const g = unitAcc.get(u) ?? { cases: 0, days: 0 };
-      g.cases += cases; g.days += days; unitAcc.set(u, g);
+    const unit = unitCol ? labelOf(row[unitCol]) : UNGROUPED;
+    const period = dateCol ? periodKey(row[dateCol], gran, order) ?? '' : '';
+    const key = `${unit}||${period}`;
+    const cell = cells.get(key) ?? { unit, period, cases: 0, days: 0, pdays: 0, anyPd: false };
+    const den = denCol ? toNumber(row[denCol]) ?? 0 : 0;
+    const pd = pdCol ? toNumber(row[pdCol]) : null;
+    if (format === 'aggregated') {
+      cell.cases += numCol ? toNumber(row[numCol]) ?? 0 : 0;
+      cell.days += den;
+      if (pd !== null) { cell.pdays += pd; cell.anyPd = true; }
+    } else {
+      cell.cases += 1; // cada fila = un caso
+      cell.days = Math.max(cell.days, den); // denominador por unidad-período (no se suma)
+      if (pd !== null) { cell.pdays = Math.max(cell.pdays, pd); cell.anyPd = true; }
     }
-    if (dateCol) {
-      const key = periodKey(row[dateCol], gran, order);
-      if (key) { const g = periodAcc.get(key) ?? { cases: 0, days: 0 }; g.cases += cases; g.days += days; periodAcc.set(key, g); }
-    }
+    cells.set(key, cell);
   }
 
-  const byUnit: SurveillanceRatePoint[] = Array.from(unitAcc.entries())
-    .map(([label, g]) => { const r = rateOf(g.cases, g.days); return { key: label, label, cases: g.cases, deviceDays: g.days, rate: r, exceedsReference: exceeds(r) }; })
+  // ── Referencia por tipo de servicio ──────────────────────────────────
+  const services: ServiceReferenceOption[] = (rate.serviceReferences ?? []).map((s) => ({ service: s.service, label: s.label, reference: s.reference }));
+  const manual = config.serviceType ?? null;
+  const manualRef = manual ? services.find((s) => s.service === manual)?.reference ?? null : null;
+  /** Servicio detectado para una unidad por su nombre (o null). */
+  const detectService = (unitLabel: string): { service: string; label: string; reference: number } | null => {
+    const n = normalize(unitLabel);
+    for (const s of rate.serviceReferences ?? []) {
+      if (s.match.some((m) => { const nm = normalize(m); return nm !== '' && n.includes(nm); })) return { service: s.service, label: s.label, reference: s.reference };
+    }
+    return null;
+  };
+  /** Referencia aplicable a una unidad: manual > detectada por nombre > única del rate. */
+  const referenceForUnit = (unitLabel: string): { reference: number | null; service?: string; serviceLabel?: string } => {
+    if (manual) return { reference: manualRef, service: manual, serviceLabel: services.find((s) => s.service === manual)?.label };
+    const det = detectService(unitLabel);
+    if (det) return { reference: det.reference, service: det.service, serviceLabel: det.label };
+    return { reference: (rate.serviceReferences?.length ? null : rate.reference ?? null) };
+  };
+
+  // Agregación por unidad.
+  const unitAgg = new Map<string, { cases: number; days: number }>();
+  const periodAgg = new Map<string, { cases: number; days: number }>();
+  let totalCases = 0, totalDays = 0, totalPatientDays = 0, anyPatientDays = false;
+  for (const cell of cells.values()) {
+    totalCases += cell.cases; totalDays += cell.days;
+    if (cell.anyPd) { totalPatientDays += cell.pdays; anyPatientDays = true; }
+    const u = unitAgg.get(cell.unit) ?? { cases: 0, days: 0 }; u.cases += cell.cases; u.days += cell.days; unitAgg.set(cell.unit, u);
+    if (dateCol && cell.period) { const p = periodAgg.get(cell.period) ?? { cases: 0, days: 0 }; p.cases += cell.cases; p.days += cell.days; periodAgg.set(cell.period, p); }
+  }
+
+  let hasUnresolvedService = false;
+  const byUnit: SurveillanceRatePoint[] = Array.from(unitAgg.entries())
+    .map(([label, g]) => {
+      const r = rateOf(g.cases, g.days);
+      const ref = referenceForUnit(label);
+      if (!manual && rate.serviceReferences?.length && ref.reference === null) hasUnresolvedService = true;
+      return { key: label, label, cases: g.cases, deviceDays: g.days, rate: r, reference: ref.reference, exceedsReference: r !== null && ref.reference !== null && r > ref.reference, service: ref.service, serviceLabel: ref.serviceLabel };
+    })
     .sort((a, b) => (b.rate ?? -1) - (a.rate ?? -1));
-  const byPeriod: SurveillanceRatePoint[] = Array.from(periodAcc.entries())
-    .map(([key, g]) => { const r = rateOf(g.cases, g.days); return { key, label: periodLabel(key, gran), cases: g.cases, deviceDays: g.days, rate: r, exceedsReference: exceeds(r) }; })
+
+  // Referencia global: manual, o única si todas las unidades comparten servicio,
+  // o la referencia única del rate; si hay servicios mixtos → null (no se asume).
+  const distinctRefs = new Set(byUnit.map((u) => u.reference).filter((v): v is number => v !== null));
+  const allResolved = byUnit.every((u) => u.reference !== null);
+  const overallReference: number | null = manual
+    ? manualRef
+    : rate.serviceReferences?.length
+      ? (allResolved && distinctRefs.size === 1 ? [...distinctRefs][0] : null)
+      : rate.reference ?? null;
+
+  const byPeriod: SurveillanceRatePoint[] = Array.from(periodAgg.entries())
+    .map(([key, g]) => { const r = rateOf(g.cases, g.days); return { key, label: periodLabel(key, gran), cases: g.cases, deviceDays: g.days, rate: r, reference: overallReference, exceedsReference: r !== null && overallReference !== null && r > overallReference }; })
     .sort((a, b) => a.key.localeCompare(b.key));
 
   const overallRate = rateOf(totalCases, totalDays);
   const granLabels: Record<typeof gran, string> = { mensual: 'mensual', trimestral: 'trimestral', semestral: 'semestral', anual: 'anual' };
+  const referenceMode: SurveillanceAnalysis['referenceMode'] = manual
+    ? 'manual'
+    : !rate.serviceReferences?.length
+      ? (rate.reference != null ? 'uniform' : 'none')
+      : overallReference !== null
+        ? 'uniform'
+        : 'per_unit';
 
   return {
     rateName: rate.name,
     unitLabel: rate.unit,
+    numeratorLabel: rate.numerator,
+    denominatorLabel: rate.denominator,
     factor,
-    reference,
+    reference: overallReference,
     totalCases,
     totalDeviceDays: totalDays,
     overallRate,
-    exceedsReference: exceeds(overallRate),
+    exceedsReference: overallRate !== null && overallReference !== null && overallRate > overallReference,
     byUnit,
     byPeriod,
     hasDate: dateCol !== null && byPeriod.length > 0,
@@ -551,6 +607,11 @@ export function analyzeSurveillance(workbook: ParsedWorkbook, config: ReportConf
     utilizationRatio: anyPatientDays && totalPatientDays > 0 ? roundN(totalDays / totalPatientDays, 2) : null,
     numeratorFound: numCol !== null,
     denominatorFound: denCol !== null,
+    format,
+    services,
+    selectedService: manual,
+    referenceMode,
+    hasUnresolvedService,
   };
 }
 

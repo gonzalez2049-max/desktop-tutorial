@@ -265,7 +265,7 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
       {/* Modo vigilancia epidemiológica: dashboard de tasas (num/den × factor),
           por unidad y período, evolución, referencia y alertas. Sin cumplimiento. */}
       {vigilancia && a.surveillance && (
-        <SurveillanceView analysis={a} program={program} auditName={auditName} formula={audit?.formula} fileName={fileName} onEdit={onEdit} />
+        <SurveillanceView workbook={activeWorkbook} config={config} program={program} auditName={auditName} formula={audit?.formula} fileName={fileName} onEdit={onEdit} />
       )}
 
       {/* Layout genérico para el resto de programas / auditorías de prácticas. */}

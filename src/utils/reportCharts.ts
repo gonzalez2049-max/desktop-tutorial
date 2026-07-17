@@ -255,11 +255,10 @@ function evolutionChart(a: AnalysisResult, colors: TrafficColors): ReportChart |
 
 // ── Gráficos de vigilancia epidemiológica (tasas, no cumplimiento) ──────────
 
-/** Color de una tasa según la referencia: rojo si la supera, verde si no. */
-function rateColor(rate: number | null, reference: number | null, colors: TrafficColors): string {
-  if (rate === null) return PALETTE.gray;
-  if (reference !== null && rate > reference) return colors.rojo;
-  return colors.verde;
+/** Color de una tasa según su alerta: rojo si supera la referencia, verde si no. */
+function pointColor(p: SurveillanceRatePoint, colors: TrafficColors): string {
+  if (p.rate === null) return PALETTE.gray;
+  return p.exceedsReference ? colors.rojo : colors.verde;
 }
 
 /** Barras horizontales de tasa por categoría (unidad), con línea de referencia. */
@@ -299,7 +298,7 @@ function rateBars(title: string, points: SurveillanceRatePoint[], reference: num
     ctx.fillStyle = PALETTE.gray;
     ctx.fillRect(x0, y - 8, barMaxW, 16);
     const val = p.rate ?? 0;
-    ctx.fillStyle = rateColor(p.rate, reference, colors);
+    ctx.fillStyle = pointColor(p, colors);
     ctx.fillRect(x0, y - 8, (val / maxVal) * barMaxW, 16);
     ctx.fillStyle = PALETTE.ink;
     ctx.font = `bold 12px ${FONT}`;
@@ -352,7 +351,7 @@ function rateEvolution(points: SurveillanceRatePoint[], reference: number | null
   points.forEach((p, i) => (i === 0 ? ctx.moveTo(x(i), y(p.rate ?? 0)) : ctx.lineTo(x(i), y(p.rate ?? 0))));
   ctx.stroke();
   points.forEach((p, i) => {
-    ctx.fillStyle = rateColor(p.rate, reference, colors);
+    ctx.fillStyle = pointColor(p, colors);
     ctx.beginPath();
     ctx.arc(x(i), y(p.rate ?? 0), 4, 0, 2 * Math.PI);
     ctx.fill();
