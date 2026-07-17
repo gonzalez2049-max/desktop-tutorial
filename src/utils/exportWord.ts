@@ -17,7 +17,7 @@ import { saveAs } from 'file-saver';
 import type { ActionPlanRow, AnalysisResult, ClinicalCharacterization, ComplianceGroup, DescriptiveVariable, EvolutionPoint, ExecutiveReport } from '../types';
 import { buildExecutiveReport } from './executiveReport';
 import { analysisTypeLabel, showsEvolution } from '../config/options';
-import { buildReportCharts } from './reportCharts';
+import { buildReportCharts, buildSurveillanceCharts } from './reportCharts';
 import { resolveProgramConfig } from './programConfig';
 import { summaryKpis } from './reportModel';
 
@@ -267,6 +267,79 @@ function executiveParagraphs(report: ExecutiveReport): (Paragraph | Table)[] {
   return out;
 }
 
+/** Secciones de vigilancia epidemiológica (tasas por unidad/período) para Word. */
+function surveillanceWordSections(a: AnalysisResult, colors: TrafficColors): (Paragraph | Table)[] {
+  const s = a.surveillance!;
+  const fmt = (r: number | null) => (r === null ? 's/d' : String(r));
+  const out: (Paragraph | Table)[] = [];
+
+  const alert = s.exceedsReference;
+  const estado = s.overallRate === null ? 'tasa no calculable (sin días de exposición)' : alert ? `ALERTA: ${s.overallRate} sobre la referencia ${s.reference}` : `${s.overallRate} en o bajo la referencia ${s.reference ?? '—'}`;
+  out.push(
+    new Paragraph({
+      spacing: { after: 160 },
+      children: [new TextRun({ text: '● ', color: bare(alert ? colors.rojo : colors.verde), size: 30 }), text(`${s.rateName} (${s.unitLabel}) — ${estado}`, { bold: true })],
+    }),
+  );
+
+  out.push(heading('Indicadores de vigilancia'));
+  const kpiRows: [string, string][] = [
+    ['Casos de ITS-CVC', String(s.totalCases)],
+    ['Días CVC (denominador)', String(s.totalDeviceDays)],
+    [`Tasa global (${s.unitLabel})`, fmt(s.overallRate)],
+    ['Referencia', s.reference !== null ? String(s.reference) : '—'],
+  ];
+  if (s.utilizationRatio !== null) kpiRows.push(['Razón de utilización de CVC', String(s.utilizationRatio)]);
+  out.push(
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({ tableHeader: true, children: [headerCell('Indicador de vigilancia'), headerCell('Valor')] }),
+        ...kpiRows.map(([k, v]) => new TableRow({ children: [bodyCell([text(k)]), bodyCell([text(v, { bold: true })], AlignmentType.CENTER)] })),
+      ],
+    }),
+  );
+
+  const charts = buildSurveillanceCharts(s, colors);
+  if (charts.length) {
+    out.push(heading('Gráficos de vigilancia'));
+    for (const ch of charts) {
+      out.push(
+        new Paragraph({ spacing: { before: 120, after: 40 }, children: [new TextRun({ text: ch.title, bold: true, color: bare(PALETTE.blue), size: 20 })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ data: dataUrlToBytes(ch.dataUrl), transformation: { width: ch.width, height: ch.height } })] }),
+      );
+    }
+  }
+
+  const rateTable = (title: string, points: typeof s.byUnit, firstHeader: string) => {
+    if (!points.length) return;
+    out.push(heading(title));
+    out.push(
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          new TableRow({ tableHeader: true, children: [headerCell(firstHeader), headerCell('Casos'), headerCell('Días CVC'), headerCell('Tasa'), headerCell('Estado')] }),
+          ...points.map(
+            (p) =>
+              new TableRow({
+                children: [
+                  bodyCell([text(p.label)]),
+                  bodyCell([text(String(p.cases))], AlignmentType.CENTER),
+                  bodyCell([text(String(p.deviceDays))], AlignmentType.CENTER),
+                  bodyCell([text(fmt(p.rate), { bold: true, color: p.exceedsReference ? colors.rojo : undefined })], AlignmentType.CENTER),
+                  bodyCell([text(p.rate === null ? 'Sin datos' : p.exceedsReference ? 'Sobre referencia' : 'En referencia', { bold: true, color: p.exceedsReference ? colors.rojo : PALETTE.green })], AlignmentType.CENTER),
+                ],
+              }),
+          ),
+        ],
+      }),
+    );
+  };
+  rateTable('Resultado por unidad', s.byUnit, 'Unidad');
+  if (s.hasDate) rateTable(`Resultado por período (${s.granularityLabel})`, s.byPeriod, 'Período');
+  return out;
+}
+
 /** Genera y descarga el informe en Word editable (.docx) con diseño ejecutivo. */
 export async function exportWord(a: AnalysisResult, fileName: string): Promise<void> {
   const report = buildExecutiveReport(a);
@@ -275,13 +348,14 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
   const g = a.global;
   const light = trafficLightFor(g.percent, a.config.goal);
 
+  const isSurv = Boolean(a.surveillance);
   const children: (Paragraph | Table)[] = [
     new Paragraph({
       children: [new TextRun({ text: `${program.logo} ${program.institutionName}`.trim(), bold: true, size: 40, color: bare(PALETTE.blue) })],
     }),
     new Paragraph({
       spacing: { after: 120 },
-      children: [new TextRun({ text: `Informe de auditoría clínica · ${program.programName || report.meta.reportTypeLabel} · Unidad: ${program.unitName}`, size: 22, color: bare(PALETTE.muted) })],
+      children: [new TextRun({ text: `Informe ${isSurv ? 'de vigilancia' : 'de auditoría clínica'} · ${program.programName || report.meta.reportTypeLabel} · Unidad: ${program.unitName}`, size: 22, color: bare(PALETTE.muted) })],
     }),
     new Paragraph({
       spacing: { after: 60 },
@@ -289,9 +363,33 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
     }),
     new Paragraph({
       spacing: { after: 120 },
-      children: [text(`Fecha de generación: ${report.meta.generatedAt}    ·    Meta de cumplimiento: ${a.config.goal}%`, { color: PALETTE.muted, size: 18 })],
+      children: [text(`Fecha de generación: ${report.meta.generatedAt}`, { color: PALETTE.muted, size: 18 })],
     }),
-    // Semáforo de cumplimiento
+  ];
+
+  // ── Vigilancia epidemiológica: informe de tasas (sin semáforo/cumplimiento) ──
+  if (isSurv) {
+    children.push(...surveillanceWordSections(a, colors));
+    children.push(heading('Resumen ejecutivo'));
+    const baseTextV = program.executiveBaseText.trim();
+    if (baseTextV) children.push(new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: baseTextV, italics: true, color: bare(PALETTE.muted), size: 19 })] }));
+    children.push(...executiveParagraphs(report));
+    children.push(
+      new Paragraph({ spacing: { before: 700 }, children: [] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, children: [text('_____________________________________')] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60 }, children: [text('Firma y Timbre', { bold: true })] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 20 }, children: [text('Responsable de la Estrategia', { color: PALETTE.muted })] }),
+    );
+    const docV = new Document({
+      styles: { default: { document: { run: { font: 'Calibri', color: bare(PALETTE.ink) } } } },
+      sections: [{ properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } }, children }],
+    });
+    saveAs(await Packer.toBlob(docV), fileName.replace(/\.[^.]+$/, '') + '_NEX-Report.docx');
+    return;
+  }
+
+  // Semáforo de cumplimiento + KPIs (auditorías de cumplimiento).
+  children.push(
     new Paragraph({
       spacing: { after: 160 },
       children: [
@@ -299,10 +397,9 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
         text(`Semáforo de cumplimiento: ${trafficLabel(light)} — ${g.percent}% (meta ${a.config.goal}%)`, { bold: true }),
       ],
     }),
-
     heading('Resumen de indicadores (KPIs)'),
     kpiTable(a, colors),
-  ];
+  );
 
   if (a.config.reportType === 'NT234_LPP') {
     children.push(heading('Caracterización clínica'), characterizationTable(a.characterization));

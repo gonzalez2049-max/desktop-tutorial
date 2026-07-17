@@ -57,6 +57,12 @@ export interface SurveillanceRate {
   factor: number; // p. ej. 1000
   unit: string; // p. ej. "por 1000 días de VM"
   reference?: number; // referencia / meta
+  /** Fragmentos de encabezado para localizar la columna del numerador. */
+  numeratorMatch?: string[];
+  /** Fragmentos de encabezado para localizar la columna del denominador. */
+  denominatorMatch?: string[];
+  /** Fragmentos para localizar la columna de días paciente (razón de utilización). */
+  patientDaysMatch?: string[];
 }
 
 /**
@@ -303,7 +309,44 @@ export const DEFAULT_PROGRAMS: Record<ReportType, ProgramConfig> = {
       },
       auditTemplate('navm', 'NAVM', 'Neumonía asociada a ventilación mecánica', 'vigilancia'),
       auditTemplate('itu_cup', 'ITU asociada a CUP', 'Infección urinaria asociada a catéter urinario permanente', 'vigilancia'),
-      auditTemplate('its_cvc', 'ITS asociada a CVC', 'Infección del torrente sanguíneo asociada a catéter venoso central', 'vigilancia'),
+      {
+        ...auditTemplate('its_cvc', 'ITS asociada a CVC', 'Vigilancia de infección del torrente sanguíneo asociada a catéter venoso central (tasa por 1.000 días de CVC)', 'vigilancia'),
+        formula: 'Tasa ITS-CVC = (Casos de ITS-CVC / Días de exposición a CVC) × 1.000',
+        descriptiveVariables: ['Unidad', 'Período', 'Casos de ITS-CVC', 'Días CVC', 'Días paciente'],
+        inclusion: [
+          'Unidades bajo vigilancia con pacientes portadores de CVC durante el período.',
+          'Casos de ITS-CVC confirmados según la definición institucional (hemocultivo positivo en paciente con CVC ≥ 48 h, sin otro foco primario).',
+          'Todos los días-catéter (device-days) de los pacientes con CVC suman al denominador.',
+        ],
+        exclusion: [
+          'ITS con foco secundario identificado (no asociada a CVC).',
+          'Bacteriemia presente o en incubación al instalar el catéter (< 48 h).',
+          'Contaminante de un único hemocultivo sin criterios clínicos.',
+          'Registros/períodos sin días CVC (denominador 0): tasa no calculable.',
+        ],
+        rates: [
+          {
+            name: 'Tasa de ITS-CVC',
+            numerator: 'Casos de ITS-CVC',
+            denominator: 'Días de exposición a CVC',
+            factor: 1000,
+            unit: 'por 1.000 días de CVC',
+            reference: 2.0,
+            numeratorMatch: ['casos its', 'casos de its', 'its cvc', 'its-cvc', 'clabsi', 'infecciones', 'casos'],
+            denominatorMatch: ['dias cvc', 'dias de cvc', 'dias de exposicion', 'dias cateter', 'dias de cateter', 'device days', 'dias dispositivo'],
+            patientDaysMatch: ['dias paciente', 'dias cama', 'dias de estada', 'dias de hospitalizacion', 'patient days'],
+          },
+        ],
+        kpis: ['Casos de ITS-CVC', 'Días CVC', 'Tasa por 1.000 días CVC', 'Razón de utilización de CVC'],
+        charts: ['Tasa por unidad', 'Evolución de la tasa', 'Comparación entre períodos'],
+        tables: ['Resultado por unidad', 'Resultado por período'],
+        executiveText:
+          'Informe de vigilancia epidemiológica de la infección del torrente sanguíneo asociada a catéter venoso central (ITS-CVC). La tasa se calcula como casos de ITS-CVC por 1.000 días de exposición a CVC; se analiza por unidad y período, con evolución temporal y comparación frente a la referencia institucional.',
+        autoRecommendations: [
+          { when: 'always', text: 'Mantener la vigilancia activa de ITS-CVC con verificación de la definición de caso y del registro completo de días-catéter (denominador).' },
+          { when: 'always', text: 'Reforzar el bundle de inserción y mantención de CVC en las unidades con tasa sobre la referencia; evaluar diariamente la necesidad del catéter para reducir la exposición.' },
+        ],
+      },
       {
         ...auditTemplate('bundle_cvc', 'Bundle CVC', 'Cumplimiento del paquete de medidas (bundle) de catéter venoso central: inserción y mantención', 'practicas'),
         goal: 95,

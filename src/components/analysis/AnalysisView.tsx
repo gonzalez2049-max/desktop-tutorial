@@ -13,6 +13,7 @@ import LppCharacterization from './LppCharacterization';
 import PeriodComparison from './PeriodComparison';
 import TrafficLightCard from './charts/TrafficLightCard';
 import SignatureBlock from './SignatureBlock';
+import SurveillanceView from './SurveillanceView';
 import AuditorPanel from './AuditorPanel';
 import { analysisTypeLabel, showsEvolution } from '../../config/options';
 import { trafficLabel, trafficLightFor } from '../../utils/palette';
@@ -261,49 +262,10 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
         </>
       )}
 
-      {/* Modo vigilancia epidemiológica (IAAS): plantilla de tasas, sin aplicar
-          la fórmula de cumplimiento de prácticas. */}
-      {vigilancia && (
-        <section className="card p-5">
-          <header className="mb-3">
-            <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">🧫 Vigilancia epidemiológica</h3>
-            <p className="mt-0.5 text-sm text-slate-400">
-              {auditName}: esta auditoría se analiza como <strong>tasas epidemiológicas</strong> (numerador / denominador),
-              no como cumplimiento de prácticas.
-            </p>
-          </header>
-          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            🧩 Plantilla en configuración. El cálculo de tasas (numerador, denominador, factor y referencia) se definirá para
-            esta auditoría. No se aplica la fórmula de cumplimiento.
-          </p>
-          {audit && audit.rates.length > 0 ? (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[420px] text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    <th className="py-2 pr-3">Tasa</th>
-                    <th className="py-2 pr-3">Numerador</th>
-                    <th className="py-2 pr-3">Denominador</th>
-                    <th className="py-2 text-right">Referencia</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {audit.rates.map((r) => (
-                    <tr key={r.name} className="border-b border-slate-100 last:border-0">
-                      <td className="py-2 pr-3 font-medium text-slate-700">{r.name}</td>
-                      <td className="py-2 pr-3 text-slate-600">{r.numerator}</td>
-                      <td className="py-2 pr-3 text-slate-600">{r.denominator} · ×{r.factor} {r.unit}</td>
-                      <td className="py-2 text-right text-slate-600">{r.reference ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-slate-400">Aún no se han configurado tasas para esta auditoría.</p>
-          )}
-          <p className="mt-3 text-xs text-slate-400">Registros leídos del archivo: {a.totalRecords}.</p>
-        </section>
+      {/* Modo vigilancia epidemiológica: dashboard de tasas (num/den × factor),
+          por unidad y período, evolución, referencia y alertas. Sin cumplimiento. */}
+      {vigilancia && a.surveillance && (
+        <SurveillanceView analysis={a} program={program} auditName={auditName} formula={audit?.formula} fileName={fileName} onEdit={onEdit} />
       )}
 
       {/* Layout genérico para el resto de programas / auditorías de prácticas. */}
