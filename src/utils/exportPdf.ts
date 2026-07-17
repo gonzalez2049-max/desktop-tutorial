@@ -322,7 +322,7 @@ function drawSurveillance(ctx: Ctx, a: AnalysisResult): void {
   const estado = s.overallRate === null
     ? 'Tasa no calculable (sin días de exposición)'
     : mixed
-      ? `Tasa ${s.overallRate} — referencia por servicio (ver por unidad)`
+      ? `Tasa ${s.overallRate} — referencia por ${s.referenceLabel.toLowerCase()} (ver por unidad)`
       : alert
         ? `ALERTA: tasa ${s.overallRate} sobre la referencia ${s.reference}`
         : `Tasa ${s.overallRate} en o bajo la referencia ${s.reference ?? '—'}`;
@@ -339,7 +339,7 @@ function drawSurveillance(ctx: Ctx, a: AnalysisResult): void {
     [s.numeratorLabel, String(s.totalCases)],
     [`${s.denominatorLabel} (denominador)`, String(s.totalDeviceDays)],
     [`Tasa global (${s.unitLabel})`, fmt(s.overallRate)],
-    ['Referencia', s.reference !== null ? String(s.reference) : mixed ? 'por servicio' : '—'],
+    ['Referencia', s.reference !== null ? String(s.reference) : mixed ? `por ${s.referenceLabel.toLowerCase()}` : '—'],
   ];
   if (s.utilizationRatio !== null) kpiRows.push(['Razón de utilización', String(s.utilizationRatio)]);
   autoTable(doc, {

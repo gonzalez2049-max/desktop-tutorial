@@ -20,14 +20,14 @@ const AUTO = '__AUTO__';
 const fmtRate = (r: number | null) => (r === null ? 's/d' : String(r));
 
 /** Tabla de resultado por categoría (unidad o período) con referencia y alerta. */
-function RateTable({ points, firstHeader, showService }: { points: SurveillanceRatePoint[]; firstHeader: string; showService: boolean }) {
+function RateTable({ points, firstHeader, showService, serviceHeader }: { points: SurveillanceRatePoint[]; firstHeader: string; showService: boolean; serviceHeader: string }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[560px] text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
             <th className="py-2 pr-3">{firstHeader}</th>
-            {showService && <th className="py-2 pr-3">Servicio</th>}
+            {showService && <th className="py-2 pr-3">{serviceHeader}</th>}
             <th className="py-2 pr-3 text-right">Casos</th>
             <th className="py-2 pr-3 text-right">Días</th>
             <th className="py-2 pr-3 text-right">Tasa</th>
@@ -78,7 +78,7 @@ export default function SurveillanceView({ workbook, config, program, auditName,
     {
       label: `Tasa global (${s.unitLabel})`,
       value: fmtRate(s.overallRate),
-      hint: s.reference !== null ? `Referencia ${s.reference}` : s.referenceMode === 'per_unit' ? 'Referencia por servicio (ver por unidad)' : undefined,
+      hint: s.reference !== null ? `Referencia ${s.reference}` : s.referenceMode === 'per_unit' ? `Referencia por ${s.referenceLabel.toLowerCase()} (ver por unidad)` : undefined,
       tone: s.exceedsReference ? 'alert' : s.reference !== null ? 'ok' : 'neutral',
     },
     ...(s.utilizationRatio !== null ? [{ label: 'Razón de utilización', value: String(s.utilizationRatio), hint: 'días dispositivo / días paciente', tone: 'neutral' as const }] : []),
@@ -102,7 +102,7 @@ export default function SurveillanceView({ workbook, config, program, auditName,
           {/* Selector de tipo de servicio (fija la referencia). */}
           {s.services.length > 0 && (
             <div className="shrink-0">
-              <label htmlFor="svc" className="block text-xs font-semibold text-slate-500">Tipo de servicio (referencia)</label>
+              <label htmlFor="svc" className="block text-xs font-semibold text-slate-500">{s.referenceLabel} (referencia)</label>
               <select
                 id="svc"
                 value={service}
@@ -128,8 +128,8 @@ export default function SurveillanceView({ workbook, config, program, auditName,
           </p>
         ) : s.hasUnresolvedService ? (
           <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            ⚠️ No se identificó el tipo de servicio de una o más unidades, por lo que no se asume una referencia única. Selecciona el
-            <strong> Tipo de servicio</strong> arriba para aplicar la referencia correspondiente.
+            ⚠️ No se identificó la {s.referenceLabel.toLowerCase()} de una o más unidades, por lo que no se asume una referencia única. Selecciona la
+            <strong> {s.referenceLabel.toLowerCase()}</strong> arriba para aplicar la referencia correspondiente.
           </p>
         ) : s.exceedsReference ? (
           <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
@@ -141,7 +141,7 @@ export default function SurveillanceView({ workbook, config, program, auditName,
           </p>
         ) : s.referenceMode === 'per_unit' ? (
           <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            ℹ️ Servicios mixtos: la referencia se aplica <strong>por servicio</strong>. Revisa las alertas por unidad más abajo.
+            ℹ️ Categorías mixtas: la referencia se aplica <strong>por {s.referenceLabel.toLowerCase()}</strong>. Revisa las alertas por unidad más abajo.
           </p>
         ) : null}
 
@@ -173,7 +173,7 @@ export default function SurveillanceView({ workbook, config, program, auditName,
       {s.byUnit.length > 0 && (
         <section className="card p-5">
           <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-800">🏥 Resultado por unidad</h3>
-          <RateTable points={s.byUnit} firstHeader="Unidad" showService={s.services.length > 0} />
+          <RateTable points={s.byUnit} firstHeader="Unidad" showService={s.services.length > 0} serviceHeader={s.referenceLabel} />
         </section>
       )}
 
@@ -181,7 +181,7 @@ export default function SurveillanceView({ workbook, config, program, auditName,
         <section className="card p-5">
           <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-slate-800">🗓️ Resultado por período ({s.granularityLabel})</h3>
           <p className="mb-3 text-xs text-slate-400">Evolución y comparación temporal de la tasa.</p>
-          <RateTable points={s.byPeriod} firstHeader="Período" showService={false} />
+          <RateTable points={s.byPeriod} firstHeader="Período" showService={false} serviceHeader={s.referenceLabel} />
         </section>
       )}
 

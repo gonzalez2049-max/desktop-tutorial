@@ -535,11 +535,16 @@ export function analyzeSurveillance(workbook: ParsedWorkbook, config: ReportConf
     }
     return null;
   };
-  /** Referencia aplicable a una unidad: manual > detectada por nombre > única del rate. */
+  /** Referencia aplicable a una unidad: manual > detectada por nombre > por defecto > única. */
   const referenceForUnit = (unitLabel: string): { reference: number | null; service?: string; serviceLabel?: string } => {
     if (manual) return { reference: manualRef, service: manual, serviceLabel: services.find((s) => s.service === manual)?.label };
     const det = detectService(unitLabel);
     if (det) return { reference: det.reference, service: det.service, serviceLabel: det.label };
+    // Categoría por defecto (p. ej. "adultos" para HUAP), si está configurada.
+    if (rate.defaultService) {
+      const def = services.find((s) => s.service === rate.defaultService);
+      if (def) return { reference: def.reference, service: def.service, serviceLabel: def.label };
+    }
     return { reference: (rate.serviceReferences?.length ? null : rate.reference ?? null) };
   };
 
@@ -609,6 +614,7 @@ export function analyzeSurveillance(workbook: ParsedWorkbook, config: ReportConf
     denominatorFound: denCol !== null,
     format,
     services,
+    referenceLabel: rate.referenceLabel ?? 'Servicio',
     selectedService: manual,
     referenceMode,
     hasUnresolvedService,

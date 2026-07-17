@@ -63,8 +63,12 @@ export interface SurveillanceRate {
   denominatorMatch?: string[];
   /** Fragmentos para localizar la columna de días paciente (razón de utilización). */
   patientDaysMatch?: string[];
-  /** Referencias por tipo de servicio (la referencia se adapta al servicio). */
+  /** Referencias por categoría (servicio o población); la referencia se adapta. */
   serviceReferences?: ServiceReference[];
+  /** Categoría por defecto (p. ej. "adultos") aplicada si no se reconoce otra. */
+  defaultService?: string;
+  /** Etiqueta de la dimensión de referencia (por defecto "Servicio"). */
+  referenceLabel?: string;
 }
 
 /** Referencia de una tasa según el tipo de servicio (p. ej. Medicina 2,9). */
@@ -318,7 +322,51 @@ export const DEFAULT_PROGRAMS: Record<ReportType, ProgramConfig> = {
           { when: 'always', text: 'Garantizar la representatividad de las oportunidades auditadas por unidad, turno y estamento, con observadores capacitados.' },
         ],
       },
-      auditTemplate('navm', 'NAVM', 'Neumonía asociada a ventilación mecánica', 'vigilancia'),
+      {
+        ...auditTemplate('navm', 'NAVM asociada a VM', 'Vigilancia de neumonía asociada a ventilación mecánica (tasa por 1.000 días de VM)', 'vigilancia'),
+        formula: 'Tasa NAVM = (Casos de NAVM / Días de ventilación mecánica) × 1.000',
+        descriptiveVariables: ['Unidad', 'Período', 'Casos de NAVM', 'Días VM', 'Días paciente'],
+        inclusion: [
+          'Unidades bajo vigilancia con pacientes en ventilación mecánica invasiva durante el período.',
+          'Casos de NAVM confirmados según la definición institucional (paciente con VM ≥ 48 h, criterios clínicos + radiológicos + microbiológicos de neumonía).',
+          'Todos los días de VM (device-days) suman al denominador.',
+        ],
+        exclusion: [
+          'Neumonía presente o en incubación antes de las 48 h de VM.',
+          'Neumonía no asociada a VM (sin VM o VM < 48 h).',
+          'Traqueobronquitis sin criterios de neumonía.',
+          'Registros/períodos sin días VM (denominador 0): tasa no calculable.',
+        ],
+        rates: [
+          {
+            name: 'Tasa de NAVM',
+            numerator: 'Casos de NAVM',
+            denominator: 'Días de ventilación mecánica',
+            factor: 1000,
+            unit: 'por 1.000 días de VM',
+            numeratorMatch: ['casos navm', 'casos de navm', 'navm', 'vap', 'neumonias', 'neumonia', 'casos'],
+            denominatorMatch: ['dias vm', 'dias de vm', 'dias ventilacion', 'dias de ventilacion', 'ventilacion mecanica', 'dias ventilador', 'device days', 'dias dispositivo'],
+            patientDaysMatch: ['dias paciente', 'dias cama', 'dias de estada', 'dias de hospitalizacion', 'patient days'],
+            // Referencia por POBLACIÓN. Solo Adultos (4,5), predeterminada para HUAP y
+            // configurable. Si la población no se reconoce, se pide selección manual y no
+            // se asume otra referencia.
+            referenceLabel: 'Población',
+            defaultService: 'adultos',
+            serviceReferences: [
+              { service: 'adultos', label: 'Adultos', reference: 4.5, match: ['adulto', 'adultos', 'adulto mayor'] },
+            ],
+          },
+        ],
+        kpis: ['Casos de NAVM', 'Días VM', 'Tasa por 1.000 días VM', 'Razón de utilización de VM'],
+        charts: ['Tasa por unidad', 'Evolución de la tasa', 'Comparación entre períodos'],
+        tables: ['Resultado por unidad', 'Resultado por período'],
+        executiveText:
+          'Informe de vigilancia epidemiológica de la neumonía asociada a ventilación mecánica (NAVM). La tasa se calcula como casos de NAVM por 1.000 días de ventilación mecánica; se analiza por unidad y período, con evolución temporal y comparación frente a la referencia institucional, que se adapta al tipo de servicio.',
+        autoRecommendations: [
+          { when: 'always', text: 'Mantener la vigilancia activa de NAVM con verificación de la definición de caso y del registro completo de días de VM (denominador).' },
+          { when: 'always', text: 'Reforzar el bundle de prevención de NAVM (cabecera 30–45°, higiene oral con clorhexidina, evaluación diaria de extubación) y la extubación precoz en las unidades con tasa sobre la referencia de su servicio.' },
+        ],
+      },
       {
         ...auditTemplate('itu_cup', 'ITU asociada a CUP', 'Vigilancia de infección urinaria asociada a catéter urinario permanente (tasa por 1.000 días de CUP)', 'vigilancia'),
         formula: 'Tasa ITU-CUP = (Casos de ITU-CUP / Días de exposición a CUP) × 1.000',
