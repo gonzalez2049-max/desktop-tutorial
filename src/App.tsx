@@ -120,6 +120,7 @@ export default function App() {
             onConfirm={() => setStage('wizard')}
             onBack={() => setStage('upload')}
             reportType={reportType ?? undefined}
+            auditId={auditId}
             preview={<DataPreview workbook={workbook} />}
           />
         )}

@@ -311,25 +311,37 @@ function drawSurveillance(ctx: Ctx, a: AnalysisResult): void {
 
   // Alerta / estado global.
   ensure(ctx, 26);
+  const mixed = s.referenceMode === 'per_unit';
   const alert = s.exceedsReference;
-  const [r, g, b] = hexToRgb(alert ? ctx.colors.rojo : ctx.colors.verde);
+  const [r, g, b] = hexToRgb(alert ? ctx.colors.rojo : mixed ? ctx.colors.amarillo : ctx.colors.verde);
   doc.setFillColor(r, g, b);
   doc.circle(margin + 6, ctx.y - 3, 6, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(...INK);
-  const estado = s.overallRate === null ? 'Tasa no calculable (sin días de exposición)' : alert ? `ALERTA: tasa ${s.overallRate} sobre la referencia ${s.reference}` : `Tasa ${s.overallRate} en o bajo la referencia ${s.reference ?? '—'}`;
+  const estado = s.overallRate === null
+    ? 'Tasa no calculable (sin días de exposición)'
+    : mixed
+      ? `Tasa ${s.overallRate} — referencia por servicio (ver por unidad)`
+      : alert
+        ? `ALERTA: tasa ${s.overallRate} sobre la referencia ${s.reference}`
+        : `Tasa ${s.overallRate} en o bajo la referencia ${s.reference ?? '—'}`;
   doc.text(`${s.rateName} (${s.unitLabel}) — ${estado}`, margin + 18, ctx.y);
-  ctx.y += 22;
+  ctx.y += 16;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...MUTED);
+  doc.text(`Formato detectado: ${s.format === 'aggregated' ? 'agregado (unidad × período)' : 'línea por caso'}${s.selectedService ? ` · servicio: ${s.services.find((x) => x.service === s.selectedService)?.label ?? s.selectedService}` : ''}`, margin + 18, ctx.y);
+  ctx.y += 18;
 
   // KPIs de vigilancia.
   const kpiRows: string[][] = [
-    ['Casos de ITS-CVC', String(s.totalCases)],
-    ['Días CVC (denominador)', String(s.totalDeviceDays)],
+    [s.numeratorLabel, String(s.totalCases)],
+    [`${s.denominatorLabel} (denominador)`, String(s.totalDeviceDays)],
     [`Tasa global (${s.unitLabel})`, fmt(s.overallRate)],
-    ['Referencia', s.reference !== null ? String(s.reference) : '—'],
+    ['Referencia', s.reference !== null ? String(s.reference) : mixed ? 'por servicio' : '—'],
   ];
-  if (s.utilizationRatio !== null) kpiRows.push(['Razón de utilización de CVC', String(s.utilizationRatio)]);
+  if (s.utilizationRatio !== null) kpiRows.push(['Razón de utilización', String(s.utilizationRatio)]);
   autoTable(doc, {
     startY: ctx.y,
     head: [['Indicador de vigilancia', 'Valor']],
@@ -367,16 +379,16 @@ function drawSurveillance(ctx: Ctx, a: AnalysisResult): void {
     sectionTitle(ctx, title);
     autoTable(doc, {
       startY: ctx.y,
-      head: [[firstHeader, 'Casos', 'Días CVC', 'Tasa', 'Estado']],
-      body: points.map((p) => [p.label, String(p.cases), String(p.deviceDays), fmt(p.rate), p.rate === null ? 'Sin datos' : p.exceedsReference ? 'Sobre referencia' : 'En referencia']),
+      head: [[firstHeader, 'Casos', 'Días', 'Tasa', 'Ref.', 'Estado']],
+      body: points.map((p) => [p.label, String(p.cases), String(p.deviceDays), fmt(p.rate), p.reference !== null ? String(p.reference) : '—', p.rate === null ? 'Sin datos' : p.reference === null ? 'Sin referencia' : p.exceedsReference ? 'Sobre referencia' : 'En referencia']),
       theme: 'grid',
       headStyles: { fillColor: BLUE, textColor: [255, 255, 255], fontSize: 8.5, halign: 'center', lineColor: LINE, lineWidth: 0.5 },
       bodyStyles: { fontSize: 8.5, cellPadding: 4, textColor: INK, lineColor: LINE, lineWidth: 0.5 },
-      columnStyles: { 0: { halign: 'left' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center', fontStyle: 'bold' }, 4: { halign: 'center', fontStyle: 'bold' } },
+      columnStyles: { 0: { halign: 'left' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center', fontStyle: 'bold' }, 4: { halign: 'center' }, 5: { halign: 'center', fontStyle: 'bold' } },
       margin: { left: margin, right: margin },
       tableWidth: pageW - margin * 2,
       didParseCell: (data) => {
-        if (data.section === 'body' && (data.column.index === 3 || data.column.index === 4)) {
+        if (data.section === 'body' && (data.column.index === 3 || data.column.index === 5)) {
           const p = points[data.row.index];
           if (p && p.exceedsReference) data.cell.styles.textColor = hexToRgb(ctx.colors.rojo);
         }

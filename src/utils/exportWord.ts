@@ -273,23 +273,34 @@ function surveillanceWordSections(a: AnalysisResult, colors: TrafficColors): (Pa
   const fmt = (r: number | null) => (r === null ? 's/d' : String(r));
   const out: (Paragraph | Table)[] = [];
 
+  const mixed = s.referenceMode === 'per_unit';
   const alert = s.exceedsReference;
-  const estado = s.overallRate === null ? 'tasa no calculable (sin días de exposición)' : alert ? `ALERTA: ${s.overallRate} sobre la referencia ${s.reference}` : `${s.overallRate} en o bajo la referencia ${s.reference ?? '—'}`;
+  const estado = s.overallRate === null
+    ? 'tasa no calculable (sin días de exposición)'
+    : mixed
+      ? `${s.overallRate} — referencia por servicio (ver por unidad)`
+      : alert
+        ? `ALERTA: ${s.overallRate} sobre la referencia ${s.reference}`
+        : `${s.overallRate} en o bajo la referencia ${s.reference ?? '—'}`;
   out.push(
     new Paragraph({
+      spacing: { after: 60 },
+      children: [new TextRun({ text: '● ', color: bare(alert ? colors.rojo : mixed ? colors.amarillo : colors.verde), size: 30 }), text(`${s.rateName} (${s.unitLabel}) — ${estado}`, { bold: true })],
+    }),
+    new Paragraph({
       spacing: { after: 160 },
-      children: [new TextRun({ text: '● ', color: bare(alert ? colors.rojo : colors.verde), size: 30 }), text(`${s.rateName} (${s.unitLabel}) — ${estado}`, { bold: true })],
+      children: [text(`Formato detectado: ${s.format === 'aggregated' ? 'agregado (unidad × período)' : 'línea por caso'}${s.selectedService ? ` · servicio: ${s.services.find((x) => x.service === s.selectedService)?.label ?? s.selectedService}` : ''}`, { color: PALETTE.muted, size: 16 })],
     }),
   );
 
   out.push(heading('Indicadores de vigilancia'));
   const kpiRows: [string, string][] = [
-    ['Casos de ITS-CVC', String(s.totalCases)],
-    ['Días CVC (denominador)', String(s.totalDeviceDays)],
+    [s.numeratorLabel, String(s.totalCases)],
+    [`${s.denominatorLabel} (denominador)`, String(s.totalDeviceDays)],
     [`Tasa global (${s.unitLabel})`, fmt(s.overallRate)],
-    ['Referencia', s.reference !== null ? String(s.reference) : '—'],
+    ['Referencia', s.reference !== null ? String(s.reference) : mixed ? 'por servicio' : '—'],
   ];
-  if (s.utilizationRatio !== null) kpiRows.push(['Razón de utilización de CVC', String(s.utilizationRatio)]);
+  if (s.utilizationRatio !== null) kpiRows.push(['Razón de utilización', String(s.utilizationRatio)]);
   out.push(
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
@@ -318,7 +329,7 @@ function surveillanceWordSections(a: AnalysisResult, colors: TrafficColors): (Pa
       new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
         rows: [
-          new TableRow({ tableHeader: true, children: [headerCell(firstHeader), headerCell('Casos'), headerCell('Días CVC'), headerCell('Tasa'), headerCell('Estado')] }),
+          new TableRow({ tableHeader: true, children: [headerCell(firstHeader), headerCell('Casos'), headerCell('Días'), headerCell('Tasa'), headerCell('Ref.'), headerCell('Estado')] }),
           ...points.map(
             (p) =>
               new TableRow({
@@ -327,7 +338,8 @@ function surveillanceWordSections(a: AnalysisResult, colors: TrafficColors): (Pa
                   bodyCell([text(String(p.cases))], AlignmentType.CENTER),
                   bodyCell([text(String(p.deviceDays))], AlignmentType.CENTER),
                   bodyCell([text(fmt(p.rate), { bold: true, color: p.exceedsReference ? colors.rojo : undefined })], AlignmentType.CENTER),
-                  bodyCell([text(p.rate === null ? 'Sin datos' : p.exceedsReference ? 'Sobre referencia' : 'En referencia', { bold: true, color: p.exceedsReference ? colors.rojo : PALETTE.green })], AlignmentType.CENTER),
+                  bodyCell([text(p.reference !== null ? String(p.reference) : '—')], AlignmentType.CENTER),
+                  bodyCell([text(p.rate === null ? 'Sin datos' : p.reference === null ? 'Sin referencia' : p.exceedsReference ? 'Sobre referencia' : 'En referencia', { bold: true, color: p.exceedsReference ? colors.rojo : p.reference === null ? PALETTE.amber : PALETTE.green })], AlignmentType.CENTER),
                 ],
               }),
           ),

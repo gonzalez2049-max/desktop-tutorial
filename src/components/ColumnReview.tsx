@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { ColumnRole, DetectedColumn, ReportType } from '../types';
 import { profileNameFor } from '../utils/detectionProfiles';
+import { getProgramConfig } from '../utils/programConfig';
 
 interface ColumnReviewProps {
   columns: DetectedColumn[];
@@ -9,6 +10,8 @@ interface ColumnReviewProps {
   onBack: () => void;
   /** Programa seleccionado (para mostrar el perfil de reconocimiento aplicado). */
   reportType?: ReportType;
+  /** Sub-auditoría elegida (para relajar el requisito de cumplimiento en vigilancia). */
+  auditId?: string;
   /** Vista previa de datos que se muestra sobre la detección de columnas. */
   preview?: ReactNode;
 }
@@ -39,8 +42,14 @@ function confidenceBadge(c: number) {
  * Paso 2: revisión de la detección automática de columnas.
  * El usuario puede corregir cualquier asignación antes de continuar.
  */
-export default function ColumnReview({ columns, onChange, onConfirm, onBack, reportType, preview }: ColumnReviewProps) {
+export default function ColumnReview({ columns, onChange, onConfirm, onBack, reportType, auditId, preview }: ColumnReviewProps) {
   const hasCompliance = columns.some((c) => c.role === 'cumplimiento');
+  // Vigilancia epidemiológica: no requiere columna de cumplimiento (usa
+  // numerador/denominador localizados por encabezado).
+  const isVigilancia = reportType && auditId
+    ? getProgramConfig(reportType).audits?.find((a) => a.id === auditId)?.mode === 'vigilancia'
+    : false;
+  const canConfirm = hasCompliance || isVigilancia;
   const profile = reportType ? profileNameFor(reportType) : null;
   const doubtful = columns.filter((c) => c.confidence > 0 && c.confidence < 0.6).length;
 
@@ -97,9 +106,15 @@ export default function ColumnReview({ columns, onChange, onConfirm, onBack, rep
         })}
       </div>
 
-      {!hasCompliance && (
+      {!hasCompliance && !isVigilancia && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
           ⚠️ No detecté ninguna columna de <strong>cumplimiento</strong>. Marca al menos una columna como “Cumplimiento (Sí/No)” para poder analizar.
+        </div>
+      )}
+      {isVigilancia && (
+        <div className="mt-4 rounded-xl border border-nex-100 bg-nex-50 p-3 text-sm text-nex-800">
+          🧫 Vigilancia epidemiológica: se calcula una <strong>tasa</strong> (numerador / denominador). Asegúrate de que estén las columnas de
+          <strong> unidad</strong>, <strong>período/fecha</strong>, <strong>casos</strong> (numerador) y <strong>días de exposición</strong> (denominador).
         </div>
       )}
 
@@ -107,7 +122,7 @@ export default function ColumnReview({ columns, onChange, onConfirm, onBack, rep
         <button className="btn-ghost" onClick={onBack}>
           ← Volver
         </button>
-        <button className="btn-primary" onClick={onConfirm} disabled={!hasCompliance}>
+        <button className="btn-primary" onClick={onConfirm} disabled={!canConfirm}>
           Confirmar y continuar →
         </button>
       </div>
