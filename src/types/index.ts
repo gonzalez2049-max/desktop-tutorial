@@ -284,9 +284,11 @@ export interface SurveillanceAnalysis {
   denominatorFound: boolean; // se localizó la columna del denominador
   /** Formato detectado del Excel: agregado (unidad×período) o línea por caso. */
   format: 'aggregated' | 'line_list';
-  /** Referencias por tipo de servicio disponibles (para el selector). */
+  /** Referencias por categoría disponibles (para el selector). */
   services: ServiceReferenceOption[];
-  /** Servicio elegido manualmente (o null si automático por nombre de unidad). */
+  /** Etiqueta de la dimensión de referencia (p. ej. "Servicio" o "Población"). */
+  referenceLabel: string;
+  /** Categoría elegida manualmente (o null si automático). */
   selectedService: string | null;
   /** Modo de referencia: uniforme, por unidad (mixta), manual o sin referencia. */
   referenceMode: 'uniform' | 'per_unit' | 'manual' | 'none';

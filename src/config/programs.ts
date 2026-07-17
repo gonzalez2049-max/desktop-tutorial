@@ -63,8 +63,12 @@ export interface SurveillanceRate {
   denominatorMatch?: string[];
   /** Fragmentos para localizar la columna de días paciente (razón de utilización). */
   patientDaysMatch?: string[];
-  /** Referencias por tipo de servicio (la referencia se adapta al servicio). */
+  /** Referencias por categoría (servicio o población); la referencia se adapta. */
   serviceReferences?: ServiceReference[];
+  /** Categoría por defecto (p. ej. "adultos") aplicada si no se reconoce otra. */
+  defaultService?: string;
+  /** Etiqueta de la dimensión de referencia (por defecto "Servicio"). */
+  referenceLabel?: string;
 }
 
 /** Referencia de una tasa según el tipo de servicio (p. ej. Medicina 2,9). */
@@ -343,10 +347,13 @@ export const DEFAULT_PROGRAMS: Record<ReportType, ProgramConfig> = {
             numeratorMatch: ['casos navm', 'casos de navm', 'navm', 'vap', 'neumonias', 'neumonia', 'casos'],
             denominatorMatch: ['dias vm', 'dias de vm', 'dias ventilacion', 'dias de ventilacion', 'ventilacion mecanica', 'dias ventilador', 'device days', 'dias dispositivo'],
             patientDaysMatch: ['dias paciente', 'dias cama', 'dias de estada', 'dias de hospitalizacion', 'patient days'],
+            // Referencia por POBLACIÓN. Solo Adultos (4,5), predeterminada para HUAP y
+            // configurable. Si la población no se reconoce, se pide selección manual y no
+            // se asume otra referencia.
+            referenceLabel: 'Población',
+            defaultService: 'adultos',
             serviceReferences: [
-              { service: 'uci_medica', label: 'UCI Médica', reference: 5.0, match: ['uci medica', 'medicina intensiva', 'uci med', 'medicina critica'] },
-              { service: 'uci_quirurgica', label: 'UCI Quirúrgica', reference: 4.0, match: ['uci quirurgica', 'uci qx', 'cirugia critica', 'quirurgic'] },
-              { service: 'upc', label: 'UPC / UCI polivalente', reference: 4.5, match: ['upc', 'polivalente', 'uci general', 'uci mixta', 'coronaria', 'uti', 'uci'] },
+              { service: 'adultos', label: 'Adultos', reference: 4.5, match: ['adulto', 'adultos', 'adulto mayor'] },
             ],
           },
         ],

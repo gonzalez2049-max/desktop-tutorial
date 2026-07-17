@@ -278,7 +278,7 @@ function surveillanceWordSections(a: AnalysisResult, colors: TrafficColors): (Pa
   const estado = s.overallRate === null
     ? 'tasa no calculable (sin días de exposición)'
     : mixed
-      ? `${s.overallRate} — referencia por servicio (ver por unidad)`
+      ? `${s.overallRate} — referencia por ${s.referenceLabel.toLowerCase()} (ver por unidad)`
       : alert
         ? `ALERTA: ${s.overallRate} sobre la referencia ${s.reference}`
         : `${s.overallRate} en o bajo la referencia ${s.reference ?? '—'}`;
@@ -298,7 +298,7 @@ function surveillanceWordSections(a: AnalysisResult, colors: TrafficColors): (Pa
     [s.numeratorLabel, String(s.totalCases)],
     [`${s.denominatorLabel} (denominador)`, String(s.totalDeviceDays)],
     [`Tasa global (${s.unitLabel})`, fmt(s.overallRate)],
-    ['Referencia', s.reference !== null ? String(s.reference) : mixed ? 'por servicio' : '—'],
+    ['Referencia', s.reference !== null ? String(s.reference) : mixed ? `por ${s.referenceLabel.toLowerCase()}` : '—'],
   ];
   if (s.utilizationRatio !== null) kpiRows.push(['Razón de utilización', String(s.utilizationRatio)]);
   out.push(
