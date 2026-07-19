@@ -10,6 +10,7 @@ import Wizard from './components/wizard/Wizard';
 import AnalysisView from './components/analysis/AnalysisView';
 import DashboardUpload from './components/dashboard/DashboardUpload';
 import ConsolidatedDashboard from './components/dashboard/ConsolidatedDashboard';
+import NexLogo from './components/NexLogo';
 import { getProgramConfig } from './utils/programConfig';
 import type { RawModule } from './utils/consolidatedDashboard';
 import type { DetectedColumn, ParsedWorkbook, ReportConfig, ReportType } from './types';
@@ -89,7 +90,7 @@ export default function App() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-nex-600 text-lg font-black text-white">N</div>
+            <NexLogo size={38} />
             <div>
               <p className="text-lg font-extrabold leading-none text-slate-800">NEX Report</p>
               <p className="text-xs text-slate-400">Plataforma de Auditorías Clínicas</p>
