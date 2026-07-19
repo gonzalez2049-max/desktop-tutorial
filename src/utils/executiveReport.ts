@@ -2,6 +2,7 @@ import type { ActionPlanRow, AnalysisResult, ComplianceGroup, ExecutiveReport, R
 import { reportTypeLabel } from '../config/options';
 import { normalize } from './columnDetection';
 import { resolveProgramConfig } from './programConfig';
+import { domainCompliance } from './domains';
 
 const UNGROUPED = 'Sin especificar';
 
@@ -429,8 +430,21 @@ function buildPracticesReport(a: AnalysisResult): ExecutiveReport {
   if (hallazgos.length === 0) hallazgos.push('La adherencia se distribuye de manera homogénea y sobre el estándar definido: no se identifican hallazgos críticos.');
   sections.push({ id: 'hallazgos', title: 'Principales hallazgos', paragraphs: [], bullets: hallazgos.slice(0, 6) });
 
+  // ── CUMPLIMIENTO POR DOMINIO (programas con dominios, p. ej. LPP – Guía RNAO) ──
+  const domains = domainCompliance(a, program, goal);
+  const domainsWithData = domains.filter((d) => d.aplicables > 0);
+  if (domainsWithData.length > 0) {
+    const bullets = domainsWithData.map((d) => `${d.label}: ${d.percent}% (${d.cumple}/${d.aplicables})${d.meetsGoal ? '' : ` — ${round1(goal - d.percent)} pp bajo la meta`}.`);
+    sections.push({ id: 'dominios', title: 'Cumplimiento por dominio', paragraphs: ['Cumplimiento oficial (indicadores obligatorios) agrupado por dominio clínico:'], bullets });
+  }
+
   // ── RECOMENDACIONES (automáticas de la auditoría + por brecha) ──────
   const recomendaciones = [...autoRecommendationTexts(a)];
+  domainsWithData
+    .filter((d) => !d.meetsGoal)
+    .sort((x, y) => x.percent - y.percent)
+    .slice(0, 3)
+    .forEach((d) => recomendaciones.push(`Reforzar el dominio «${d.label}» (${d.percent}%, ${round1(goal - d.percent)} pp bajo la meta) con capacitación y verificación en terreno.`));
   gaps.slice(0, 3).forEach((gp) => {
     recomendaciones.push(`Intervenir la brecha en ${gp.dimension.toLowerCase()} «${gp.label}» (${gp.gap} puntos bajo la meta) con retroalimentación y verificación en terreno.`);
   });

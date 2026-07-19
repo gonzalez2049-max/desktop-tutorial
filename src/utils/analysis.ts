@@ -185,7 +185,11 @@ function complianceByBreakdowns(
   complianceCols: string[],
   goal: number,
 ): BreakdownCompliance[] {
-  const skipRoles = new Set<DetectedColumn['role']>(['cumplimiento', 'indicador', 'riesgo']);
+  // No se usan columnas de cumplimiento/indicador como dimensión de desglose.
+  // El rol 'riesgo' SÍ puede desglosarse cuando un programa lo configura
+  // explícitamente (p. ej. LPP – Guía RNAO «Nivel de riesgo»); ningún otro módulo
+  // define un desglose de riesgo, por lo que no se altera su comportamiento.
+  const skipRoles = new Set<DetectedColumn['role']>(['cumplimiento', 'indicador']);
   const out: BreakdownCompliance[] = [];
   for (const bd of breakdowns) {
     const col = columns.find((c) => {

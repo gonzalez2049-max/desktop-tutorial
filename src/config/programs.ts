@@ -5,6 +5,7 @@
 import type { ReportType } from '../types';
 import { normalize } from '../utils/columnDetection';
 import { NT234_INDICATORS, canonicalIndicatorNT234 } from '../utils/nt234';
+import { LPP_RNAO_ALL_INDICATORS, LPP_RNAO_COMPLEMENTARIOS, LPP_RNAO_DESCRIPTIVE, LPP_RNAO_DOMAINS } from '../utils/lppRnao';
 
 /** Colores del semáforo de cumplimiento (verde / amarillo / rojo). */
 export interface TrafficColors {
@@ -174,11 +175,25 @@ export interface AuditVariant {
   riskFilter?: boolean;
 }
 
+/**
+ * Agrupación de indicadores por dominio clínico (p. ej. los 8 dominios RNAO).
+ * Es una capa de PRESENTACIÓN: no altera la fórmula; agrupa el cumplimiento ya
+ * calculado por indicador para KPIs, gráficos, brechas y resumen por dominio.
+ */
+export interface IndicatorDomain {
+  key: string;
+  label: string;
+  /** Nombres de indicadores del dominio (obligatorios + complementarios). */
+  indicators: string[];
+}
+
 /** Configuración completa de un programa (editable + lógica no editable). */
 export interface ProgramConfig extends ProgramConfigEditable {
   reportType: ReportType;
   /** Sub-auditorías del programa (p. ej. IAAS). Ausente = programa simple. */
   audits?: AuditVariant[];
+  /** Agrupación de indicadores por dominio (p. ej. LPP – Guía RNAO). */
+  domains?: IndicatorDomain[];
   /** Modo de la auditoría resuelta (lo fija resolveProgramConfig). */
   auditMode?: AuditMode;
   /** Dimensiones de desglose de la auditoría resuelta (lo fija resolveProgramConfig). */
@@ -276,6 +291,33 @@ export const DEFAULT_PROGRAMS: Record<ReportType, ProgramConfig> = {
     descriptiveVariables: ['¿Tiene LPP?', 'Con LPP', 'Presencia de LPP'],
     riskFilter: true,
     canonicalizeIndicator: canonicalIndicatorNT234,
+  },
+  LPP_RNAO: {
+    reportType: 'LPP_RNAO',
+    programName: 'LPP – Guía RNAO',
+    institutionName: 'Institución de Salud',
+    unitName: 'Unidad clínica',
+    logo: '🩹',
+    goal: 90,
+    traffic: { ...DEFAULT_TRAFFIC },
+    executiveBaseText:
+      'Informe de auditoría de adherencia a las buenas prácticas RNAO para la prevención y el manejo de lesiones por presión. El cumplimiento se calcula como Cumple / (Cumple + No cumple) × 100, excluyendo las no aplicables, y de forma oficial solo con los indicadores obligatorios; los complementarios se informan aparte.',
+    // Todos los indicadores (obligatorios + complementarios) para el canonicalizador;
+    // los complementarios se excluyen del cumplimiento oficial vía complementaryIndicators.
+    officialIndicators: [...LPP_RNAO_ALL_INDICATORS],
+    complementaryIndicators: [...LPP_RNAO_COMPLEMENTARIOS],
+    descriptiveVariables: [...LPP_RNAO_DESCRIPTIVE],
+    domains: LPP_RNAO_DOMAINS.map((d) => ({ key: d.key, label: d.label, indicators: [...d.obligatorios, ...d.complementarios] })),
+    // Desgloses del cumplimiento: estamento, nivel de riesgo y presencia de LPP.
+    // Unidad y turno son roles nativos del motor.
+    breakdowns: [
+      { key: 'estamento', label: 'Estamento', match: ['estamento', 'profesion', 'profesión', 'cargo', 'categoria', 'categoría'] },
+      { key: 'riesgo', label: 'Nivel de riesgo', match: ['nivel de riesgo', 'riesgo', 'braden', 'categoria de riesgo'] },
+      { key: 'lpp', label: 'Presencia de LPP', match: ['presencia de lpp', 'tiene lpp', 'con lpp'] },
+    ],
+    // Módulo independiente: no hereda el filtro de riesgo de NT 234.
+    riskFilter: false,
+    canonicalizeIndicator: matchAgainstList([...LPP_RNAO_ALL_INDICATORS]),
   },
   IAAS: {
     ...stubProgram('IAAS', 'IAAS'),

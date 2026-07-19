@@ -3,6 +3,7 @@
 /** Tipos de informe que ofrece el asistente. */
 export type ReportType =
   | 'NT234_LPP'
+  | 'LPP_RNAO'
   | 'IAAS'
   | 'Dolor'
   | 'Caidas'
