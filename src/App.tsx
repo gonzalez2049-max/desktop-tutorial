@@ -8,10 +8,13 @@ import ColumnReview from './components/ColumnReview';
 import DataPreview from './components/DataPreview';
 import Wizard from './components/wizard/Wizard';
 import AnalysisView from './components/analysis/AnalysisView';
+import DashboardUpload from './components/dashboard/DashboardUpload';
+import ConsolidatedDashboard from './components/dashboard/ConsolidatedDashboard';
 import { getProgramConfig } from './utils/programConfig';
+import type { RawModule } from './utils/consolidatedDashboard';
 import type { DetectedColumn, ParsedWorkbook, ReportConfig, ReportType } from './types';
 
-type Stage = 'home' | 'audit' | 'settings' | 'upload' | 'review' | 'wizard' | 'generating' | 'result';
+type Stage = 'home' | 'audit' | 'settings' | 'upload' | 'review' | 'wizard' | 'generating' | 'result' | 'dashboard-upload' | 'dashboard';
 
 const STEPS = [
   { key: 'home', label: 'Programa' },
@@ -21,7 +24,7 @@ const STEPS = [
   { key: 'result', label: 'Reporte' },
 ];
 
-const STAGE_INDEX: Record<Stage, number> = { home: 0, audit: 0, settings: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4 };
+const STAGE_INDEX: Record<Stage, number> = { home: 0, audit: 0, settings: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4 };
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('home');
@@ -30,6 +33,7 @@ export default function App() {
   const [configProgram, setConfigProgram] = useState<ReportType | null>(null);
   const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null);
   const [config, setConfig] = useState<ReportConfig | null>(null);
+  const [dashboardRaw, setDashboardRaw] = useState<RawModule[] | null>(null);
 
   const reset = () => {
     setStage('home');
@@ -37,6 +41,7 @@ export default function App() {
     setAuditId(undefined);
     setWorkbook(null);
     setConfig(null);
+    setDashboardRaw(null);
   };
 
   const handleSelectProgram = (rt: ReportType) => {
@@ -104,6 +109,23 @@ export default function App() {
             audits={getProgramConfig(reportType).audits ?? []}
             onSelect={handleSelectAudit}
             onBack={reset}
+            onDashboard={reportType === 'IAAS' ? () => setStage('dashboard-upload') : undefined}
+          />
+        )}
+
+        {stage === 'dashboard-upload' && (
+          <DashboardUpload
+            onReady={(raw) => { setDashboardRaw(raw); setStage('dashboard'); }}
+            onBack={() => setStage('audit')}
+            initial={dashboardRaw ?? undefined}
+          />
+        )}
+
+        {stage === 'dashboard' && dashboardRaw && (
+          <ConsolidatedDashboard
+            raw={dashboardRaw}
+            onReset={reset}
+            onEditUploads={() => setStage('dashboard-upload')}
           />
         )}
 

@@ -6,6 +6,8 @@ interface AuditPickerProps {
   audits: AuditVariant[];
   onSelect: (auditId: string) => void;
   onBack: () => void;
+  /** Acción opcional para abrir el Dashboard Consolidado (p. ej. IAAS). */
+  onDashboard?: () => void;
 }
 
 /**
@@ -13,7 +15,7 @@ interface AuditPickerProps {
  * Manos, NAVM, ITU/CUP, ITS/CVC). Reutiliza el mismo flujo posterior; cada
  * variante aporta luego sus indicadores sin duplicar el motor.
  */
-export default function AuditPicker({ programName, programLogo, audits, onSelect, onBack }: AuditPickerProps) {
+export default function AuditPicker({ programName, programLogo, audits, onSelect, onBack, onDashboard }: AuditPickerProps) {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-8 text-center">
@@ -21,6 +23,20 @@ export default function AuditPicker({ programName, programLogo, audits, onSelect
         <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900">{programName}</h1>
         <p className="mt-2 text-slate-500">Seleccione la auditoría que desea analizar.</p>
       </div>
+
+      {onDashboard && (
+        <button
+          type="button"
+          onClick={onDashboard}
+          className="group mb-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-nex-200 bg-nex-50 p-5 text-left transition hover:border-nex-400 hover:shadow-sm"
+        >
+          <div>
+            <p className="font-bold text-nex-800">🧫 Dashboard Consolidado IAAS</p>
+            <p className="text-sm text-nex-700/70">Vista institucional que integra todas las vigilancias y bundles ya auditados.</p>
+          </div>
+          <span className="shrink-0 text-sm font-semibold text-nex-700">Abrir <span className="transition group-hover:translate-x-0.5">→</span></span>
+        </button>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         {audits.map((au) => (
