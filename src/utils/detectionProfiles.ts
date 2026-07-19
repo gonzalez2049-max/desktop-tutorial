@@ -4,6 +4,7 @@ import type { DetectedColumn, RawRow, ReportType } from '../types';
 import { classifyCompliance, isDescriptiveVariable, normalize } from './columnDetection';
 import { isLppStageColumn } from './lpp';
 import { canonicalIndicatorNT234 } from './nt234';
+import { LPP_RNAO_ALL_INDICATORS } from './lppRnao';
 import { canonicalizerFor } from '../config/programs';
 import { getProgramConfig } from './programConfig';
 
@@ -129,13 +130,56 @@ function applyAuditProfile(reportType: ReportType, auditId: string, columns: Det
 /** Nombre del perfil de reconocimiento aplicable a un programa (o null). */
 export function profileNameFor(reportType: ReportType): string | null {
   if (reportType === 'NT234_LPP') return NT234_HUAP_PROFILE;
+  if (reportType === 'LPP_RNAO') return 'LPP – Guía RNAO';
   if (reportType === 'IAAS') return 'IAAS';
   return null;
+}
+
+// Indicadores oficiales RNAO normalizados (para reconocer sus columnas).
+const LPP_RNAO_NORM = LPP_RNAO_ALL_INDICATORS.map((i) => normalize(i));
+
+/** ¿El encabezado corresponde a un indicador oficial de la guía RNAO? */
+function isLppRnaoIndicator(header: string): boolean {
+  const h = normalize(header);
+  if (!h) return false;
+  return LPP_RNAO_NORM.some((ni) => ni !== '' && (ni === h || h.includes(ni) || ni.includes(h)));
+}
+
+/** Proporción de valores clasificables (cumple/no cumple/N-A) en una columna. */
+function classifiableRatio(rows: RawRow[], col: string): number {
+  const sample = rows.slice(0, 50).map((r) => r[col]);
+  if (sample.length === 0) return 0;
+  const hits = sample.filter((v) => classifyCompliance(v) !== 'desconocido').length;
+  return hits / sample.length;
+}
+
+/**
+ * Perfil "LPP – Guía RNAO": los indicadores oficiales de la guía cuyos nombres
+ * contienen palabras estructurales (p. ej. «riesgo», «paciente») serían mal
+ * clasificados por la detección base como rol riesgo/paciente. Aquí se fuerza a
+ * rol 'cumplimiento' cualquier columna cuyo encabezado coincida con un indicador
+ * oficial y cuyo contenido sea de cumplimiento (Cumple/No cumple/N/A). Las
+ * columnas estructurales (unidad, turno, estamento, nivel de riesgo, presencia
+ * de LPP, fecha) conservan su rol.
+ */
+function applyLppRnaoProfile(columns: DetectedColumn[], rows: RawRow[]): DetectedColumn[] {
+  return columns.map((col) => {
+    const n = normalize(col.original);
+    if (!n) return col;
+    // La presencia de LPP y demás variables descriptivas se mantienen descriptivas.
+    if (isDescriptiveVariable(col.original)) return { ...col, role: 'descriptivo', confidence: 1 };
+    // Indicador oficial con contenido de cumplimiento -> forzar rol 'cumplimiento'.
+    if (isLppRnaoIndicator(col.original) && classifiableRatio(rows, col.original) >= 0.5) {
+      return { ...col, role: 'cumplimiento', confidence: 0.95 };
+    }
+    return col;
+  });
 }
 
 /** Aplica el perfil de reconocimiento del programa a las columnas detectadas. */
 export function applyDetectionProfile(reportType: ReportType, columns: DetectedColumn[], rows: RawRow[], auditId?: string): DetectedColumn[] {
   if (reportType === 'NT234_LPP') return applyNt234HuapProfile(columns, rows);
+  if (reportType === 'LPP_RNAO') return applyLppRnaoProfile(columns, rows);
   if (auditId) return applyAuditProfile(reportType, auditId, columns, rows);
   return columns;
 }

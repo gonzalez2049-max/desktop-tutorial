@@ -7,6 +7,7 @@ export type ModuleStatus = 'operativo' | 'proximamente';
 /** Programas de Buenas Prácticas Clínicas (módulos). Solo NT 234 / LPP está operativo. */
 export const REPORT_TYPES: { value: ReportType; label: string; description: string; icon: string; status: ModuleStatus }[] = [
   { value: 'NT234_LPP', label: 'NT 234 / LPP', description: 'Prevención de lesiones por presión', icon: '🛏️', status: 'operativo' },
+  { value: 'LPP_RNAO', label: 'LPP – Guía RNAO', description: 'Buenas prácticas RNAO para prevención y manejo de LPP', icon: '🩹', status: 'operativo' },
   { value: 'IAAS', label: 'IAAS', description: 'Infecciones asociadas a la atención en salud', icon: '🦠', status: 'operativo' },
   { value: 'Dolor', label: 'Dolor', description: 'Manejo y evaluación del dolor', icon: '📊', status: 'proximamente' },
   { value: 'Caidas', label: 'Caídas', description: 'Prevención de caídas', icon: '⚠️', status: 'proximamente' },

@@ -10,6 +10,8 @@ import DescriptiveVariables from './DescriptiveVariables';
 import UnitShiftMatrixTable from './UnitShiftMatrixTable';
 import CharacterizationSection from './CharacterizationSection';
 import LppCharacterization from './LppCharacterization';
+import DomainComplianceSection from './DomainComplianceSection';
+import { domainCompliance } from '../../utils/domains';
 import PeriodComparison from './PeriodComparison';
 import TrafficLightCard from './charts/TrafficLightCard';
 import SignatureBlock from './SignatureBlock';
@@ -94,6 +96,8 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
   // Modo vigilancia epidemiológica: tasas por numerador/denominador (no aplica
   // automáticamente la fórmula de cumplimiento de prácticas).
   const vigilancia = audit?.mode === 'vigilancia';
+  // Cumplimiento por dominio (programas con dominios configurados, p. ej. LPP – Guía RNAO).
+  const domainRows = useMemo(() => domainCompliance(a, program, config.goal), [a, program, config.goal]);
   // Un programa con filtro de riesgo requiere columna de riesgo para calcular el cumplimiento.
   const nt234NeedsRisk = program.riskFilter && !a.characterization.riskColumnDetected;
 
@@ -310,6 +314,8 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
               );
             })()
           )}
+
+          {domainRows.length > 0 && <DomainComplianceSection rows={domainRows} goal={config.goal} />}
 
           {a.complianceByShift.length > 0 && (
             <Section title="Cumplimiento por turno" icon="🕐" subtitle={allUnits ? 'Global (todas las unidades)' : `Unidad ${selectedUnit}`}>
