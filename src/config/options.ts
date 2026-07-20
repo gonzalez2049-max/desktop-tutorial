@@ -12,7 +12,7 @@ export const REPORT_TYPES: { value: ReportType; label: string; description: stri
   { value: 'Dolor', label: 'Dolor', description: 'Manejo y evaluación del dolor', icon: '📊', status: 'proximamente' },
   { value: 'Caidas', label: 'Caídas', description: 'Prevención de caídas', icon: '⚠️', status: 'proximamente' },
   { value: 'AccesosVasculares', label: 'Accesos Vasculares', description: 'Manejo de accesos vasculares', icon: '💉', status: 'proximamente' },
-  { value: 'Personalizado', label: 'Otro informe personalizado', description: 'Auditoría genérica configurable', icon: '🧩', status: 'proximamente' },
+  { value: 'Personalizado', label: 'Otros informes', description: 'Módulo genérico configurable para cualquier análisis', icon: '🧩', status: 'operativo' },
 ];
 
 /** Opciones de datos a destacar. */

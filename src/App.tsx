@@ -12,11 +12,25 @@ import DashboardUpload from './components/dashboard/DashboardUpload';
 import ConsolidatedDashboard from './components/dashboard/ConsolidatedDashboard';
 import NexLogo from './components/NexLogo';
 import Welcome from './components/Welcome';
+import BackBar from './components/BackBar';
+import OtrosInformes from './components/otros/OtrosInformes';
 import { getProgramConfig } from './utils/programConfig';
 import type { RawModule } from './utils/consolidatedDashboard';
 import type { DetectedColumn, ParsedWorkbook, ReportConfig, ReportType } from './types';
 
-type Stage = 'welcome' | 'home' | 'audit' | 'settings' | 'upload' | 'review' | 'wizard' | 'generating' | 'result' | 'dashboard-upload' | 'dashboard';
+type Stage =
+  | 'welcome'
+  | 'home'
+  | 'audit'
+  | 'settings'
+  | 'upload'
+  | 'review'
+  | 'wizard'
+  | 'generating'
+  | 'result'
+  | 'dashboard-upload'
+  | 'dashboard'
+  | 'otros';
 
 const STEPS = [
   { key: 'home', label: 'Programa' },
@@ -26,10 +40,13 @@ const STEPS = [
   { key: 'result', label: 'Reporte' },
 ];
 
-const STAGE_INDEX: Record<Stage, number> = { welcome: 0, home: 0, audit: 0, settings: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4 };
+const STAGE_INDEX: Record<Stage, number> = { welcome: 0, home: 0, audit: 0, settings: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4, otros: 0 };
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('welcome');
+  // Pila de navegación: permite «Volver atrás» a la pantalla anterior real
+  // conservando todo el estado (archivos, columnas, configuración).
+  const [history, setHistory] = useState<Stage[]>([]);
   const [reportType, setReportType] = useState<ReportType | null>(null);
   const [auditId, setAuditId] = useState<string | undefined>(undefined);
   const [configProgram, setConfigProgram] = useState<ReportType | null>(null);
@@ -37,7 +54,31 @@ export default function App() {
   const [config, setConfig] = useState<ReportConfig | null>(null);
   const [dashboardRaw, setDashboardRaw] = useState<RawModule[] | null>(null);
 
+  /** Navega hacia adelante recordando la pantalla actual. */
+  const go = (next: Stage) => {
+    setHistory((h) => [...h, stage]);
+    setStage(next);
+  };
+  /** Vuelve a la pantalla anterior real (sin perder datos). */
+  const goBack = () => {
+    setHistory((h) => {
+      if (h.length === 0) {
+        setStage('home');
+        return h;
+      }
+      setStage(h[h.length - 1]);
+      return h.slice(0, -1);
+    });
+  };
+  /** Vuelve al inicio (selector de programas) conservando los datos cargados. */
+  const goHome = () => {
+    setHistory([]);
+    setStage('home');
+  };
+
+  /** Reinicia por completo (empezar de nuevo): borra datos y navegación. */
   const reset = () => {
+    setHistory([]);
     setStage('home');
     setReportType(null);
     setAuditId(undefined);
@@ -49,24 +90,26 @@ export default function App() {
   const handleSelectProgram = (rt: ReportType) => {
     setReportType(rt);
     setAuditId(undefined);
+    // Módulo genérico independiente.
+    if (rt === 'Personalizado') { go('otros'); return; }
     // Programas con sub-auditorías (p. ej. IAAS) piden primero la auditoría.
-    if (getProgramConfig(rt).audits?.length) setStage('audit');
-    else setStage('upload');
+    if (getProgramConfig(rt).audits?.length) go('audit');
+    else go('upload');
   };
 
   const handleSelectAudit = (id: string) => {
     setAuditId(id);
-    setStage('upload');
+    go('upload');
   };
 
   const handleConfigureProgram = (rt: ReportType) => {
     setConfigProgram(rt);
-    setStage('settings');
+    go('settings');
   };
 
   const handleParsed = (wb: ParsedWorkbook) => {
     setWorkbook(wb);
-    setStage('review');
+    go('review');
   };
 
   const handleColumns = (columns: DetectedColumn[]) => {
@@ -75,36 +118,38 @@ export default function App() {
 
   const handleWizardComplete = (cfg: ReportConfig) => {
     if (!workbook) return;
-    // "Primero pregunta, luego analiza, luego genera": pequeña transición.
     setConfig({ ...cfg, auditId });
+    // La pantalla anterior real del reporte es el asistente.
+    setHistory((h) => [...h, 'wizard']);
     setStage('generating');
     setTimeout(() => setStage('result'), 500);
   };
 
-  // Volver a editar desde el reporte sin perder Excel, columnas ni configuración.
-  const handleEditFromResult = () => setStage('wizard');
-
   const currentStep = useMemo(() => STAGE_INDEX[stage], [stage]);
 
   // Portada de bienvenida: pantalla completa, sin encabezado ni pasos.
-  if (stage === 'welcome') return <Welcome onStart={() => setStage('home')} />;
+  if (stage === 'welcome') return <Welcome onStart={() => go('home')} />;
+
+  const showStepper = stage !== 'otros' && stage !== 'dashboard' && stage !== 'dashboard-upload' && stage !== 'settings';
 
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2.5">
+          <button type="button" onClick={goHome} className="flex items-center gap-2.5" title="Volver al inicio">
             <NexLogo size={38} />
-            <div>
+            <div className="text-left">
               <p className="text-lg font-extrabold leading-none text-slate-800">NEX Report</p>
               <p className="text-xs text-slate-400">Plataforma de Auditorías Clínicas</p>
             </div>
-          </div>
-          <Stepper steps={STEPS} current={currentStep} />
+          </button>
+          {showStepper && <Stepper steps={STEPS} current={currentStep} />}
         </div>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
+        {stage !== 'otros' && <BackBar onBack={goBack} onHome={goHome} canBack={history.length > 0} showHome={stage !== 'home'} />}
+
         {stage === 'home' && <Home onSelect={handleSelectProgram} onConfigure={handleConfigureProgram} />}
 
         {stage === 'audit' && reportType && (
@@ -113,15 +158,15 @@ export default function App() {
             programLogo={getProgramConfig(reportType).logo}
             audits={getProgramConfig(reportType).audits ?? []}
             onSelect={handleSelectAudit}
-            onBack={reset}
-            onDashboard={reportType === 'IAAS' ? () => setStage('dashboard-upload') : undefined}
+            onBack={goBack}
+            onDashboard={reportType === 'IAAS' ? () => go('dashboard-upload') : undefined}
           />
         )}
 
         {stage === 'dashboard-upload' && (
           <DashboardUpload
-            onReady={(raw) => { setDashboardRaw(raw); setStage('dashboard'); }}
-            onBack={() => setStage('audit')}
+            onReady={(raw) => { setDashboardRaw(raw); go('dashboard'); }}
+            onBack={goBack}
             initial={dashboardRaw ?? undefined}
           />
         )}
@@ -130,22 +175,24 @@ export default function App() {
           <ConsolidatedDashboard
             raw={dashboardRaw}
             onReset={reset}
-            onEditUploads={() => setStage('dashboard-upload')}
+            onEditUploads={() => go('dashboard-upload')}
           />
         )}
 
         {stage === 'settings' && configProgram && (
-          <ProgramSettings reportType={configProgram} onBack={() => setStage('home')} />
+          <ProgramSettings reportType={configProgram} onBack={goBack} />
         )}
 
-        {stage === 'upload' && reportType && <FileUpload onParsed={handleParsed} onBack={reset} reportType={reportType} auditId={auditId} />}
+        {stage === 'otros' && <OtrosInformes onExit={goHome} />}
+
+        {stage === 'upload' && reportType && <FileUpload onParsed={handleParsed} onBack={goBack} reportType={reportType} auditId={auditId} />}
 
         {stage === 'review' && workbook && (
           <ColumnReview
             columns={workbook.columns}
             onChange={handleColumns}
-            onConfirm={() => setStage('wizard')}
-            onBack={() => setStage('upload')}
+            onConfirm={() => go('wizard')}
+            onBack={goBack}
             reportType={reportType ?? undefined}
             auditId={auditId}
             preview={<DataPreview workbook={workbook} />}
@@ -158,7 +205,7 @@ export default function App() {
             auditId={auditId}
             workbook={workbook}
             onComplete={handleWizardComplete}
-            onBack={() => setStage('review')}
+            onBack={goBack}
             initialConfig={config ?? undefined}
           />
         )}
@@ -172,7 +219,7 @@ export default function App() {
         )}
 
         {stage === 'result' && config && workbook && (
-          <AnalysisView workbook={workbook} config={config} fileName={workbook.fileName} onReset={reset} onEdit={handleEditFromResult} />
+          <AnalysisView workbook={workbook} config={config} fileName={workbook.fileName} onReset={reset} onEdit={() => go('wizard')} />
         )}
       </main>
 
