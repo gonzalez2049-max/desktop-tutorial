@@ -10,11 +10,13 @@ import Wizard from './components/wizard/Wizard';
 import AnalysisView from './components/analysis/AnalysisView';
 import DashboardUpload from './components/dashboard/DashboardUpload';
 import ConsolidatedDashboard from './components/dashboard/ConsolidatedDashboard';
+import NexLogo from './components/NexLogo';
+import Welcome from './components/Welcome';
 import { getProgramConfig } from './utils/programConfig';
 import type { RawModule } from './utils/consolidatedDashboard';
 import type { DetectedColumn, ParsedWorkbook, ReportConfig, ReportType } from './types';
 
-type Stage = 'home' | 'audit' | 'settings' | 'upload' | 'review' | 'wizard' | 'generating' | 'result' | 'dashboard-upload' | 'dashboard';
+type Stage = 'welcome' | 'home' | 'audit' | 'settings' | 'upload' | 'review' | 'wizard' | 'generating' | 'result' | 'dashboard-upload' | 'dashboard';
 
 const STEPS = [
   { key: 'home', label: 'Programa' },
@@ -24,10 +26,10 @@ const STEPS = [
   { key: 'result', label: 'Reporte' },
 ];
 
-const STAGE_INDEX: Record<Stage, number> = { home: 0, audit: 0, settings: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4 };
+const STAGE_INDEX: Record<Stage, number> = { welcome: 0, home: 0, audit: 0, settings: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4 };
 
 export default function App() {
-  const [stage, setStage] = useState<Stage>('home');
+  const [stage, setStage] = useState<Stage>('welcome');
   const [reportType, setReportType] = useState<ReportType | null>(null);
   const [auditId, setAuditId] = useState<string | undefined>(undefined);
   const [configProgram, setConfigProgram] = useState<ReportType | null>(null);
@@ -84,12 +86,15 @@ export default function App() {
 
   const currentStep = useMemo(() => STAGE_INDEX[stage], [stage]);
 
+  // Portada de bienvenida: pantalla completa, sin encabezado ni pasos.
+  if (stage === 'welcome') return <Welcome onStart={() => setStage('home')} />;
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-nex-600 text-lg font-black text-white">N</div>
+            <NexLogo size={38} />
             <div>
               <p className="text-lg font-extrabold leading-none text-slate-800">NEX Report</p>
               <p className="text-xs text-slate-400">Plataforma de Auditorías Clínicas</p>

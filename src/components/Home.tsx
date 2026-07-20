@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { REPORT_TYPES } from '../config/options';
+import NexLogo from './NexLogo';
 import type { ReportType } from '../types';
 
 interface HomeProps {
@@ -27,6 +28,7 @@ export default function Home({ onSelect, onConfigure }: HomeProps) {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-8 text-center">
+        <NexLogo size={56} className="mx-auto mb-3" />
         <h1 className="text-3xl font-black tracking-tight text-slate-900">NEX Report</h1>
         <p className="mt-1 text-lg font-semibold text-nex-700">Plataforma de Auditorías Clínicas</p>
         <p className="mt-3 text-slate-500">Seleccione el Programa de Buenas Prácticas Clínicas que desea analizar.</p>
