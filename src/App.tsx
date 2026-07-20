@@ -11,11 +11,12 @@ import AnalysisView from './components/analysis/AnalysisView';
 import DashboardUpload from './components/dashboard/DashboardUpload';
 import ConsolidatedDashboard from './components/dashboard/ConsolidatedDashboard';
 import NexLogo from './components/NexLogo';
+import Welcome from './components/Welcome';
 import { getProgramConfig } from './utils/programConfig';
 import type { RawModule } from './utils/consolidatedDashboard';
 import type { DetectedColumn, ParsedWorkbook, ReportConfig, ReportType } from './types';
 
-type Stage = 'home' | 'audit' | 'settings' | 'upload' | 'review' | 'wizard' | 'generating' | 'result' | 'dashboard-upload' | 'dashboard';
+type Stage = 'welcome' | 'home' | 'audit' | 'settings' | 'upload' | 'review' | 'wizard' | 'generating' | 'result' | 'dashboard-upload' | 'dashboard';
 
 const STEPS = [
   { key: 'home', label: 'Programa' },
@@ -25,10 +26,10 @@ const STEPS = [
   { key: 'result', label: 'Reporte' },
 ];
 
-const STAGE_INDEX: Record<Stage, number> = { home: 0, audit: 0, settings: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4 };
+const STAGE_INDEX: Record<Stage, number> = { welcome: 0, home: 0, audit: 0, settings: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4 };
 
 export default function App() {
-  const [stage, setStage] = useState<Stage>('home');
+  const [stage, setStage] = useState<Stage>('welcome');
   const [reportType, setReportType] = useState<ReportType | null>(null);
   const [auditId, setAuditId] = useState<string | undefined>(undefined);
   const [configProgram, setConfigProgram] = useState<ReportType | null>(null);
@@ -84,6 +85,9 @@ export default function App() {
   const handleEditFromResult = () => setStage('wizard');
 
   const currentStep = useMemo(() => STAGE_INDEX[stage], [stage]);
+
+  // Portada de bienvenida: pantalla completa, sin encabezado ni pasos.
+  if (stage === 'welcome') return <Welcome onStart={() => setStage('home')} />;
 
   return (
     <div className="min-h-screen">
