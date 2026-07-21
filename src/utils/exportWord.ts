@@ -35,11 +35,11 @@ function chartParagraphs(a: AnalysisResult, colors: TrafficColors): Paragraph[] 
   const charts = buildReportCharts(a, colors);
   if (!charts.length) return [];
   const out: Paragraph[] = [
-    new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 120 }, children: [new TextRun({ text: 'Gráficos institucionales', bold: true, color: bare(PALETTE.blue), size: 24 })] }),
+    new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 120 }, children: [new TextRun({ text: 'Gráficos institucionales', bold: true, color: FOREST, size: 24 })] }),
   ];
   for (const ch of charts) {
     out.push(
-      new Paragraph({ spacing: { before: 120, after: 40 }, children: [new TextRun({ text: ch.title, bold: true, color: bare(PALETTE.blue), size: 20 })] }),
+      new Paragraph({ spacing: { before: 120, after: 40 }, children: [new TextRun({ text: ch.title, bold: true, color: FOREST, size: 20 })] }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [new ImageRun({ data: dataUrlToBytes(ch.dataUrl), transformation: { width: ch.width, height: ch.height } })],
@@ -53,6 +53,9 @@ import { PALETTE, bare, complianceHex, trafficHex, trafficLabel, trafficLightFor
 const SOFT = bare(PALETTE.line);
 const softBorder = { style: BorderStyle.SINGLE, size: 4, color: SOFT };
 const cellBorders = { top: softBorder, bottom: softBorder, left: softBorder, right: softBorder };
+// Identidad de documento: verde institucional NEX.
+const FOREST = '0f3d2e';
+const ACCENT = '#0f7a4f';
 
 function text(t: string, opts: { bold?: boolean; color?: string; size?: number } = {}): TextRun {
   return new TextRun({ text: t, bold: opts.bold, color: opts.color ? bare(opts.color) : undefined, size: opts.size ?? 20 });
@@ -61,7 +64,7 @@ function text(t: string, opts: { bold?: boolean; color?: string; size?: number }
 function headerCell(label: string): TableCell {
   return new TableCell({
     borders: cellBorders,
-    shading: { type: ShadingType.CLEAR, fill: bare(PALETTE.blue), color: 'auto' },
+    shading: { type: ShadingType.CLEAR, fill: FOREST, color: 'auto' },
     margins: { top: 60, bottom: 60, left: 80, right: 80 },
     children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, color: 'FFFFFF', size: 18 })] })],
   });
@@ -137,7 +140,7 @@ function lppStageTable(c: ClinicalCharacterization): Table {
       ...stages.map(
         (s) =>
           new TableRow({
-            children: [bodyCell([text(s.stage)]), bodyCell([text(String(s.count))], AlignmentType.CENTER), bodyCell([text(`${s.percent}%`, { color: PALETTE.blue })], AlignmentType.CENTER)],
+            children: [bodyCell([text(s.stage)]), bodyCell([text(String(s.count))], AlignmentType.CENTER), bodyCell([text(`${s.percent}%`, { color: ACCENT })], AlignmentType.CENTER)],
           }),
       ),
     ],
@@ -159,7 +162,7 @@ function descriptiveTable(vars: DescriptiveVariable[]): Table {
           bodyCell([text(v.label)]),
           bodyCell([text(String(v.positive))], AlignmentType.CENTER),
           bodyCell([text(String(v.negative))], AlignmentType.CENTER),
-          bodyCell([text(`${v.prevalence}% (${v.positive}/${v.answered})`, { bold: true, color: PALETTE.blue })], AlignmentType.CENTER),
+          bodyCell([text(`${v.prevalence}% (${v.positive}/${v.answered})`, { bold: true, color: ACCENT })], AlignmentType.CENTER),
         ],
       }),
     );
@@ -221,12 +224,12 @@ function heading(t: string): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
     spacing: { before: 300, after: 120 },
-    children: [new TextRun({ text: t, bold: true, color: bare(PALETTE.blue), size: 24 })],
+    children: [new TextRun({ text: t, bold: true, color: FOREST, size: 24 })],
   });
 }
 
 function sectionHeading(t: string): Paragraph {
-  return new Paragraph({ spacing: { before: 180, after: 60 }, children: [new TextRun({ text: t, bold: true, color: bare(PALETTE.blue), size: 20 })] });
+  return new Paragraph({ spacing: { before: 180, after: 60 }, children: [new TextRun({ text: t, bold: true, color: FOREST, size: 20 })] });
 }
 
 /** Tabla del plan de acción sugerido. */
@@ -247,7 +250,7 @@ function actionPlanTable(rows: ActionPlanRow[]): Table {
               bodyCell([text(r.action)]),
               bodyCell([text(r.responsible)]),
               bodyCell([text(r.deadline)]),
-              bodyCell([text(r.target, { bold: true, color: PALETTE.blue })]),
+              bodyCell([text(r.target, { bold: true, color: ACCENT })]),
             ],
           }),
       ),
@@ -316,7 +319,7 @@ function surveillanceWordSections(a: AnalysisResult, colors: TrafficColors): (Pa
     out.push(heading('Gráficos de vigilancia'));
     for (const ch of charts) {
       out.push(
-        new Paragraph({ spacing: { before: 120, after: 40 }, children: [new TextRun({ text: ch.title, bold: true, color: bare(PALETTE.blue), size: 20 })] }),
+        new Paragraph({ spacing: { before: 120, after: 40 }, children: [new TextRun({ text: ch.title, bold: true, color: FOREST, size: 20 })] }),
         new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ data: dataUrlToBytes(ch.dataUrl), transformation: { width: ch.width, height: ch.height } })] }),
       );
     }
@@ -361,22 +364,42 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
   const light = trafficLightFor(g.percent, a.config.goal);
 
   const isSurv = Boolean(a.surveillance);
+  const folioPrefix = (program.programName || 'NEX').replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase() || 'NEX';
+  const now = new Date();
+  const folio = `${folioPrefix}-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  // Masthead: banda verde con marca + tipo de informe.
+  const masthead = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({ shading: { type: ShadingType.CLEAR, fill: FOREST, color: 'auto' }, margins: { top: 120, bottom: 120, left: 160, right: 160 }, children: [new Paragraph({ children: [new TextRun({ text: 'NEX Report', bold: true, color: 'FFFFFF', size: 26 }), new TextRun({ text: '   ·   AUDITORÍAS CLÍNICAS', color: 'A9C8BA', size: 16 })] })] }),
+          new TableCell({ shading: { type: ShadingType.CLEAR, fill: FOREST, color: 'auto' }, margins: { top: 120, bottom: 120, left: 160, right: 160 }, children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: `INFORME ${isSurv ? 'DE VIGILANCIA' : 'DE AUDITORÍA'}`, color: 'FFFFFF', bold: true, size: 16 })] })] }),
+        ],
+      }),
+    ],
+  });
+  const metaRow = (k: string, v: string) => new TableRow({ children: [
+    new TableCell({ borders: cellBorders, margins: { top: 40, bottom: 40, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: k, color: bare(PALETTE.muted), size: 16 })] })] }),
+    new TableCell({ borders: cellBorders, margins: { top: 40, bottom: 40, left: 80, right: 80 }, children: [new Paragraph({ children: [new TextRun({ text: v, bold: true, color: bare(PALETTE.ink), size: 18 })] })] }),
+  ] });
+  const metaTable = new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
+    metaRow('Institución', program.institutionName || '—'),
+    metaRow('Programa', program.programName || report.meta.reportTypeLabel),
+    metaRow('Unidad', program.unitName || '—'),
+    metaRow('Período', analysisTypeLabel(a.config.analysisType)),
+    metaRow('Emitido', report.meta.generatedAt),
+    metaRow('Meta', `${a.config.goal}%`),
+    metaRow('Folio', folio),
+    metaRow('Archivo', fileName),
+  ] });
   const children: (Paragraph | Table)[] = [
-    new Paragraph({
-      children: [new TextRun({ text: `${program.logo} ${program.institutionName}`.trim(), bold: true, size: 40, color: bare(PALETTE.blue) })],
-    }),
-    new Paragraph({
-      spacing: { after: 120 },
-      children: [new TextRun({ text: `Informe ${isSurv ? 'de vigilancia' : 'de auditoría clínica'} · ${program.programName || report.meta.reportTypeLabel} · Unidad: ${program.unitName}`, size: 22, color: bare(PALETTE.muted) })],
-    }),
-    new Paragraph({
-      spacing: { after: 60 },
-      children: [text(`Archivo analizado: ${fileName}`, { color: PALETTE.muted, size: 18 })],
-    }),
-    new Paragraph({
-      spacing: { after: 120 },
-      children: [text(`Fecha de generación: ${report.meta.generatedAt}`, { color: PALETTE.muted, size: 18 })],
-    }),
+    masthead,
+    new Paragraph({ spacing: { before: 200, after: 60 }, children: [new TextRun({ text: program.programName || report.meta.reportTypeLabel, bold: true, size: 40, color: bare(PALETTE.ink) })] }),
+    new Paragraph({ spacing: { after: 160 }, children: [new TextRun({ text: program.executiveBaseText.split('.').slice(0, 1).join('.') + '.', color: bare(PALETTE.muted), size: 20 })] }),
+    metaTable,
+    new Paragraph({ spacing: { after: 160 }, children: [] }),
   ];
 
   // ── Vigilancia epidemiológica: informe de tasas (sin semáforo/cumplimiento) ──
