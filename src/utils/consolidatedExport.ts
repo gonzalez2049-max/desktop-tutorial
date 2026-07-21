@@ -30,7 +30,7 @@ import {
 const dec = (n: number | null) => (n === null ? 's/d' : String(n).replace('.', ','));
 const pct = (n: number | null) => (n === null ? 's/d' : `${dec(n)}%`);
 
-const BLUE = hexToRgb(PALETTE.blue);
+const BLUE = hexToRgb('#0f3d2e');
 const INK = hexToRgb(PALETTE.ink);
 const MUTED = hexToRgb(PALETTE.muted);
 
@@ -51,7 +51,7 @@ function pracRows(mods: DashModule[]): string[][] {
 // ---------------------------------------------------------------------------
 
 export function exportConsolidatedPdf(mods: DashModule[], exec: DashExecutive, summary: InstitutionalSummary): void {
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 40;
   let y = margin;
@@ -184,7 +184,7 @@ export function exportConsolidatedPdf(mods: DashModule[], exec: DashExecutive, s
 function wTable(head: string[], rows: string[][]): Table {
   const headerRow = new TableRow({
     tableHeader: true,
-    children: head.map((h) => new TableCell({ shading: { fill: PALETTE.blue.replace('#', '') }, children: [new Paragraph({ children: [new TextRun({ text: h, bold: true, color: 'FFFFFF', size: 18 })] })] })),
+    children: head.map((h) => new TableCell({ shading: { fill: '0f3d2e' }, children: [new Paragraph({ children: [new TextRun({ text: h, bold: true, color: 'FFFFFF', size: 18 })] })] })),
   });
   const bodyRows = rows.map((r) => new TableRow({ children: r.map((c) => new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: c, size: 18 })] })] })) }));
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...bodyRows] });
@@ -192,10 +192,10 @@ function wTable(head: string[], rows: string[][]): Table {
 
 export async function exportConsolidatedWord(mods: DashModule[], exec: DashExecutive, summary: InstitutionalSummary): Promise<void> {
   const children: (Paragraph | Table)[] = [];
-  const heading = (text: string) => new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 260, after: 120 }, children: [new TextRun({ text, bold: true, color: PALETTE.blue.replace('#', '') })] });
+  const heading = (text: string) => new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 260, after: 120 }, children: [new TextRun({ text, bold: true, color: '0f3d2e' })] });
   const para = (text: string, opts: { bold?: boolean; italics?: boolean } = {}) => new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text, size: 20, ...opts })] });
 
-  children.push(new Paragraph({ alignment: AlignmentType.LEFT, children: [new TextRun({ text: 'Dashboard Consolidado IAAS', bold: true, size: 32, color: PALETTE.blue.replace('#', '') })] }));
+  children.push(new Paragraph({ alignment: AlignmentType.LEFT, children: [new TextRun({ text: 'Dashboard Consolidado IAAS', bold: true, size: 32, color: '0f3d2e' })] }));
   children.push(new Paragraph({ spacing: { after: 160 }, children: [new TextRun({ text: `NEX Report · Informe institucional · Generado el ${exec.generatedAt}`, size: 18, color: PALETTE.muted.replace('#', '') })] }));
 
   children.push(heading('Resumen institucional'));

@@ -7,7 +7,7 @@ import { saveAs } from 'file-saver';
 import { PALETTE, hexToRgb } from '../palette';
 import type { OtrosResult, OtrosTable } from './types';
 
-const BLUE = hexToRgb(PALETTE.blue);
+const BLUE = hexToRgb('#0f3d2e');
 const INK = hexToRgb(PALETTE.ink);
 const MUTED = hexToRgb(PALETTE.muted);
 const fileBase = (r: OtrosResult) => (r.config.name || 'informe').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'informe';
@@ -17,7 +17,7 @@ function lastY(doc: jsPDF): number {
 }
 
 export function exportOtrosPdf(r: OtrosResult, recommendations: string[]): void {
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 40;
   let y = margin;
@@ -63,15 +63,15 @@ export function exportOtrosPdf(r: OtrosResult, recommendations: string[]): void 
 }
 
 function wTable(t: OtrosTable): Table {
-  const header = new TableRow({ tableHeader: true, children: t.headers.map((h) => new TableCell({ shading: { fill: PALETTE.blue.replace('#', '') }, children: [new Paragraph({ children: [new TextRun({ text: h, bold: true, color: 'FFFFFF', size: 16 })] })] })) });
+  const header = new TableRow({ tableHeader: true, children: t.headers.map((h) => new TableCell({ shading: { fill: '0f3d2e' }, children: [new Paragraph({ children: [new TextRun({ text: h, bold: true, color: 'FFFFFF', size: 16 })] })] })) });
   const body = t.rows.map((row) => new TableRow({ children: row.map((c) => new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(c), size: 16 })] })] })) }));
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [header, ...body] });
 }
 
 export async function exportOtrosWord(r: OtrosResult, recommendations: string[]): Promise<void> {
   const children: (Paragraph | Table)[] = [];
-  const h2 = (t: string) => new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 240, after: 100 }, children: [new TextRun({ text: t, bold: true, color: PALETTE.blue.replace('#', '') })] });
-  children.push(new Paragraph({ alignment: AlignmentType.LEFT, children: [new TextRun({ text: r.config.name || 'Informe', bold: true, size: 30, color: PALETTE.blue.replace('#', '') })] }));
+  const h2 = (t: string) => new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 240, after: 100 }, children: [new TextRun({ text: t, bold: true, color: '0f3d2e' })] });
+  children.push(new Paragraph({ alignment: AlignmentType.LEFT, children: [new TextRun({ text: r.config.name || 'Informe', bold: true, size: 30, color: '0f3d2e' })] }));
   if (r.config.objective) children.push(new Paragraph({ spacing: { after: 80 }, children: [new TextRun({ text: r.config.objective, italics: true, size: 20 })] }));
   children.push(new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: `Fórmula: ${r.formula}`, size: 18, color: PALETTE.muted.replace('#', '') })] }));
 
