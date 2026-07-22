@@ -156,6 +156,7 @@ export default function ColumnReview({ columns, onChange, onConfirm, onBack, rep
                 <select
                   value={col.role}
                   onChange={(e) => setRole(col.original, e.target.value as ColumnRole)}
+                  aria-label={`Rol de la columna ${col.original}`}
                   className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 focus:border-nex-500 focus:outline-none focus:ring-2 focus:ring-nex-200"
                 >
                   {ROLE_ORDER.map((r) => (

@@ -83,12 +83,19 @@ export default function FileUpload({ onParsed, reportType, auditId }: FileUpload
           if (file) handleFile(file);
         }}
         onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
         className={[
           'card flex flex-col items-center justify-center gap-3 border-2 border-dashed p-12 cursor-pointer transition',
           dragging ? 'border-nex-500 bg-nex-50' : 'border-slate-300 hover:border-nex-400',
         ].join(' ')}
         role="button"
         tabIndex={0}
+        aria-label="Subir archivo: arrastra aquí o presiona Enter para seleccionar un Excel o CSV"
       >
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-nex-100 text-3xl">📄</div>
         {loading ? (
