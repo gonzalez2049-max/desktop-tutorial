@@ -52,22 +52,26 @@ export default function Home({ onSelect, onAdmin }: HomeProps) {
               onClick={() => handleClick(m.value, operativo)}
               title={operativo ? undefined : 'Este módulo estará disponible en una próxima versión.'}
               className={[
-                'group relative flex cursor-pointer flex-col gap-2 rounded-2xl border p-5 text-left transition',
-                operativo ? 'border-slate-200 bg-white hover:border-nex-400 hover:shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-slate-300',
+                'group relative flex cursor-pointer flex-col gap-3 overflow-hidden rounded-2xl border p-5 text-left',
+                operativo ? 'card-interactive' : 'border-slate-200/70 bg-white/60 shadow-soft transition hover:border-slate-300',
               ].join(' ')}
             >
+              {/* Filete de acento superior que aparece al pasar el cursor. */}
+              {operativo && <span aria-hidden className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-nex-500 to-nex-700 transition-transform duration-200 group-hover:scale-x-100" />}
               <div className="flex items-start justify-between gap-3">
-                <ModuleIcon icon={m.icon} size={30} className={operativo ? '' : 'opacity-50 grayscale'} />
+                <span className={['flex h-14 w-14 items-center justify-center rounded-2xl ring-1 transition', operativo ? 'bg-nex-50 ring-nex-100 group-hover:bg-nex-100' : 'bg-slate-100 ring-slate-200'].join(' ')}>
+                  <ModuleIcon icon={m.icon} size={30} className={operativo ? '' : 'opacity-40 grayscale'} />
+                </span>
                 <span className={['rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide', operativo ? 'bg-nex-100 text-nex-700' : 'bg-slate-200 text-slate-500'].join(' ')}>
                   {operativo ? 'Operativo' : 'Próximamente'}
                 </span>
               </div>
               <div>
                 <p className={['font-bold', operativo ? 'text-slate-800' : 'text-slate-500'].join(' ')}>{m.label}</p>
-                <p className={['mt-0.5 text-sm', operativo ? 'text-slate-500' : 'text-slate-400'].join(' ')}>{m.description}</p>
+                <p className={['mt-0.5 text-sm leading-relaxed', operativo ? 'text-slate-500' : 'text-slate-400'].join(' ')}>{m.description}</p>
               </div>
               {operativo && (
-                <span className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-nex-700">
+                <span className="mt-auto inline-flex items-center gap-1 text-sm font-semibold text-nex-700">
                   Comenzar análisis <span className="transition group-hover:translate-x-0.5">→</span>
                 </span>
               )}

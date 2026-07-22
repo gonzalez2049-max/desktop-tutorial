@@ -5,23 +5,39 @@
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   body {
-    @apply bg-slate-50 text-slate-800 font-sans;
+    @apply text-slate-800 font-sans;
+    /* Lienzo con un degradado verdoso muy sutil: quita la sensación plana sin
+       restar profesionalismo ni legibilidad. */
+    background-color: #f3f7f4;
+    background-image:
+      radial-gradient(60rem 60rem at 88% -10%, rgba(15, 122, 79, 0.06), transparent 60%),
+      radial-gradient(50rem 50rem at -5% 8%, rgba(15, 61, 46, 0.05), transparent 55%);
+    background-attachment: fixed;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-2xl border border-slate-200 shadow-sm;
+    @apply bg-white rounded-2xl border border-slate-200/70 shadow-soft;
+  }
+  /* Tarjeta interactiva: se eleva suavemente al pasar el cursor. */
+  .card-interactive {
+    @apply card transition duration-200 hover:-translate-y-0.5 hover:shadow-lift hover:border-nex-200;
   }
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed;
   }
   .btn-primary {
-    @apply btn bg-nex-600 text-white hover:bg-nex-700;
+    @apply btn text-white shadow-sm;
+    background-image: linear-gradient(180deg, #12885a 0%, #0f7a4f 100%);
+  }
+  .btn-primary:hover {
+    background-image: linear-gradient(180deg, #0f7a4f 0%, #0c6642 100%);
   }
   .btn-ghost {
-    @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50;
+    @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300;
   }
 }
