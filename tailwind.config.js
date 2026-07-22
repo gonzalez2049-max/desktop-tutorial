@@ -4,26 +4,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Paleta NEX teal-esmeralda: evoluciona el verde del logo hacia un
-        // teal/turquesa más moderno y llamativo, manteniendo la familia de la
-        // marca. Se usa como acento en toda la interfaz.
+        // Paleta NEX "Aurora": índigo-violeta como acento principal, moderno y
+        // llamativo. Se combina con destellos fucsia y cian del degradado hero.
         nex: {
-          50: '#ecfdf6',
-          100: '#cff7e7',
-          200: '#a1edd3',
-          300: '#63dcbb',
-          400: '#2ec4a0',
-          500: '#0ea47a',
-          600: '#0a8567',
-          700: '#0c6a54',
-          800: '#0d5244',
-          900: '#0a3a32',
+          50: '#f2f1ff',
+          100: '#e7e4ff',
+          200: '#d0caff',
+          300: '#b0a5ff',
+          400: '#8f7cf9',
+          500: '#7458f0',
+          600: '#5f3fe0',
+          700: '#4f30bf',
+          800: '#412a99',
+          900: '#2f2072',
         },
-        // Acento vivo para chispazos (puntos de estado, brillos, hover).
+        // Acentos vivos para chispazos (puntos de estado, brillos, hover).
         aqua: {
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
+          300: '#67e8f9',
+          400: '#22d3ee',
+          500: '#06b6d4',
         },
       },
       fontFamily: {
@@ -33,8 +32,8 @@ export default {
       },
       boxShadow: {
         // Sombras suaves y en capas para dar profundidad sin dureza.
-        soft: '0 1px 2px rgba(13, 82, 68, 0.05), 0 8px 24px -12px rgba(13, 82, 68, 0.14)',
-        lift: '0 2px 4px rgba(13, 82, 68, 0.06), 0 20px 45px -18px rgba(13, 82, 68, 0.30)',
+        soft: '0 1px 2px rgba(63, 42, 153, 0.05), 0 8px 24px -12px rgba(63, 42, 153, 0.16)',
+        lift: '0 2px 4px rgba(63, 42, 153, 0.06), 0 22px 48px -18px rgba(79, 48, 191, 0.34)',
       },
     },
   },

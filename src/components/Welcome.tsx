@@ -17,12 +17,12 @@ const FEATURES = [
  */
 export default function Welcome({ onStart }: WelcomeProps) {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16 text-center" style={{ background: 'radial-gradient(60rem 60rem at 85% -10%, rgba(45,212,191,0.22), transparent 60%), radial-gradient(50rem 50rem at 0% 100%, rgba(13,82,68,0.16), transparent 55%), linear-gradient(180deg, #edf7f3 0%, #e2f0ec 100%)' }}>
-      {/* Fondo suave con acentos teal-turquesa (decorativo). */}
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16 text-center" style={{ background: 'radial-gradient(55rem 55rem at 85% -10%, rgba(217,70,239,0.20), transparent 60%), radial-gradient(50rem 50rem at 100% 60%, rgba(34,211,238,0.16), transparent 55%), radial-gradient(52rem 52rem at 0% 100%, rgba(99,62,224,0.20), transparent 55%), linear-gradient(180deg, #f2f2fd 0%, #eaecfb 100%)' }}>
+      {/* Fondo "Aurora" con acentos índigo, fucsia y cian (decorativo). */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-[-8%] h-[440px] w-[440px] -translate-x-1/2 rounded-full bg-aqua-300/40 blur-3xl" />
-        <div className="absolute bottom-[-15%] left-[8%] h-[340px] w-[340px] rounded-full bg-nex-300/35 blur-3xl" />
-        <div className="absolute bottom-[-10%] right-[6%] h-[300px] w-[300px] rounded-full bg-emerald-200/45 blur-3xl" />
+        <div className="absolute left-1/2 top-[-8%] h-[440px] w-[440px] -translate-x-1/2 rounded-full bg-fuchsia-400/30 blur-3xl" />
+        <div className="absolute bottom-[-15%] left-[6%] h-[360px] w-[360px] rounded-full bg-nex-400/30 blur-3xl" />
+        <div className="absolute bottom-[-10%] right-[4%] h-[320px] w-[320px] rounded-full bg-aqua-300/35 blur-3xl" />
       </div>
 
       <div className="flex flex-col items-center gap-6">
