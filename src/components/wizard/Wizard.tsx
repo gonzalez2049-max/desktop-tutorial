@@ -67,6 +67,7 @@ export default function Wizard({ reportType, auditId, workbook, onComplete, onBa
         step={1}
         total={TOTAL}
         title="¿Qué tipo de análisis desea realizar?"
+        help="Mensual: una foto del período actual. Evolución (trimestral/anual): cómo cambia el cumplimiento en el tiempo. Comparación: dos períodos lado a lado. Elige según lo que quieras mostrar en el informe."
         subtitle="Segmenta la base por período para ver la evolución del cumplimiento, o compara dos períodos lado a lado."
         onBack={onBack}
         onNext={() => setStep(1)}
@@ -101,6 +102,7 @@ export default function Wizard({ reportType, auditId, workbook, onComplete, onBa
         step={2}
         total={TOTAL}
         title="¿Qué datos quieres destacar?"
+        help="Son los cortes que se resaltarán en el informe (por unidad, por turno, por indicador, etc.). Puedes elegir varios. Las opciones sin datos en tu Excel aparecen deshabilitadas."
         subtitle="Puedes elegir varios. Las opciones sin datos en tu Excel aparecen deshabilitadas."
         onBack={() => setStep(0)}
         onNext={() => setStep(2)}
@@ -130,6 +132,7 @@ export default function Wizard({ reportType, auditId, workbook, onComplete, onBa
       step={3}
       total={TOTAL}
       title="¿Cuál es la meta de cumplimiento?"
+      help="Es el porcentaje objetivo de tu institución. El semáforo se pinta verde al alcanzarla, amarillo si estás cerca (hasta 10 puntos abajo) y rojo si estás por debajo. Ej.: 95%."
       subtitle="Se usará como referencia para el semáforo, las brechas y las recomendaciones."
       onBack={() => setStep(1)}
       onNext={() => onComplete({ reportType, analysisType: analysisType!, highlights, goal })}

@@ -35,6 +35,13 @@ export default function BackBar({ onBack, onHome, canBack, showHome = true }: Ba
           🏠 Volver al inicio
         </button>
       )}
+      {/* Sello de confianza: procesamiento 100% local (relevante en salud). */}
+      <span
+        title="Tus datos se procesan en tu navegador; no se suben a ningún servidor."
+        className="ml-auto hidden items-center gap-1.5 rounded-full border border-nex-200 bg-nex-50 px-3 py-1 text-xs font-semibold text-nex-700 sm:inline-flex"
+      >
+        🔒 100% local
+      </span>
     </div>
   );
 }
