@@ -31,6 +31,64 @@ const ROLE_LABELS: Record<ColumnRole, string> = {
 
 const ROLE_ORDER: ColumnRole[] = ['cumplimiento', 'descriptivo', 'unidad', 'turno', 'indicador', 'fecha', 'riesgo', 'paciente', 'valor', 'desconocido'];
 
+/**
+ * Guía didáctica por rol: qué medida se calcula y cómo leer el resultado.
+ * Pensada para quien no domina la estadística: le dice, en simple, qué hará
+ * NEX con esa columna cuando genere el informe.
+ */
+const ROLE_GUIDE: Record<ColumnRole, { icon: string; title: string; desc: string }> = {
+  cumplimiento: {
+    icon: '✅',
+    title: 'Se mide el % de cumplimiento',
+    desc: '(Casos que cumplen ÷ total evaluado) × 100. Verde si alcanza la meta, rojo si queda por debajo. Los «No aplica» no penalizan.',
+  },
+  descriptivo: {
+    icon: '📊',
+    title: 'Se describe su distribución',
+    desc: 'Frecuencias y porcentajes de cada categoría (p. ej. prevalencia de LPP). No entra en el % de cumplimiento; solo caracteriza.',
+  },
+  unidad: {
+    icon: '🏥',
+    title: 'Desglose por unidad',
+    desc: 'Los resultados se separan y comparan entre servicios/unidades para ver dónde está más bajo.',
+  },
+  turno: {
+    icon: '🕐',
+    title: 'Desglose por turno',
+    desc: 'El cumplimiento se compara por jornada o turno (mañana/tarde/noche).',
+  },
+  indicador: {
+    icon: '📋',
+    title: 'Ítem auditado',
+    desc: 'Identifica cada práctica evaluada; el cumplimiento se calcula por separado para cada indicador.',
+  },
+  fecha: {
+    icon: '📅',
+    title: 'Evolución en el tiempo',
+    desc: 'Se usa para mostrar la tendencia por período (mes a mes) y ver si mejora o empeora.',
+  },
+  riesgo: {
+    icon: '⚠️',
+    title: 'Segmenta por nivel de riesgo',
+    desc: 'Compara los resultados según el riesgo del paciente (p. ej. escala de Braden).',
+  },
+  paciente: {
+    icon: '🧑',
+    title: 'Identifica al paciente',
+    desc: 'Permite contar pacientes únicos y evitar duplicados en el análisis.',
+  },
+  valor: {
+    icon: '🔢',
+    title: 'Resumen numérico',
+    desc: 'Se resume con promedio, mínimo y máximo (y tasa por 1.000 días si corresponde).',
+  },
+  desconocido: {
+    icon: '🚫',
+    title: 'Se ignora',
+    desc: 'Esta columna no se usará en el análisis ni en el informe.',
+  },
+};
+
 function confidenceBadge(c: number) {
   if (c >= 0.85) return { text: 'Alta', cls: 'bg-green-100 text-green-700' };
   if (c >= 0.6) return { text: 'Media', cls: 'bg-amber-100 text-amber-700' };
@@ -64,6 +122,9 @@ export default function ColumnReview({ columns, onChange, onConfirm, onBack, rep
         <p className="mt-2 text-slate-500">
           Detecté automáticamente el rol de cada columna. Revisa la vista previa y, si algo no calza, ajústalo. No dependo del nombre exacto.
         </p>
+        <p className="mt-3 rounded-lg bg-nex-50 px-3 py-2 text-xs font-medium leading-relaxed text-nex-800">
+          💡 Debajo de cada columna te explico <strong>qué se va a medir</strong> y cómo leer el resultado. Si eliges otro rol, la guía se actualiza sola.
+        </p>
       </div>
 
       {profile && (
@@ -82,25 +143,35 @@ export default function ColumnReview({ columns, onChange, onConfirm, onBack, rep
         {columns.map((col) => {
           const badge = confidenceBadge(col.confidence);
           const review = col.confidence > 0 && col.confidence < 0.6;
+          const guide = ROLE_GUIDE[col.role];
           return (
-            <div key={col.original} className={`flex items-center gap-4 p-4 ${review ? 'bg-amber-50/60' : ''}`}>
-              <div className="flex-1 min-w-0">
-                <p className="truncate font-medium text-slate-800">{col.original}</p>
-                <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${badge.cls}`}>
-                  {review ? 'Revisar' : `Confianza: ${badge.text}`}
-                </span>
+            <div key={col.original} className={`p-4 ${review ? 'bg-amber-50/60' : ''}`}>
+              <div className="flex items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="truncate font-medium text-slate-800">{col.original}</p>
+                  <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${badge.cls}`}>
+                    {review ? 'Revisar' : `Confianza: ${badge.text}`}
+                  </span>
+                </div>
+                <select
+                  value={col.role}
+                  onChange={(e) => setRole(col.original, e.target.value as ColumnRole)}
+                  className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 focus:border-nex-500 focus:outline-none focus:ring-2 focus:ring-nex-200"
+                >
+                  {ROLE_ORDER.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABELS[r]}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <select
-                value={col.role}
-                onChange={(e) => setRole(col.original, e.target.value as ColumnRole)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 focus:border-nex-500 focus:outline-none focus:ring-2 focus:ring-nex-200"
-              >
-                {ROLE_ORDER.map((r) => (
-                  <option key={r} value={r}>
-                    {ROLE_LABELS[r]}
-                  </option>
-                ))}
-              </select>
+              {/* Guía didáctica del rol elegido: qué medida se calcula y cómo leerla. */}
+              <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-nex-100 bg-gradient-to-br from-nex-50 to-white px-3 py-2.5">
+                <span className="text-base leading-none" aria-hidden>{guide.icon}</span>
+                <p className="text-xs leading-relaxed text-slate-600">
+                  <span className="font-bold text-nex-800">{guide.title}.</span> {guide.desc}
+                </p>
+              </div>
             </div>
           );
         })}

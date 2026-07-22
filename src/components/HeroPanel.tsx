@@ -16,8 +16,8 @@ export default function HeroPanel({ children, compact = false, className = '' }:
   return (
     <section
       className={[
-        'hero-gradient relative overflow-hidden rounded-3xl text-white shadow-lift',
-        compact ? 'px-6 py-6 sm:px-8' : 'px-6 py-10 text-center sm:px-10 sm:py-12',
+        'hero-gradient relative overflow-hidden rounded-3xl text-white shadow-lift ring-1 ring-white/10',
+        compact ? 'px-6 py-5 sm:px-8' : 'px-6 py-7 text-center sm:px-10',
         className,
       ].join(' ')}
     >
