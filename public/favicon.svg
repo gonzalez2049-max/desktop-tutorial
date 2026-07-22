@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="nexFav" x1="8" y1="42" x2="40" y2="8" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5b3df0"/>
+      <stop offset="0.52" stop-color="#a21caf"/>
+      <stop offset="1" stop-color="#db2777"/>
+    </linearGradient>
+    <radialGradient id="nexFavGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </radialGradient>
+  </defs>
+  <path d="M11 37.5 V13 L37 37.5 V16" stroke="url(#nexFav)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="39.4" cy="9.4" r="4.1" fill="url(#nexFavGlow)"/>
+</svg>
