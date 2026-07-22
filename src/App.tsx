@@ -145,7 +145,7 @@ export default function App() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
-        {stage !== 'otros' && stage !== 'admin' && <BackBar onBack={goBack} onHome={goHome} canBack={history.length > 0} showHome={stage !== 'home'} />}
+        {stage !== 'otros' && stage !== 'admin' && stage !== 'home' && <BackBar onBack={goBack} onHome={goHome} canBack={history.length > 0} showHome />}
 
         {stage === 'home' && <Home onSelect={handleSelectProgram} onAdmin={() => go('admin')} />}
 

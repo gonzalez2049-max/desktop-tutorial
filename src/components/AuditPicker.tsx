@@ -17,7 +17,7 @@ interface AuditPickerProps {
  * Manos, NAVM, ITU/CUP, ITS/CVC). Reutiliza el mismo flujo posterior; cada
  * variante aporta luego sus indicadores sin duplicar el motor.
  */
-export default function AuditPicker({ programName, programLogo, audits, onSelect, onBack, onDashboard }: AuditPickerProps) {
+export default function AuditPicker({ programName, programLogo, audits, onSelect, onDashboard }: AuditPickerProps) {
   return (
     <div className="mx-auto max-w-3xl">
       <HeroPanel compact className="mb-6">
@@ -66,11 +66,6 @@ export default function AuditPicker({ programName, programLogo, audits, onSelect
         ))}
       </div>
 
-      <div className="mt-6 text-center">
-        <button type="button" onClick={onBack} className="text-sm font-semibold text-slate-500 hover:text-nex-700">
-          ← Volver a los programas
-        </button>
-      </div>
     </div>
   );
 }
