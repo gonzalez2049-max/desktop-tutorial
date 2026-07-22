@@ -8,9 +8,9 @@
     text-rendering: optimizeLegibility;
   }
   body {
-    @apply text-slate-800 font-sans;
-    /* Lienzo "Aurora": malla suave de índigo, fucsia y cian sobre un blanco
-       frío. Moderno y llamativo, sin restar legibilidad. */
+    @apply font-sans text-slate-800;
+    /* Lienzo "Aurora" claro para las pantallas de trabajo (legible para datos y
+       tablas): malla suave de índigo, fucsia y cian sobre blanco frío. */
     background-color: #eef0fb;
     background-image:
       radial-gradient(45rem 45rem at 88% -6%, rgba(217, 70, 239, 0.16), transparent 60%),
@@ -18,6 +18,21 @@
       radial-gradient(50rem 50rem at -8% 2%, rgba(99, 62, 224, 0.18), transparent 55%),
       linear-gradient(180deg, #f2f2fd 0%, #eaecfb 100%);
     background-attachment: fixed;
+  }
+  /* Capa de fondo "Aurora Nocturna": casi negro con auroras que brillan.
+     La usan las pantallas de portada para un look premium sin afectar la
+     legibilidad de las pantallas de trabajo. */
+  .aurora-night {
+    position: fixed;
+    inset: 0;
+    z-index: -10;
+    background-color: #070713;
+    background-image:
+      radial-gradient(46rem 46rem at 86% -6%, rgba(217, 70, 239, 0.32), transparent 60%),
+      radial-gradient(42rem 42rem at 112% 44%, rgba(34, 211, 238, 0.22), transparent 55%),
+      radial-gradient(52rem 52rem at -10% 2%, rgba(99, 62, 224, 0.36), transparent 55%),
+      radial-gradient(38rem 38rem at 42% 112%, rgba(219, 39, 119, 0.20), transparent 55%),
+      linear-gradient(180deg, #0a0a1e 0%, #070711 100%);
   }
 }
 
