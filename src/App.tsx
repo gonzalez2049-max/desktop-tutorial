@@ -222,7 +222,7 @@ export default function App() {
         )}
       </main>
 
-      <footer className="border-t border-slate-200 py-6 text-center text-xs text-slate-400">
+      <footer className="border-t border-white/10 py-6 text-center text-xs text-slate-400">
         NEX Report · Tus datos se procesan localmente en tu navegador.
       </footer>
     </div>

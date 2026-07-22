@@ -31,6 +31,8 @@ export default function Home({ onSelect, onAdmin }: HomeProps) {
 
   return (
     <div className="mx-auto max-w-4xl">
+      {/* Fondo nocturno premium exclusivo de la portada. */}
+      <div className="aurora-night" aria-hidden />
       {/* HERO de marca reutilizable: ancla la portada con identidad y profundidad. */}
       <HeroPanel className="mb-8">
         <div className="flex flex-col items-center">
@@ -67,21 +69,21 @@ export default function Home({ onSelect, onAdmin }: HomeProps) {
               title={operativo ? undefined : 'Este módulo estará disponible en una próxima versión.'}
               className={[
                 'group relative flex cursor-pointer flex-col gap-3 overflow-hidden rounded-2xl border p-5 text-left',
-                operativo ? 'card-interactive' : 'border-slate-200/70 bg-white/60 shadow-soft transition hover:border-slate-300',
+                operativo ? 'card-interactive' : 'border-white/10 bg-white/[0.06] shadow-soft backdrop-blur-sm transition hover:border-white/20',
               ].join(' ')}
             >
               {/* Filete de acento superior que aparece al pasar el cursor. */}
-              {operativo && <span aria-hidden className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-nex-500 to-nex-700 transition-transform duration-200 group-hover:scale-x-100" />}
+              {operativo && <span aria-hidden className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-nex-500 to-fuchsia-500 transition-transform duration-200 group-hover:scale-x-100" />}
               <div className="flex items-start justify-between gap-3">
-                <span className={['flex h-14 w-14 items-center justify-center rounded-2xl ring-1 transition', operativo ? 'bg-nex-50 ring-nex-100 group-hover:bg-nex-100' : 'bg-slate-100 ring-slate-200'].join(' ')}>
-                  <ModuleIcon icon={m.icon} size={30} className={operativo ? '' : 'opacity-40 grayscale'} />
+                <span className={['flex h-14 w-14 items-center justify-center rounded-2xl ring-1 transition', operativo ? 'bg-nex-50 ring-nex-100 group-hover:bg-nex-100' : 'bg-white/10 ring-white/10'].join(' ')}>
+                  <ModuleIcon icon={m.icon} size={30} className={operativo ? '' : 'opacity-50 grayscale'} />
                 </span>
-                <span className={['rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide', operativo ? 'bg-nex-100 text-nex-700' : 'bg-slate-200 text-slate-500'].join(' ')}>
+                <span className={['rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide', operativo ? 'bg-nex-100 text-nex-700' : 'bg-white/10 text-slate-300'].join(' ')}>
                   {operativo ? 'Operativo' : 'Próximamente'}
                 </span>
               </div>
               <div>
-                <p className={['font-bold', operativo ? 'text-slate-800' : 'text-slate-500'].join(' ')}>{m.label}</p>
+                <p className={['font-bold', operativo ? 'text-slate-800' : 'text-slate-200'].join(' ')}>{m.label}</p>
                 <p className={['mt-0.5 text-sm leading-relaxed', operativo ? 'text-slate-500' : 'text-slate-400'].join(' ')}>{m.description}</p>
               </div>
               {operativo && (
@@ -97,7 +99,7 @@ export default function Home({ onSelect, onAdmin }: HomeProps) {
       {/* Acceso al perfil de administrador (oculto cuando el enlace es de alcance limitado). */}
       {!scoped && (
         <div className="mt-8 text-center">
-          <button type="button" onClick={onAdmin} className="text-xs font-semibold text-slate-400 transition hover:text-nex-700">
+          <button type="button" onClick={onAdmin} className="text-xs font-semibold text-slate-300 transition hover:text-white">
             {admin ? '⚙️ Perfil de administrador' : '🔒 Acceso de administrador'}
           </button>
         </div>
