@@ -3,6 +3,7 @@ import type { ComplianceGroup, ParsedWorkbook, ReportConfig } from '../../types'
 import { highlightLabel, reportTypeLabel } from '../../config/options';
 import { analyze, filterWorkbookByUnit, listUnits, unitShiftMatrix } from '../../utils/analysis';
 import KpiCards from './KpiCards';
+import ReadingGuide from './ReadingGuide';
 import ExecutiveSummary from './ExecutiveSummary';
 import ComplianceTable from './ComplianceTable';
 import CountTable from './CountTable';
@@ -226,6 +227,9 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
             <TrafficLightCard a={a} colors={program.traffic} />
           </Section>
 
+          {/* Lectura didáctica del resultado global. */}
+          <ReadingGuide a={a} />
+
           {temporalSection}
 
           {/* 3) Cumplimiento por indicador. */}
@@ -276,6 +280,9 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
       {!nt234NeedsRisk && !isNT234 && !vigilancia && (
         <>
           <KpiCards a={a} />
+
+          {/* Lectura didáctica del resultado global. */}
+          <ReadingGuide a={a} />
 
           {temporalSection}
 
