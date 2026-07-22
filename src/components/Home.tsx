@@ -37,9 +37,7 @@ export default function Home({ onSelect, onAdmin }: HomeProps) {
       <HeroPanel className="mb-8">
         <div className="flex flex-col items-center">
           <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-md ring-1 ring-white/40">
-              <NexLogo size={30} />
-            </div>
+            <NexLogo size={44} />
             <div className="text-left">
               <h1 className="text-2xl font-black leading-none tracking-tight text-white sm:text-3xl">NEX Report</h1>
               <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-aqua-300">Plataforma de Auditorías Clínicas</p>

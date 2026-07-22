@@ -28,10 +28,8 @@ export default function Welcome({ onStart }: WelcomeProps) {
 
       <div className="flex flex-col items-center gap-6">
         <div className="relative">
-          <div aria-hidden className="absolute inset-0 -z-10 rounded-full bg-aqua-400/25 blur-2xl" />
-          <div className="flex h-28 w-28 items-center justify-center rounded-[1.75rem] bg-white shadow-2xl shadow-fuchsia-500/20 ring-1 ring-white/50">
-            <NexLogo size={72} />
-          </div>
+          <div aria-hidden className="absolute inset-0 -z-10 scale-[1.6] rounded-full bg-fuchsia-500/20 blur-3xl" />
+          <NexLogo size={112} />
         </div>
 
         <div className="space-y-2">
