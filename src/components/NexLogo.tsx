@@ -7,15 +7,15 @@ interface NexLogoProps {
 }
 
 /**
- * Marca «NEX Report»: monograma «N» con un trazo ascendente que sugiere
- * progreso y «next», en degradado índigo→violeta→fucsia (identidad Aurora), con
- * una chispa cian de innovación. Vector (SVG) con fondo transparente, nítido a
- * cualquier tamaño y adaptable a fondos claros u oscuros.
+ * Marca «NEX Report»: un nexo de nodos conectados (idea de conexión / «nexus»),
+ * en degradado índigo→violeta→fucsia con un nodo cian de acento. Vector (SVG)
+ * con fondo TRANSPARENTE, nítido a cualquier tamaño y adaptable a fondos claros
+ * u oscuros.
  */
 export default function NexLogo({ size = 36, className }: NexLogoProps) {
   const uid = useId();
-  const grad = `nexGrad-${uid}`;
-  const glow = `nexGlow-${uid}`;
+  const grad = `nexNode-${uid}`;
+  const line = `nexLine-${uid}`;
   return (
     <svg
       width={size}
@@ -27,27 +27,31 @@ export default function NexLogo({ size = 36, className }: NexLogoProps) {
       className={className}
     >
       <defs>
-        <linearGradient id={grad} x1="8" y1="42" x2="40" y2="8" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#5b3df0" />
-          <stop offset="0.52" stopColor="#a21caf" />
-          <stop offset="1" stopColor="#db2777" />
-        </linearGradient>
-        <radialGradient id={glow} cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stopColor="#67e8f9" />
-          <stop offset="1" stopColor="#22d3ee" />
+        <radialGradient id={grad} cx="0.4" cy="0.35" r="0.75">
+          <stop offset="0" stopColor="#8b7cff" />
+          <stop offset="0.6" stopColor="#a21caf" />
+          <stop offset="1" stopColor="#7a1690" />
         </radialGradient>
+        <linearGradient id={line} x1="8" y1="8" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#7c6df8" />
+          <stop offset="1" stopColor="#ec4899" />
+        </linearGradient>
       </defs>
-      {/* Monograma «N»: trazo ascendente (progreso / next). */}
-      <path
-        d="M11 37.5 V13 L37 37.5 V16"
-        stroke={`url(#${grad})`}
-        strokeWidth="7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Chispa cian de innovación, en la punta superior derecha. */}
-      <circle cx="39.4" cy="9.4" r="4.1" fill={`url(#${glow})`} />
-      <circle cx="39.4" cy="9.4" r="4.1" fill="#22d3ee" opacity="0.25" />
+      {/* Enlaces desde el nodo central hacia los satélites. */}
+      <g stroke={`url(#${line})`} strokeWidth="3" strokeLinecap="round">
+        <line x1="24" y1="24" x2="11.5" y2="11.5" />
+        <line x1="24" y1="24" x2="36.5" y2="11.5" />
+        <line x1="24" y1="24" x2="11.5" y2="36.5" />
+        <line x1="24" y1="24" x2="36.5" y2="36.5" />
+      </g>
+      {/* Nodos satélite. */}
+      <circle cx="11.5" cy="11.5" r="3.6" fill="#7c6df8" />
+      <circle cx="36.5" cy="11.5" r="3.6" fill="#ec4899" />
+      <circle cx="11.5" cy="36.5" r="3.6" fill="#b04ce0" />
+      <circle cx="36.5" cy="36.5" r="4" fill="#22d3ee" />
+      {/* Nodo central. */}
+      <circle cx="24" cy="24" r="6.6" fill={`url(#${grad})`} />
+      <circle cx="21.8" cy="21.8" r="1.7" fill="#ffffff" opacity="0.55" />
     </svg>
   );
 }
