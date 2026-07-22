@@ -36,16 +36,20 @@ export default function Home({ onSelect, onAdmin }: HomeProps) {
       {/* HERO de marca reutilizable: ancla la portada con identidad y profundidad. */}
       <HeroPanel className="mb-8">
         <div className="flex flex-col items-center">
-          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-white/40">
-            <NexLogo size={48} />
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-md ring-1 ring-white/40">
+              <NexLogo size={30} />
+            </div>
+            <div className="text-left">
+              <h1 className="text-2xl font-black leading-none tracking-tight text-white sm:text-3xl">NEX Report</h1>
+              <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-aqua-300">Plataforma de Auditorías Clínicas</p>
+            </div>
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">NEX Report</h1>
-          <p className="mt-1.5 text-base font-bold uppercase tracking-[0.2em] text-aqua-300">Plataforma de Auditorías Clínicas</p>
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-emerald-50/80">
+          <p className="max-w-md text-sm leading-relaxed text-emerald-50/80">
             Seleccione el Programa de Buenas Prácticas Clínicas que desea analizar.
           </p>
-          <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold text-emerald-50 ring-1 ring-white/20 backdrop-blur">
-            <span className="h-2 w-2 rounded-full bg-aqua-400" />
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1 text-[11px] font-semibold text-emerald-50 ring-1 ring-white/20 backdrop-blur">
+            <span className="h-1.5 w-1.5 rounded-full bg-aqua-400" />
             {operativos} módulos operativos · Word y PDF · 100 % local
           </div>
         </div>
