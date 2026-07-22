@@ -15,21 +15,22 @@ interface BackBarProps {
 export default function BackBar({ onBack, onHome, canBack, showHome = true }: BackBarProps) {
   if (!canBack && !showHome) return null;
   return (
-    <div className="mb-4 flex items-center gap-2">
-      {canBack && (
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:border-nex-300 hover:text-nex-700"
-        >
-          ← Volver atrás
-        </button>
-      )}
+    // Barra fija bajo el encabezado: «Volver atrás» siempre visible al hacer
+    // scroll, arriba a la izquierda, en todas las pantallas.
+    <div className="sticky top-[60px] z-20 -mx-4 mb-4 flex items-center gap-2 border-b border-slate-200/50 bg-white/70 px-4 py-2 backdrop-blur sm:top-[64px]">
+      <button
+        type="button"
+        onClick={onBack}
+        disabled={!canBack}
+        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-nex-300 hover:text-nex-700 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        ← Volver atrás
+      </button>
       {showHome && (
         <button
           type="button"
           onClick={onHome}
-          className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold text-slate-400 transition hover:text-nex-700"
+          className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold text-slate-500 transition hover:text-nex-700"
         >
           🏠 Volver al inicio
         </button>
