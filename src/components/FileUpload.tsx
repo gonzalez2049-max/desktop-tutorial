@@ -25,9 +25,22 @@ export default function FileUpload({ onParsed, reportType, auditId }: FileUpload
       setLoading(true);
       try {
         const wb = await parseExcelFile(file, reportType, auditId);
+        if (!wb.rows || wb.rows.length === 0) {
+          setError('El archivo no tiene filas de datos. Revisa que la primera fila sean los títulos de columna y que abajo vengan los registros.');
+          return;
+        }
         onParsed(wb);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'No se pudo leer el archivo.');
+        const raw = e instanceof Error ? e.message : '';
+        // Mensaje amable según la causa más probable.
+        const friendly = /vac|empty|no rows|sin datos/i.test(raw)
+          ? 'El archivo parece estar vacío o sin datos legibles.'
+          : /password|protec|cifr/i.test(raw)
+            ? 'El archivo está protegido con contraseña. Quítala y vuelve a exportarlo.'
+            : /format|corrupt|zip|not a/i.test(raw)
+              ? 'No pude abrir el archivo. Asegúrate de que sea un Excel (.xlsx/.xls) o CSV válido, no un PDF ni una imagen.'
+              : 'No pude leer el archivo. Revisa que sea un Excel o CSV con una fila de títulos y los datos debajo.';
+        setError(friendly);
       } finally {
         setLoading(false);
       }
@@ -100,7 +113,21 @@ export default function FileUpload({ onParsed, reportType, auditId }: FileUpload
       </div>
 
       {error && (
-        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">⚠️ {error}</div>
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
+          <p className="text-sm font-semibold text-red-700">⚠️ No se pudo cargar el archivo</p>
+          <p className="mt-1 text-sm text-red-700/90">{error}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => { setError(null); inputRef.current?.click(); }} className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">
+              Elegir otro archivo
+            </button>
+            <button type="button" onClick={() => { setError(null); runExample(); }} className="rounded-lg border border-nex-200 bg-white px-3 py-1.5 text-xs font-semibold text-nex-700 hover:bg-nex-50">
+              ✨ Probar con datos de ejemplo
+            </button>
+            <button type="button" onClick={() => downloadCsv(templateCsv(), 'plantilla-nex-report.csv')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+              📥 Descargar plantilla
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Ayuda operativa: qué archivo traer + plantilla descargable. */}
