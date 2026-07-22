@@ -131,7 +131,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 shadow-soft backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <button type="button" onClick={goHome} className="flex items-center gap-2.5" title="Volver al inicio">
             <NexLogo size={38} />
