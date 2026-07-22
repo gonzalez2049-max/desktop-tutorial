@@ -58,14 +58,18 @@ export function exampleCsv(): string {
   return toCsv(rows);
 }
 
+// BOM UTF-8: garantiza que el lector (SheetJS) y Excel interpreten los acentos
+// (Sí, Mañana, posición…) correctamente y no como caracteres corruptos.
+const BOM = '﻿';
+
 /** Convierte un CSV en un File para reutilizar la carga normal. */
 export function csvToFile(csv: string, name: string): File {
-  return new File([csv], name, { type: 'text/csv' });
+  return new File([BOM + csv], name, { type: 'text/csv;charset=utf-8' });
 }
 
 /** Dispara la descarga de un CSV en el navegador. */
 export function downloadCsv(csv: string, name: string): void {
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const url = URL.createObjectURL(new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;
