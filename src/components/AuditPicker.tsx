@@ -1,4 +1,5 @@
 import type { AuditVariant } from '../config/programs';
+import ModuleIcon from './ModuleIcon';
 
 interface AuditPickerProps {
   programName: string;
@@ -19,7 +20,7 @@ export default function AuditPicker({ programName, programLogo, audits, onSelect
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-8 text-center">
-        <p className="text-3xl">{programLogo}</p>
+        <div className="flex justify-center"><ModuleIcon icon={programLogo} size={34} /></div>
         <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900">{programName}</h1>
         <p className="mt-2 text-slate-500">Seleccione la auditoría que desea analizar.</p>
       </div>

@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import Stepper from './components/Stepper';
 import Home from './components/Home';
 import AuditPicker from './components/AuditPicker';
-import ProgramSettings from './components/ProgramSettings';
 import FileUpload from './components/FileUpload';
 import ColumnReview from './components/ColumnReview';
 import DataPreview from './components/DataPreview';
@@ -14,6 +13,9 @@ import NexLogo from './components/NexLogo';
 import Welcome from './components/Welcome';
 import BackBar from './components/BackBar';
 import OtrosInformes from './components/otros/OtrosInformes';
+import AdminGate from './components/admin/AdminGate';
+import AdminPanel from './components/admin/AdminPanel';
+import { isAdmin } from './utils/adminConfig';
 import { getProgramConfig } from './utils/programConfig';
 import type { RawModule } from './utils/consolidatedDashboard';
 import type { DetectedColumn, ParsedWorkbook, ReportConfig, ReportType } from './types';
@@ -22,7 +24,7 @@ type Stage =
   | 'welcome'
   | 'home'
   | 'audit'
-  | 'settings'
+  | 'admin'
   | 'upload'
   | 'review'
   | 'wizard'
@@ -40,7 +42,7 @@ const STEPS = [
   { key: 'result', label: 'Reporte' },
 ];
 
-const STAGE_INDEX: Record<Stage, number> = { welcome: 0, home: 0, audit: 0, settings: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4, otros: 0 };
+const STAGE_INDEX: Record<Stage, number> = { welcome: 0, home: 0, audit: 0, admin: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4, otros: 0 };
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('welcome');
@@ -49,7 +51,7 @@ export default function App() {
   const [history, setHistory] = useState<Stage[]>([]);
   const [reportType, setReportType] = useState<ReportType | null>(null);
   const [auditId, setAuditId] = useState<string | undefined>(undefined);
-  const [configProgram, setConfigProgram] = useState<ReportType | null>(null);
+  const [adminAuthed, setAdminAuthed] = useState(false);
   const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null);
   const [config, setConfig] = useState<ReportConfig | null>(null);
   const [dashboardRaw, setDashboardRaw] = useState<RawModule[] | null>(null);
@@ -102,11 +104,6 @@ export default function App() {
     go('upload');
   };
 
-  const handleConfigureProgram = (rt: ReportType) => {
-    setConfigProgram(rt);
-    go('settings');
-  };
-
   const handleParsed = (wb: ParsedWorkbook) => {
     setWorkbook(wb);
     go('review');
@@ -130,7 +127,7 @@ export default function App() {
   // Portada de bienvenida: pantalla completa, sin encabezado ni pasos.
   if (stage === 'welcome') return <Welcome onStart={() => go('home')} />;
 
-  const showStepper = stage !== 'otros' && stage !== 'dashboard' && stage !== 'dashboard-upload' && stage !== 'settings';
+  const showStepper = stage !== 'otros' && stage !== 'dashboard' && stage !== 'dashboard-upload' && stage !== 'admin';
 
   return (
     <div className="min-h-screen">
@@ -148,9 +145,15 @@ export default function App() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
-        {stage !== 'otros' && <BackBar onBack={goBack} onHome={goHome} canBack={history.length > 0} showHome={stage !== 'home'} />}
+        {stage !== 'otros' && stage !== 'admin' && <BackBar onBack={goBack} onHome={goHome} canBack={history.length > 0} showHome={stage !== 'home'} />}
 
-        {stage === 'home' && <Home onSelect={handleSelectProgram} onConfigure={handleConfigureProgram} />}
+        {stage === 'home' && <Home onSelect={handleSelectProgram} onAdmin={() => go('admin')} />}
+
+        {stage === 'admin' && (
+          isAdmin() || adminAuthed
+            ? <AdminPanel onExit={goHome} onLogout={() => { setAdminAuthed(false); goHome(); }} />
+            : <AdminGate onEnter={() => setAdminAuthed(true)} onCancel={goBack} />
+        )}
 
         {stage === 'audit' && reportType && (
           <AuditPicker
@@ -177,10 +180,6 @@ export default function App() {
             onReset={reset}
             onEditUploads={() => go('dashboard-upload')}
           />
-        )}
-
-        {stage === 'settings' && configProgram && (
-          <ProgramSettings reportType={configProgram} onBack={goBack} />
         )}
 
         {stage === 'otros' && <OtrosInformes onExit={goHome} />}
