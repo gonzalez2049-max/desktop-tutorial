@@ -1,28 +1,29 @@
-import { useState } from 'react';
-import { REPORT_TYPES } from '../config/options';
+import { useMemo, useState } from 'react';
 import NexLogo from './NexLogo';
+import ModuleIcon from './ModuleIcon';
+import { isAdmin, scopedModules, visibleModules } from '../utils/adminConfig';
 import type { ReportType } from '../types';
 
 interface HomeProps {
   onSelect: (reportType: ReportType) => void;
-  onConfigure: (reportType: ReportType) => void;
+  /** Abre el perfil de administrador. */
+  onAdmin: () => void;
 }
 
 /**
- * Pantalla inicial: selección del Programa de Buenas Prácticas Clínicas.
- * Solo NT 234 / LPP está operativo; el resto de los módulos permanecen visibles
- * con la etiqueta "Próximamente" y no permiten continuar.
+ * Pantalla inicial: selección del Programa de Buenas Prácticas Clínicas. La lista
+ * respeta los ajustes del administrador (nombres, logos, visibilidad) y el alcance
+ * del enlace de acceso (?only=…).
  */
-export default function Home({ onSelect, onConfigure }: HomeProps) {
+export default function Home({ onSelect, onAdmin }: HomeProps) {
   const [notice, setNotice] = useState<string | null>(null);
-  const operativos = REPORT_TYPES.filter((m) => m.status === 'operativo');
+  const admin = useMemo(() => isAdmin(), []);
+  const scoped = useMemo(() => scopedModules() !== null, []);
+  const modules = useMemo(() => visibleModules(admin), [admin]);
 
   const handleClick = (value: ReportType, operativo: boolean) => {
-    if (operativo) {
-      onSelect(value);
-    } else {
-      setNotice('Este módulo estará disponible en una próxima versión.');
-    }
+    if (operativo) onSelect(value);
+    else setNotice('Este módulo estará disponible en una próxima versión.');
   };
 
   return (
@@ -37,14 +38,12 @@ export default function Home({ onSelect, onConfigure }: HomeProps) {
       {notice && (
         <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <span>🔒 {notice}</span>
-          <button type="button" onClick={() => setNotice(null)} className="shrink-0 font-semibold text-amber-700 hover:underline">
-            Cerrar
-          </button>
+          <button type="button" onClick={() => setNotice(null)} className="shrink-0 font-semibold text-amber-700 hover:underline">Cerrar</button>
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {REPORT_TYPES.map((m) => {
+        {modules.map((m) => {
           const operativo = m.status === 'operativo';
           return (
             <button
@@ -58,13 +57,8 @@ export default function Home({ onSelect, onConfigure }: HomeProps) {
               ].join(' ')}
             >
               <div className="flex items-start justify-between gap-3">
-                <span className={['text-3xl leading-none', operativo ? '' : 'opacity-50 grayscale'].join(' ')}>{m.icon}</span>
-                <span
-                  className={[
-                    'rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide',
-                    operativo ? 'bg-nex-100 text-nex-700' : 'bg-slate-200 text-slate-500',
-                  ].join(' ')}
-                >
+                <ModuleIcon icon={m.icon} size={30} className={operativo ? '' : 'opacity-50 grayscale'} />
+                <span className={['rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide', operativo ? 'bg-nex-100 text-nex-700' : 'bg-slate-200 text-slate-500'].join(' ')}>
                   {operativo ? 'Operativo' : 'Próximamente'}
                 </span>
               </div>
@@ -82,25 +76,14 @@ export default function Home({ onSelect, onConfigure }: HomeProps) {
         })}
       </div>
 
-      {operativos.length > 0 && (
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-sm">
-          <span className="text-slate-400">⚙️ Configuración del programa:</span>
-          {operativos.map((m) => (
-            <button
-              key={m.value}
-              type="button"
-              onClick={() => onConfigure(m.value)}
-              className="rounded-full border border-slate-200 px-3 py-1 font-semibold text-slate-600 transition hover:border-nex-400 hover:text-nex-700"
-            >
-              {m.label}
-            </button>
-          ))}
+      {/* Acceso al perfil de administrador (oculto cuando el enlace es de alcance limitado). */}
+      {!scoped && (
+        <div className="mt-8 text-center">
+          <button type="button" onClick={onAdmin} className="text-xs font-semibold text-slate-400 transition hover:text-nex-700">
+            {admin ? '⚙️ Perfil de administrador' : '🔒 Acceso de administrador'}
+          </button>
         </div>
       )}
-
-      <p className="mt-8 text-center text-xs text-slate-400">
-        Nuevos programas de auditoría se incorporarán en próximas versiones.
-      </p>
     </div>
   );
 }

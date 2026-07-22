@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { ReportType } from '../types';
+import ModuleIcon from './ModuleIcon';
 import { createEmptyAudit, type AuditVariant, type ProgramConfigEditable } from '../config/programs';
 import {
   getProgramConfig,
@@ -45,6 +46,7 @@ export default function ProgramSettings({ reportType, onBack }: ProgramSettingsP
     descriptiveVariables: [...initial.descriptiveVariables],
   });
   const [saved, setSaved] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Gestión de auditorías (programas con sub-auditorías, p. ej. IAAS).
   const supportsAudits = initial.audits !== undefined;
@@ -152,9 +154,17 @@ export default function ProgramSettings({ reportType, onBack }: ProgramSettingsP
             <input className={input} value={form.unitName} onChange={(e) => set('unitName', e.target.value)} />
           </div>
           <div>
-            <label className={label}>Logo institucional (emoji o URL)</label>
-            <input className={input} value={form.logo} onChange={(e) => set('logo', e.target.value)} />
-            <p className="mt-1 text-xs text-slate-400">Ej.: 🛏️ · 🏥 · o una URL de imagen.</p>
+            <label className={label}>Logo institucional (emoji o imagen)</label>
+            <div className="flex items-center gap-2">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200">
+                <ModuleIcon icon={form.logo || '🏥'} size={24} />
+              </span>
+              <input className={input} value={form.logo.startsWith('data:') ? '' : form.logo} placeholder="emoji (ej. 🏥)" onChange={(e) => set('logo', e.target.value)} />
+              <button type="button" className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50" onClick={() => logoInputRef.current?.click()}>Subir imagen</button>
+              {form.logo.startsWith('data:') && <button type="button" className="shrink-0 text-xs font-semibold text-slate-400 hover:text-red-600" onClick={() => set('logo', '🏥')}>Quitar</button>}
+              <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { const r = new FileReader(); r.onload = () => { if (typeof r.result === 'string') set('logo', r.result); }; r.readAsDataURL(f); } e.target.value = ''; }} />
+            </div>
+            <p className="mt-1 text-xs text-slate-400">Elige un emoji o sube una imagen (se guarda en el navegador).</p>
           </div>
         </div>
       </section>
