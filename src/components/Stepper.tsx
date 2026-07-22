@@ -16,7 +16,7 @@ export default function Stepper({ steps, current }: StepperProps) {
         const done = i < current;
         const active = i === current;
         return (
-          <div key={s.key} className="flex items-center gap-2">
+          <div key={s.key} className="flex items-center gap-2" aria-current={active ? 'step' : undefined}>
             <div className="flex items-center gap-2">
               <div
                 className={[

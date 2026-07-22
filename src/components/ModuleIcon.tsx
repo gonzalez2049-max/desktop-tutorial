@@ -10,5 +10,5 @@ export default function ModuleIcon({ icon, size = 30, className }: ModuleIconPro
   if (icon.startsWith('data:')) {
     return <img src={icon} alt="" className={className} style={{ height: size, width: size, objectFit: 'contain' }} />;
   }
-  return <span className={className} style={{ fontSize: size, lineHeight: 1 }}>{icon}</span>;
+  return <span aria-hidden className={className} style={{ fontSize: size, lineHeight: 1 }}>{icon}</span>;
 }
