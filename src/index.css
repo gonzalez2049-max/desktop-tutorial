@@ -9,12 +9,13 @@
   }
   body {
     @apply text-slate-800 font-sans;
-    /* Lienzo con un degradado verdoso muy sutil: quita la sensación plana sin
-       restar profesionalismo ni legibilidad. */
-    background-color: #f3f7f4;
+    /* Lienzo con degradado verdoso perceptible: quita la sensación plana y da
+       identidad, manteniendo la legibilidad y el tono profesional. */
+    background-color: #e9f2ec;
     background-image:
-      radial-gradient(60rem 60rem at 88% -10%, rgba(15, 122, 79, 0.06), transparent 60%),
-      radial-gradient(50rem 50rem at -5% 8%, rgba(15, 61, 46, 0.05), transparent 55%);
+      radial-gradient(55rem 55rem at 92% -8%, rgba(15, 122, 79, 0.16), transparent 60%),
+      radial-gradient(48rem 48rem at -8% 4%, rgba(15, 61, 46, 0.12), transparent 55%),
+      linear-gradient(180deg, #eef6f0 0%, #e6f0ea 100%);
     background-attachment: fixed;
   }
 }
