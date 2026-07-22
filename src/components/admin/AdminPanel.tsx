@@ -3,6 +3,7 @@ import type { ReportType } from '../../types';
 import { buildShareLink, logout as adminLogout, resetModuleOverrides, resolveModules, saveModuleOverride } from '../../utils/adminConfig';
 import ProgramSettings from '../ProgramSettings';
 import ModuleIcon from '../ModuleIcon';
+import HeroPanel from '../HeroPanel';
 
 interface Props {
   onExit: () => void;
@@ -44,16 +45,21 @@ export default function AdminPanel({ onExit, onLogout }: Props) {
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-black text-slate-800">⚙️ Perfil de administrador</h1>
-          <p className="text-sm text-slate-500">Configura los módulos, sus nombres, logos y accesos.</p>
+      <HeroPanel compact>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-2xl ring-1 ring-white/25 backdrop-blur">⚙️</span>
+            <div>
+              <h1 className="text-2xl font-black text-white">Perfil de administrador</h1>
+              <p className="text-sm text-emerald-50/80">Configura los módulos, sus nombres, logos y accesos.</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button className="rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur transition hover:bg-white/25" onClick={onExit}>Salir</button>
+            <button className="rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur transition hover:bg-white/25" onClick={() => { adminLogout(); onLogout(); }}>Cerrar sesión</button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button className="btn-ghost" onClick={onExit}>Salir</button>
-          <button className="btn-ghost" onClick={() => { adminLogout(); onLogout(); }}>Cerrar sesión</button>
-        </div>
-      </header>
+      </HeroPanel>
 
       <div className="flex gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
         <button onClick={() => setTab('programas')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold transition ${tab === 'programas' ? 'bg-white text-nex-700 shadow-sm' : 'text-slate-500'}`}>🩺 Programas</button>

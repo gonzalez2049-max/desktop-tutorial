@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import NexLogo from './NexLogo';
 import ModuleIcon from './ModuleIcon';
+import HeroPanel from './HeroPanel';
 import { isAdmin, scopedModules, visibleModules } from '../utils/adminConfig';
 import type { ReportType } from '../types';
 
@@ -30,30 +31,23 @@ export default function Home({ onSelect, onAdmin }: HomeProps) {
 
   return (
     <div className="mx-auto max-w-4xl">
-      {/* HERO de marca: panel en verde profundo que ancla la portada con
-          identidad y profundidad (mismo idioma de los informes). */}
-      <section className="relative mb-8 overflow-hidden rounded-3xl px-6 py-10 text-center shadow-lift sm:px-10 sm:py-12"
-        style={{ background: 'linear-gradient(135deg, #0b2c22 0%, #0f3d2e 45%, #0f6a45 100%)' }}>
-        <div aria-hidden className="pointer-events-none absolute inset-0">
-          <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-emerald-400/20 blur-3xl" />
-          <div className="absolute -bottom-24 -left-10 h-64 w-64 rounded-full bg-emerald-300/10 blur-3xl" />
-          <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)', backgroundSize: '22px 22px' }} />
-        </div>
-        <div className="relative flex flex-col items-center">
+      {/* HERO de marca reutilizable: ancla la portada con identidad y profundidad. */}
+      <HeroPanel className="mb-8">
+        <div className="flex flex-col items-center">
           <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-white/40">
             <NexLogo size={48} />
           </div>
           <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">NEX Report</h1>
-          <p className="mt-1.5 text-base font-bold uppercase tracking-[0.2em] text-emerald-200/90">Plataforma de Auditorías Clínicas</p>
+          <p className="mt-1.5 text-base font-bold uppercase tracking-[0.2em] text-aqua-300">Plataforma de Auditorías Clínicas</p>
           <p className="mt-4 max-w-md text-sm leading-relaxed text-emerald-50/80">
             Seleccione el Programa de Buenas Prácticas Clínicas que desea analizar.
           </p>
           <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold text-emerald-50 ring-1 ring-white/20 backdrop-blur">
-            <span className="h-2 w-2 rounded-full bg-emerald-300" />
+            <span className="h-2 w-2 rounded-full bg-aqua-400" />
             {operativos} módulos operativos · Word y PDF · 100 % local
           </div>
         </div>
-      </section>
+      </HeroPanel>
 
       {notice && (
         <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

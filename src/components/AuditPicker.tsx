@@ -1,5 +1,6 @@
 import type { AuditVariant } from '../config/programs';
 import ModuleIcon from './ModuleIcon';
+import HeroPanel from './HeroPanel';
 
 interface AuditPickerProps {
   programName: string;
@@ -19,11 +20,17 @@ interface AuditPickerProps {
 export default function AuditPicker({ programName, programLogo, audits, onSelect, onBack, onDashboard }: AuditPickerProps) {
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-8 text-center">
-        <div className="flex justify-center"><ModuleIcon icon={programLogo} size={34} /></div>
-        <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900">{programName}</h1>
-        <p className="mt-2 text-slate-500">Seleccione la auditoría que desea analizar.</p>
-      </div>
+      <HeroPanel compact className="mb-6">
+        <div className="flex items-center gap-4">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white shadow-md ring-1 ring-white/40">
+            <ModuleIcon icon={programLogo} size={30} />
+          </span>
+          <div className="min-w-0 text-left">
+            <h1 className="text-2xl font-black tracking-tight text-white">{programName}</h1>
+            <p className="mt-0.5 text-sm text-emerald-50/80">Seleccione la auditoría que desea analizar.</p>
+          </div>
+        </div>
+      </HeroPanel>
 
       {onDashboard && (
         <button

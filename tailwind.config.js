@@ -4,19 +4,26 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Verde institucional NEX: mismo idioma cromático del logo y de los
-        // informes (masthead #0f3d2e, acento #0f7a4f). Unifica toda la interfaz.
+        // Paleta NEX teal-esmeralda: evoluciona el verde del logo hacia un
+        // teal/turquesa más moderno y llamativo, manteniendo la familia de la
+        // marca. Se usa como acento en toda la interfaz.
         nex: {
-          50: '#eef7f1',
-          100: '#d3ecdd',
-          200: '#a9d8bd',
-          300: '#71bd97',
-          400: '#3f9e73',
-          500: '#0f7a4f',
-          600: '#0c6642',
-          700: '#0f5236',
-          800: '#0f3d2e',
-          900: '#0b2c22',
+          50: '#ecfdf6',
+          100: '#cff7e7',
+          200: '#a1edd3',
+          300: '#63dcbb',
+          400: '#2ec4a0',
+          500: '#0ea47a',
+          600: '#0a8567',
+          700: '#0c6a54',
+          800: '#0d5244',
+          900: '#0a3a32',
+        },
+        // Acento vivo para chispazos (puntos de estado, brillos, hover).
+        aqua: {
+          300: '#5eead4',
+          400: '#2dd4bf',
+          500: '#14b8a6',
         },
       },
       fontFamily: {
@@ -26,8 +33,8 @@ export default {
       },
       boxShadow: {
         // Sombras suaves y en capas para dar profundidad sin dureza.
-        soft: '0 1px 2px rgba(15, 61, 46, 0.04), 0 8px 24px -12px rgba(15, 61, 46, 0.12)',
-        lift: '0 2px 4px rgba(15, 61, 46, 0.05), 0 18px 40px -18px rgba(15, 61, 46, 0.28)',
+        soft: '0 1px 2px rgba(13, 82, 68, 0.05), 0 8px 24px -12px rgba(13, 82, 68, 0.14)',
+        lift: '0 2px 4px rgba(13, 82, 68, 0.06), 0 20px 45px -18px rgba(13, 82, 68, 0.30)',
       },
     },
   },

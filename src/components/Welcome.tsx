@@ -17,10 +17,10 @@ const FEATURES = [
  */
 export default function Welcome({ onStart }: WelcomeProps) {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16 text-center" style={{ background: 'radial-gradient(60rem 60rem at 85% -10%, rgba(15,122,79,0.18), transparent 60%), radial-gradient(50rem 50rem at 0% 100%, rgba(15,61,46,0.14), transparent 55%), linear-gradient(180deg, #eef6f0 0%, #e4efe8 100%)' }}>
-      {/* Fondo suave con acentos verdes (decorativo). */}
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16 text-center" style={{ background: 'radial-gradient(60rem 60rem at 85% -10%, rgba(45,212,191,0.22), transparent 60%), radial-gradient(50rem 50rem at 0% 100%, rgba(13,82,68,0.16), transparent 55%), linear-gradient(180deg, #edf7f3 0%, #e2f0ec 100%)' }}>
+      {/* Fondo suave con acentos teal-turquesa (decorativo). */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-[-8%] h-[440px] w-[440px] -translate-x-1/2 rounded-full bg-emerald-300/40 blur-3xl" />
+        <div className="absolute left-1/2 top-[-8%] h-[440px] w-[440px] -translate-x-1/2 rounded-full bg-aqua-300/40 blur-3xl" />
         <div className="absolute bottom-[-15%] left-[8%] h-[340px] w-[340px] rounded-full bg-nex-300/35 blur-3xl" />
         <div className="absolute bottom-[-10%] right-[6%] h-[300px] w-[300px] rounded-full bg-emerald-200/45 blur-3xl" />
       </div>
@@ -53,7 +53,7 @@ export default function Welcome({ onStart }: WelcomeProps) {
         <button
           type="button"
           onClick={onStart}
-          className="group mt-3 inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-8 py-3.5 text-base font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-200"
+          className="hero-gradient group mt-3 inline-flex items-center gap-2 rounded-2xl px-9 py-3.5 text-base font-bold text-white shadow-lg shadow-nex-700/25 transition hover:brightness-105 focus:outline-none focus:ring-4 focus:ring-aqua-300/40"
         >
           Comenzar
           <span className="transition group-hover:translate-x-0.5">→</span>
