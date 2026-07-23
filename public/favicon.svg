@@ -1,24 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
   <defs>
     <radialGradient id="nexNode" cx="0.4" cy="0.35" r="0.75">
-      <stop offset="0" stop-color="#8b7cff"/>
-      <stop offset="0.6" stop-color="#a21caf"/>
+      <stop offset="0" stop-color="#9a8cff"/>
+      <stop offset="0.6" stop-color="#b81fc7"/>
       <stop offset="1" stop-color="#7a1690"/>
     </radialGradient>
     <linearGradient id="nexLine" x1="8" y1="8" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#7c6df8"/>
-      <stop offset="1" stop-color="#ec4899"/>
+      <stop offset="0" stop-color="#8b7cff"/>
+      <stop offset="1" stop-color="#f452a6"/>
     </linearGradient>
+    <filter id="nexGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
-  <g stroke="url(#nexLine)" stroke-width="3" stroke-linecap="round">
-    <line x1="24" y1="24" x2="11.5" y2="11.5"/>
-    <line x1="24" y1="24" x2="36.5" y2="11.5"/>
-    <line x1="24" y1="24" x2="11.5" y2="36.5"/>
-    <line x1="24" y1="24" x2="36.5" y2="36.5"/>
+  <g filter="url(#nexGlow)">
+    <g stroke="url(#nexLine)" stroke-width="3" stroke-linecap="round">
+      <line x1="24" y1="24" x2="11.5" y2="11.5"/>
+      <line x1="24" y1="24" x2="36.5" y2="11.5"/>
+      <line x1="24" y1="24" x2="11.5" y2="36.5"/>
+      <line x1="24" y1="24" x2="36.5" y2="36.5"/>
+    </g>
+    <circle cx="11.5" cy="11.5" r="3.6" fill="#8b7cff"/>
+    <circle cx="36.5" cy="11.5" r="3.6" fill="#f452a6"/>
+    <circle cx="11.5" cy="36.5" r="3.6" fill="#c05cf0"/>
+    <circle cx="36.5" cy="36.5" r="4" fill="#34dbef"/>
+    <circle cx="24" cy="24" r="6.6" fill="url(#nexNode)"/>
   </g>
-  <circle cx="11.5" cy="11.5" r="3.6" fill="#7c6df8"/>
-  <circle cx="36.5" cy="11.5" r="3.6" fill="#ec4899"/>
-  <circle cx="11.5" cy="36.5" r="3.6" fill="#b04ce0"/>
-  <circle cx="36.5" cy="36.5" r="4" fill="#22d3ee"/>
-  <circle cx="24" cy="24" r="6.6" fill="url(#nexNode)"/>
 </svg>
