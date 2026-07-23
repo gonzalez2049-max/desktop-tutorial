@@ -11,6 +11,7 @@ import {
   deleteAudit,
   resetAudits,
 } from '../utils/programConfig';
+import { saveModuleOverride } from '../utils/adminConfig';
 import AuditBuilder from './AuditBuilder';
 
 interface ProgramSettingsProps {
@@ -76,6 +77,9 @@ export default function ProgramSettings({ reportType, onBack }: ProgramSettingsP
 
   const handleSave = () => {
     saveProgramConfig(reportType, form);
+    // Sincroniza el nombre del programa con la etiqueta del módulo (portada),
+    // para que ambos muestren siempre el mismo nombre.
+    if (form.programName.trim()) saveModuleOverride(reportType, { label: form.programName.trim() });
     setSaved(true);
     // Tras confirmar, vuelve al panel para que el cambio se vea reflejado.
     window.setTimeout(() => onBack(), 900);

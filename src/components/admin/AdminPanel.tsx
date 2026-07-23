@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ReportType } from '../../types';
 import { buildShareLink, logout as adminLogout, resetModuleOverrides, resolveModules, saveModuleOverride } from '../../utils/adminConfig';
-import { getProgramConfig } from '../../utils/programConfig';
+import { getProgramConfig, saveProgramConfig } from '../../utils/programConfig';
 import ProgramSettings from '../ProgramSettings';
 import ModuleIcon from '../ModuleIcon';
 import HeroPanel from '../HeroPanel';
@@ -25,6 +25,13 @@ export default function AdminPanel({ onExit, onLogout }: Props) {
 
   const refresh = () => setMods(resolveModules());
   const patch = (rt: ReportType, p: Parameters<typeof saveModuleOverride>[1]) => { saveModuleOverride(rt, p); refresh(); };
+  // Editar el nombre del módulo sincroniza también el nombre del programa, para
+  // que la portada y la configuración del programa muestren siempre lo mismo.
+  const setLabel = (rt: ReportType, label: string) => {
+    saveModuleOverride(rt, { label });
+    if (label.trim()) saveProgramConfig(rt, { programName: label.trim() });
+    refresh();
+  };
 
   const uploadIcon = (rt: ReportType, file: File) => {
     const reader = new FileReader();
@@ -104,7 +111,7 @@ export default function AdminPanel({ onExit, onLogout }: Props) {
                   <div className="flex items-center gap-3">
                     <ModuleIcon icon={m.icon} size={28} />
                     <input className={`${inputCls} max-w-[110px]`} value={m.icon.startsWith('data:') ? '' : m.icon} placeholder="emoji" onChange={(e) => patch(m.value, { icon: e.target.value })} title="Emoji del módulo" />
-                    <input className={inputCls} value={m.label} onChange={(e) => patch(m.value, { label: e.target.value })} title="Nombre del módulo" />
+                    <input className={inputCls} value={m.label} onChange={(e) => setLabel(m.value, e.target.value)} title="Nombre del módulo" />
                     <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs font-semibold text-slate-500">
                       <input type="checkbox" checked={!m.hidden} onChange={(e) => patch(m.value, { hidden: !e.target.checked })} /> Visible
                     </label>
