@@ -77,6 +77,8 @@ export default function ProgramSettings({ reportType, onBack }: ProgramSettingsP
   const handleSave = () => {
     saveProgramConfig(reportType, form);
     setSaved(true);
+    // Tras confirmar, vuelve al panel para que el cambio se vea reflejado.
+    window.setTimeout(() => onBack(), 900);
   };
 
   const handleReset = () => {
@@ -234,7 +236,7 @@ export default function ProgramSettings({ reportType, onBack }: ProgramSettingsP
 
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-primary" onClick={handleSave}>
-          💾 Guardar configuración
+          💾 Guardar y volver
         </button>
         <button className="btn-ghost" onClick={handleReset}>
           ↺ Restablecer valores por defecto
