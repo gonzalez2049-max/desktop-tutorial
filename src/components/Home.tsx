@@ -60,6 +60,27 @@ export default function Home({ onSelect, onAdmin }: HomeProps) {
         </div>
       )}
 
+      {/* Guía de 3 pasos: arriba, para orientar antes de elegir el módulo. */}
+      <div className="mb-8">
+        <p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-aqua-300">¿Cómo funciona? · 3 pasos</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            { n: '1', icon: '📤', title: 'Sube tu Excel', desc: 'Elige el programa y carga tu planilla, o prueba con datos de ejemplo.' },
+            { n: '2', icon: '🔎', title: 'Revisa la lectura', desc: 'NEX reconoce tus columnas y te explica qué se va a medir. Ajusta si algo no calza.' },
+            { n: '3', icon: '📄', title: 'Descarga el informe', desc: 'Obtén tu reporte con semáforo y gráficos, listo en Word y PDF.' },
+          ].map((s) => (
+            <div key={s.n} className="relative rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-sm font-black text-white ring-1 ring-white/15">{s.n}</span>
+                <span className="text-xl" aria-hidden>{s.icon}</span>
+              </div>
+              <p className="mt-2.5 font-bold text-white">{s.title}</p>
+              <p className="mt-0.5 text-sm leading-relaxed text-slate-300/90">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         {modules.map((m) => {
           const operativo = m.status === 'operativo';
@@ -96,27 +117,6 @@ export default function Home({ onSelect, onAdmin }: HomeProps) {
             </button>
           );
         })}
-      </div>
-
-      {/* Guía de 3 pasos: orienta a quien entra por primera vez. */}
-      <div className="mt-10">
-        <p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-aqua-300">¿Cómo funciona? · 3 pasos</p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[
-            { n: '1', icon: '📤', title: 'Sube tu Excel', desc: 'Elige el programa y carga tu planilla, o prueba con datos de ejemplo.' },
-            { n: '2', icon: '🔎', title: 'Revisa la lectura', desc: 'NEX reconoce tus columnas y te explica qué se va a medir. Ajusta si algo no calza.' },
-            { n: '3', icon: '📄', title: 'Descarga el informe', desc: 'Obtén tu reporte con semáforo y gráficos, listo en Word y PDF.' },
-          ].map((s) => (
-            <div key={s.n} className="relative rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-sm font-black text-white ring-1 ring-white/15">{s.n}</span>
-                <span className="text-xl" aria-hidden>{s.icon}</span>
-              </div>
-              <p className="mt-2.5 font-bold text-white">{s.title}</p>
-              <p className="mt-0.5 text-sm leading-relaxed text-slate-300/90">{s.desc}</p>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Acceso al perfil de administrador (oculto cuando el enlace es de alcance limitado). */}
