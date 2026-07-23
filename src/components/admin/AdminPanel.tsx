@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ReportType } from '../../types';
 import { buildShareLink, logout as adminLogout, resetModuleOverrides, resolveModules, saveModuleOverride } from '../../utils/adminConfig';
+import { getProgramConfig } from '../../utils/programConfig';
 import ProgramSettings from '../ProgramSettings';
 import ModuleIcon from '../ModuleIcon';
 import HeroPanel from '../HeroPanel';
@@ -33,6 +34,12 @@ export default function AdminPanel({ onExit, onLogout }: Props) {
 
   const link = useMemo(() => buildShareLink(share), [share]);
   const copy = async () => { try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* ignore */ } };
+
+  // Nombre efectivo del programa (el que se edita en «Configurar»); si el módulo
+  // no tiene configuración de programa, usa la etiqueta del módulo.
+  const programName = (rt: ReportType): string | null => {
+    try { return getProgramConfig(rt).programName || null; } catch { return null; }
+  };
 
   // Configurando un programa concreto: reutiliza ProgramSettings.
   if (configuring) {
@@ -73,7 +80,7 @@ export default function AdminPanel({ onExit, onLogout }: Props) {
               <div className="flex min-w-0 items-center gap-3">
                 <ModuleIcon icon={m.icon} size={30} />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-slate-800">{m.label}</p>
+                  <p className="truncate text-sm font-bold text-slate-800">{programName(m.value) ?? m.label}</p>
                   <p className="truncate text-xs text-slate-400">{m.description}</p>
                 </div>
               </div>
