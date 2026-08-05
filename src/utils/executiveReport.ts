@@ -20,11 +20,6 @@ function lowest(groups: ComplianceGroup[]): ComplianceGroup | null {
   return list.length ? list.reduce((m, g) => (g.percent < m.percent ? g : m)) : null;
 }
 
-function highest(groups: ComplianceGroup[]): ComplianceGroup | null {
-  const list = named(groups);
-  return list.length ? list.reduce((m, g) => (g.percent > m.percent ? g : m)) : null;
-}
-
 interface Gap {
   dimension: 'indicador' | 'unidad' | 'turno';
   label: string;
@@ -116,9 +111,29 @@ function actionFor(gp: Gap, goal: number): ActionPlanRow {
 }
 
 /**
- * Redacta el informe ejecutivo clínico de NT 234 / LPP a partir de los
- * resultados calculados. Estilo de Referente Técnico de Buenas Prácticas
- * Clínicas; sin repetir cifras entre secciones y sin inventar datos.
+ * Recomendación de buena práctica NT 234 / LPP asociada a una brecha, redactada
+ * como acción concreta (no como interpretación). Sirve de guía para el plan de
+ * mejora según los resultados encontrados.
+ */
+function goodPracticeFor(label: string, dimension: 'indicador' | 'unidad' | 'turno'): string {
+  const n = normalize(label);
+  if (dimension === 'unidad') return `Unidad «${label}»: plan de mejora focalizado con metas por corte y seguimiento semanal de la adherencia.`;
+  if (dimension === 'turno') return `Turno ${label}: acompañamiento clínico en terreno y verificación de registros durante el turno.`;
+  if (/valoracion/.test(n)) return 'Aplicar la escala de valoración de riesgo (p. ej. Braden) a todo paciente al ingreso y reevaluar ante cambios de condición, dejando registro del resultado.';
+  if (/cambio de posicion|posicion|reposicion/.test(n)) return 'Reposicionar cada 2 horas (o según nivel de riesgo) usando reloj de cambios de posición y evitando el apoyo sobre prominencias óseas.';
+  if (/superficie|apoyo|colchon|cojin/.test(n)) return 'Indicar superficies de redistribución de presión (colchón/cojín) según el nivel de riesgo y verificar su uso continuo.';
+  if (/piel/.test(n)) return 'Inspeccionar la piel al menos una vez por turno, con foco en prominencias óseas y zonas de dispositivos, registrando los hallazgos.';
+  if (/humedad|higiene|cutanea|incontinencia/.test(n)) return 'Mantener la piel limpia y seca y usar productos barrera ante humedad o incontinencia.';
+  if (/nutric/.test(n)) return 'Evaluar el estado nutricional al ingreso e interconsultar a nutrición en los pacientes de riesgo.';
+  if (/prominencias|oseas/.test(n)) return 'Proteger las prominencias óseas y aliviar la presión en las zonas de mayor riesgo.';
+  if (/firma|registro|responsable/.test(n)) return 'Registrar cada cuidado con fecha, hora y responsable para asegurar la trazabilidad.';
+  return `Reforzar «${label}» con capacitación breve en terreno y verificación de la práctica.`;
+}
+
+/**
+ * Arma el informe de NT 234 / LPP a partir de los resultados calculados: refiere
+ * los resultados (sin interpretación de estilo ensayo) y entrega recomendaciones
+ * de buenas prácticas y un plan de acción para la mejora. Sin inventar datos.
  */
 function buildNT234Report(a: AnalysisResult): ExecutiveReport {
   const goal = a.config.goal;
@@ -130,7 +145,6 @@ function buildNT234Report(a: AnalysisResult): ExecutiveReport {
   const meets = g.meetsGoal;
 
   const worstUnit = lowest(a.complianceByUnit);
-  const bestUnit = highest(a.complianceByUnit);
   const worstShift = lowest(a.complianceByShift);
   const worstInd = a.criticalIndicators[0] ?? null;
   const valoracion = findValoracion(a);
@@ -138,46 +152,25 @@ function buildNT234Report(a: AnalysisResult): ExecutiveReport {
 
   const sections: ReportSection[] = [];
 
-  // ── RESUMEN EJECUTIVO (máx. 2 párrafos) ─────────────────────────────
+  // ── RESULTADOS (referidos, sin interpretación de estilo ensayo) ─────
   const resumen: string[] = [];
   if (c.riskFilterApplied) {
     resumen.push(
-      `La auditoría del programa ${tipo} abarcó ${c.totalOriginal} pacientes, de los cuales ${c.includedByRisk} —clasificados en riesgo moderado y alto— constituyeron la población efectivamente evaluada, en concordancia con el alcance del protocolo NT 234 / LPP.`,
+      `Se auditaron ${c.totalOriginal} pacientes; la población evaluada fueron los ${c.includedByRisk} clasificados en riesgo moderado y alto, según el alcance del protocolo NT 234 / LPP.`,
     );
   } else {
     resumen.push(
-      `La auditoría del programa ${tipo} consideró la totalidad de ${c.totalOriginal} registros auditados, sobre los cuales se evaluó la adherencia a las prácticas definidas por el estándar institucional.`,
+      `Se auditaron ${c.totalOriginal} registros, sobre los que se evaluó la adherencia a las prácticas del estándar institucional.`,
     );
   }
   if (g.aplicables === 0) {
-    resumen.push('La medición no registró casos aplicables, por lo que no es posible emitir un juicio de cumplimiento en este periodo.');
+    resumen.push('No se registraron casos aplicables, por lo que no es posible emitir un juicio de cumplimiento en este período.');
   } else {
-    const comparacion = meets
-      ? `situándose ${over} puntos por sobre la meta institucional de ${goal}%`
-      : `${gap} puntos por debajo de la meta institucional de ${goal}%`;
     resumen.push(
-      `El cumplimiento global de las prácticas de prevención alcanzó ${g.percent}%, ${comparacion}. En su conjunto, el servicio evidencia ${estadoServicio(g.percent, goal)}.`,
+      `Cumplimiento global: ${g.percent}% (${g.cumple} cumple / ${g.noCumple} no cumple, sobre ${g.aplicables} casos aplicables), ${meets ? `${over} puntos sobre` : `${gap} puntos bajo`} la meta institucional de ${goal}%.`,
     );
   }
-  sections.push({ id: 'resumen', title: 'Resumen ejecutivo', paragraphs: resumen });
-
-  // ── ANÁLISIS DE RESULTADOS (interpretación, sin repetir cifras) ─────
-  const analisis: string[] = [];
-  if (g.aplicables === 0) {
-    analisis.push('Sin casos aplicables no es posible interpretar el nivel de adherencia; se sugiere revisar el instrumento de auditoría y repetir la medición.');
-  } else if (meets) {
-    analisis.push(
-      'El resultado obtenido da cuenta de un proceso asistencial consolidado, en el que las prácticas preventivas se han incorporado a la rutina clínica. El foco de gestión se desplaza así desde la instalación de la práctica hacia su mantención en el tiempo, resguardando que la rotación de personal o la carga asistencial no erosionen los estándares alcanzados.',
-    );
-  } else {
-    analisis.push(
-      'El nivel de adherencia alcanzado indica que una parte relevante de los cuidados críticos para la prevención de lesiones por presión no se ejecuta de manera sistemática en la población de mayor riesgo. Más que una falla transversal, el patrón observado apunta a debilidades concentradas en prácticas puntuales, susceptibles de intervención focalizada de alto rendimiento.',
-    );
-    analisis.push(
-      'De sostenerse la brecha, el principal impacto operacional es el aumento de la probabilidad de lesiones prevenibles, con el consiguiente incremento de días cama, carga asistencial y exposición medicolegal para el servicio.',
-    );
-  }
-  sections.push({ id: 'analisis', title: 'Análisis de resultados', paragraphs: analisis });
+  sections.push({ id: 'resultados', title: 'Resultados', paragraphs: resumen });
 
   // ── PRINCIPALES HALLAZGOS (máx. 5, por importancia) ─────────────────
   const findings: { text: string; score: number }[] = [];
@@ -214,53 +207,32 @@ function buildNT234Report(a: AnalysisResult): ExecutiveReport {
   if (hallazgos.length === 0) hallazgos.push('El proceso auditado no presenta hallazgos críticos: la adherencia se distribuye de manera homogénea y sobre el estándar definido.');
   sections.push({ id: 'hallazgos', title: 'Principales hallazgos', paragraphs: [], bullets: hallazgos });
 
-  // ── FORTALEZAS ──────────────────────────────────────────────────────
-  const fortalezas: string[] = [];
-  if (a.highlightedIndicators.length === 0 && !bestUnit) {
-    fortalezas.push(
-      `En la presente medición ninguna práctica alcanza el estándar institucional de ${goal}%, por lo que no se consolidan fortalezas destacables; el esfuerzo debe orientarse íntegramente a la instalación de los cuidados básicos de prevención.`,
-    );
-  } else {
-    if (a.highlightedIndicators.length > 0) {
-      const nombres = a.highlightedIndicators.slice(0, 3).map((i) => `«${i.label}»`).join(', ');
-      fortalezas.push(`Entre las prácticas mejor consolidadas destacan ${nombres}, que superan el estándar definido y reflejan competencias instaladas en el equipo.`);
-    }
-    if (bestUnit && bestUnit.meetsGoal) {
-      fortalezas.push(`La unidad «${bestUnit.label}» sostiene el mejor desempeño del servicio (${bestUnit.percent}%), constituyendo un referente replicable hacia el resto de las unidades.`);
-    }
-    fortalezas.push(
-      'Mantener estos resultados es prioritario, pues constituyen la base sobre la cual estandarizar el resto de las prácticas y contribuyen de forma directa a reducir la incidencia de lesiones prevenibles y a fortalecer la cultura de seguridad del paciente.',
-    );
+  // ── RECOMENDACIONES DE BUENAS PRÁCTICAS (guía para el plan de mejora) ─
+  const recBullets: string[] = [];
+  const seenRec = new Set<string>();
+  // La valoración de riesgo es la puerta de entrada del proceso: va primero.
+  if (valoracion && valoracion.percent < goal) {
+    const r = goodPracticeFor(valoracion.label, 'indicador');
+    seenRec.add(r);
+    recBullets.push(r);
   }
-  sections.push({ id: 'fortalezas', title: 'Fortalezas', paragraphs: fortalezas });
-
-  // ── OPORTUNIDADES DE MEJORA (qué ocurre · causa · riesgo) ───────────
-  const oportunidades: string[] = [];
-  const queOcurre = [
-    'La práctica no se ejecuta ni se registra de manera sistemática',
-    'La ejecución del cuidado resulta intermitente y su registro, incompleto',
-    'La adherencia decae de forma marcada respecto del resto del proceso',
-  ];
-  const causas = [
-    'un patrón habitualmente asociado a sobrecarga asistencial, rotación de personal o falta de estandarización del registro',
-    'lo que suele reflejar debilidades en la continuidad del cuidado entre turnos y en la supervisión clínica',
-    'situación que puede originarse en la disponibilidad de insumos, brechas de capacitación o baja priorización de la práctica en la rutina diaria',
-  ];
-  const riesgos = [
-    'Esto eleva la exposición de los pacientes de mayor riesgo a lesiones prevenibles y compromete la trazabilidad del cuidado',
-    'De persistir, aumenta la probabilidad de progresión del daño en pacientes vulnerables y se pierde continuidad asistencial',
-    'El resultado es un mayor riesgo de eventos adversos evitables y un debilitamiento de la defensa clínica del servicio',
-  ];
-  gaps.slice(0, 3).forEach((gp, i) => {
-    const donde = gp.dimension === 'unidad' ? `la unidad «${gp.label}»` : gp.dimension === 'turno' ? `el turno ${gp.label}` : `«${gp.label}»`;
-    oportunidades.push(
-      `En ${donde} la adherencia se ubica ${gp.gap} puntos bajo la meta. ${queOcurre[i % queOcurre.length]}, ${causas[i % causas.length]}. ${riesgos[i % riesgos.length]}.`,
-    );
+  for (const gp of gaps) {
+    const r = goodPracticeFor(gp.label, gp.dimension);
+    if (!seenRec.has(r)) {
+      seenRec.add(r);
+      recBullets.push(r);
+    }
+    if (recBullets.length >= 6) break;
+  }
+  if (recBullets.length === 0) {
+    recBullets.push('Sostener las buenas prácticas mediante supervisión periódica y documentar los flujos que explican el buen resultado.');
+  }
+  sections.push({
+    id: 'recomendaciones',
+    title: 'Recomendaciones de buenas prácticas',
+    paragraphs: ['Sugerencias para el plan de mejora, según los resultados encontrados:'],
+    bullets: recBullets,
   });
-  if (oportunidades.length === 0) {
-    oportunidades.push('No se observan brechas relevantes respecto de la meta; la oportunidad de mejora se orienta a sostener el desempeño y a documentar las prácticas que explican el buen resultado.');
-  }
-  sections.push({ id: 'oportunidades', title: 'Oportunidades de mejora', paragraphs: oportunidades });
 
   // ── PLAN DE ACCIÓN SUGERIDO (tabla) ─────────────────────────────────
   const seen = new Set<string>();
