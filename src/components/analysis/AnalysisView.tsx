@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
-import type { ComplianceGroup, ParsedWorkbook, ReportConfig } from '../../types';
+import type { AnalysisResult, ComplianceGroup, ParsedWorkbook, ReportConfig } from '../../types';
 import { highlightLabel, reportTypeLabel } from '../../config/options';
 import { analyze, filterWorkbookByUnit, listUnits, unitShiftMatrix } from '../../utils/analysis';
 import KpiCards from './KpiCards';
@@ -14,12 +14,11 @@ import LppCharacterization from './LppCharacterization';
 import DomainComplianceSection from './DomainComplianceSection';
 import { domainCompliance } from '../../utils/domains';
 import PeriodComparison from './PeriodComparison';
-import TrafficLightCard from './charts/TrafficLightCard';
 import SignatureBlock from './SignatureBlock';
 import SurveillanceView from './SurveillanceView';
 import AuditorPanel from './AuditorPanel';
 import { analysisTypeLabel, showsEvolution } from '../../config/options';
-import { trafficLabel, trafficLightFor } from '../../utils/palette';
+import { trafficHex, trafficLabel, trafficLightFor, type TrafficColors } from '../../utils/palette';
 import { resolveProgramConfig } from '../../utils/programConfig';
 import { isAdminMode } from '../../utils/admin';
 
@@ -68,6 +67,32 @@ function IndicatorList({ items, emptyText, tone }: { items: ComplianceGroup[]; e
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Banner compacto del resultado global (reemplaza al semáforo grande). */
+function CompactStatus({ a, colors }: { a: AnalysisResult; colors: TrafficColors }) {
+  const light = trafficLightFor(a.global.percent, a.config.goal);
+  const color = trafficHex(light, colors);
+  return (
+    <section className="card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="h-11 w-11 shrink-0 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 14px ${color}66` }} />
+          <div>
+            <p className="text-3xl font-black leading-none" style={{ color }}>{a.global.percent}%</p>
+            <p className="mt-1 text-xs text-slate-500">Cumplimiento global · Meta {a.config.goal}%</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <span className="rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: `${color}1f`, color }}>{trafficLabel(light)}</span>
+          <p className="mt-1.5 text-xs text-slate-400">{a.global.cumple} cumple · {a.global.noCumple} no cumple</p>
+        </div>
+      </div>
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+        <div className="h-2 rounded-full transition-all" style={{ width: `${Math.min(100, a.global.percent)}%`, backgroundColor: color }} />
+      </div>
+    </section>
   );
 }
 
@@ -215,29 +240,29 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
         </div>
       )}
 
-      {/* Layout ordenado y sin duplicidad para NT 234 / LPP. */}
+      {/* Estructura del informe NT 234 como guía: resultado → detalle →
+          qué mejorar → evolución → recomendaciones y plan de acción. */}
       {!nt234NeedsRisk && isNT234 && (
         <>
-          {/* 2) Semáforo de cumplimiento (global · meta · estado). */}
-          <Section
-            title="Semáforo de cumplimiento"
-            icon="🚦"
-            subtitle={`Cumplimiento global ${a.global.percent}% · Meta ${config.goal}% · ${trafficLabel(trafficLightFor(a.global.percent, config.goal))}`}
-          >
-            <TrafficLightCard a={a} colors={program.traffic} />
-          </Section>
+          {/* 1) Resultado global (semáforo compacto). */}
+          <CompactStatus a={a} colors={program.traffic} />
 
-          {/* Lectura didáctica del resultado global. */}
-          <ReadingGuide a={a} />
-
-          {temporalSection}
-
-          {/* 3) Cumplimiento por indicador. */}
+          {/* 2) Cumplimiento por indicador. */}
           {a.complianceByIndicator.length > 0 && (
             <Section title="Cumplimiento por indicador" icon="📊" subtitle="Cumple / no cumple y % por indicador">
               <ComplianceTable groups={a.complianceByIndicator} firstHeader="Indicador" goal={config.goal} />
             </Section>
           )}
+
+          {/* 3) Qué mejorar y qué se mantiene. */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Section title="Indicadores críticos" icon="🔴" subtitle={`Bajo la meta de ${config.goal}% — priorizar`}>
+              <IndicatorList items={a.criticalIndicators} emptyText="Ningún indicador bajo la meta. 🎉" tone="red" />
+            </Section>
+            <Section title="Indicadores destacados" icon="🟢" subtitle={`En o sobre la meta de ${config.goal}%`}>
+              <IndicatorList items={a.highlightedIndicators} emptyText="Ningún indicador alcanza la meta todavía." tone="green" />
+            </Section>
+          </div>
 
           {/* 4) Cumplimiento por turno. */}
           {a.complianceByShift.length > 0 && (
@@ -246,24 +271,18 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
             </Section>
           )}
 
-          {/* 5-6) Indicadores críticos y destacados. */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Section title="Indicadores críticos" icon="🔴" subtitle={`Bajo la meta de ${config.goal}%`}>
-              <IndicatorList items={a.criticalIndicators} emptyText="Ningún indicador bajo la meta. 🎉" tone="red" />
-            </Section>
-            <Section title="Indicadores destacados" icon="🟢" subtitle={`En o sobre la meta de ${config.goal}%`}>
-              <IndicatorList items={a.highlightedIndicators} emptyText="Ningún indicador alcanza la meta todavía." tone="green" />
-            </Section>
-          </div>
-
-          {/* 7) Total por turno. */}
+          {/* 5) Total por turno. */}
           {a.totalByShift.length > 0 && (
             <Section title="Total por turno" icon="🕐" subtitle="Registros auditados por turno">
               <CountTable groups={a.totalByShift} firstHeader="Turno" total={a.totalRecords} />
             </Section>
           )}
 
-          {/* 8) Resumen ejecutivo completo + botones (Copiar / PDF / Word). */}
+          {/* 6) Evolución temporal (si aplica). */}
+          {temporalSection}
+
+          {/* 7) Informe: resultados, recomendaciones de buenas prácticas y plan
+                 de acción (+ Copiar / PDF / Word). */}
           <ExecutiveSummary analysis={a} fileName={fileName} onEdit={onEdit} />
 
           {admin && <AuditorPanel a={a} />}
