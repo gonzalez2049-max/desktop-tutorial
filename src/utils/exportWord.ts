@@ -2,9 +2,11 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  Footer,
   HeadingLevel,
   ImageRun,
   Packer,
+  PageNumber,
   Paragraph,
   ShadingType,
   Table,
@@ -35,11 +37,11 @@ function chartParagraphs(a: AnalysisResult, colors: TrafficColors): Paragraph[] 
   const charts = buildReportCharts(a, colors);
   if (!charts.length) return [];
   const out: Paragraph[] = [
-    new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 120 }, children: [new TextRun({ text: 'Gráficos institucionales', bold: true, color: FOREST, size: 24 })] }),
+    new Paragraph({ heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER, spacing: { before: 300, after: 120 }, children: [new TextRun({ text: 'Gráficos institucionales', bold: true, color: FOREST, size: 24 })] }),
   ];
   for (const ch of charts) {
     out.push(
-      new Paragraph({ spacing: { before: 120, after: 40 }, children: [new TextRun({ text: ch.title, bold: true, color: FOREST, size: 20 })] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 40 }, children: [new TextRun({ text: ch.title, bold: true, color: FOREST, size: 20 })] }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [new ImageRun({ data: dataUrlToBytes(ch.dataUrl), transformation: { width: ch.width, height: ch.height } })],
@@ -48,7 +50,27 @@ function chartParagraphs(a: AnalysisResult, colors: TrafficColors): Paragraph[] 
   }
   return out;
 }
-import { PALETTE, bare, complianceHex, trafficHex, trafficLabel, trafficLightFor, type TrafficColors } from './palette';
+import { PALETTE, bare, complianceHex, trafficHex, trafficLightFor, type TrafficColors } from './palette';
+
+/** Pie de página institucional (confidencialidad + folio + número de página). */
+function docFooter(folio: string): Footer {
+  const muted = bare(PALETTE.muted);
+  return new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        border: { top: { style: BorderStyle.SINGLE, size: 4, color: SOFT, space: 6 } },
+        spacing: { before: 60 },
+        children: [
+          new TextRun({ text: `NEX Report · Documento confidencial de uso interno · Folio ${folio} · Página `, size: 14, color: muted }),
+          new TextRun({ children: [PageNumber.CURRENT], size: 14, color: muted }),
+          new TextRun({ text: ' de ', size: 14, color: muted }),
+          new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: muted }),
+        ],
+      }),
+    ],
+  });
+}
 
 const SOFT = bare(PALETTE.line);
 const softBorder = { style: BorderStyle.SINGLE, size: 4, color: SOFT };
@@ -223,13 +245,14 @@ function kpiTable(a: AnalysisResult, colors?: TrafficColors): Table {
 function heading(t: string): Paragraph {
   return new Paragraph({
     heading: HeadingLevel.HEADING_2,
+    alignment: AlignmentType.CENTER,
     spacing: { before: 300, after: 120 },
     children: [new TextRun({ text: t, bold: true, color: FOREST, size: 24 })],
   });
 }
 
 function sectionHeading(t: string): Paragraph {
-  return new Paragraph({ spacing: { before: 180, after: 60 }, children: [new TextRun({ text: t, bold: true, color: FOREST, size: 20 })] });
+  return new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 180, after: 60 }, children: [new TextRun({ text: t, bold: true, color: FOREST, size: 20 })] });
 }
 
 /** Tabla del plan de acción sugerido. */
@@ -396,8 +419,8 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
   ] });
   const children: (Paragraph | Table)[] = [
     masthead,
-    new Paragraph({ spacing: { before: 200, after: 60 }, children: [new TextRun({ text: program.programName || report.meta.reportTypeLabel, bold: true, size: 40, color: bare(PALETTE.ink) })] }),
-    new Paragraph({ spacing: { after: 160 }, children: [new TextRun({ text: program.executiveBaseText.split('.').slice(0, 1).join('.') + '.', color: bare(PALETTE.muted), size: 20 })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 200, after: 60 }, children: [new TextRun({ text: program.programName || report.meta.reportTypeLabel, bold: true, size: 40, color: bare(PALETTE.ink) })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 160 }, children: [new TextRun({ text: program.executiveBaseText.split('.').slice(0, 1).join('.') + '.', color: bare(PALETTE.muted), size: 20 })] }),
     metaTable,
     new Paragraph({ spacing: { after: 160 }, children: [] }),
   ];
@@ -417,21 +440,47 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
     );
     const docV = new Document({
       styles: { default: { document: { run: { font: 'Calibri', color: bare(PALETTE.ink) } } } },
-      sections: [{ properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } }, children }],
+      sections: [{ properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } }, footers: { default: docFooter(folio) }, children }],
     });
     saveAs(await Packer.toBlob(docV), fileName.replace(/\.[^.]+$/, '') + '_NEX-Report.docx');
     return;
   }
 
-  // Semáforo de cumplimiento + KPIs (auditorías de cumplimiento).
+  // Banda resumen (mismo estilo que el PDF): conclusión + % grande, en verde
+  // tenue. Reemplaza la línea de semáforo por un bloque centrado y compacto.
+  const diff = Math.abs(Math.round((g.percent - a.config.goal) * 10) / 10);
+  const bandText = g.aplicables === 0
+    ? 'La medición no registró casos aplicables en el período.'
+    : `El cumplimiento global alcanzó ${g.percent}% sobre ${g.aplicables} oportunidades aplicables, ${diff} puntos ${g.meetsGoal ? 'por sobre' : 'bajo'} la meta institucional de ${a.config.goal}%.`;
+  const noBorders = { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } };
+  const resumenBand = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: noBorders,
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 68, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.CLEAR, fill: 'E9F3EC', color: 'auto' },
+            margins: { top: 140, bottom: 140, left: 160, right: 120 },
+            children: [new Paragraph({ children: [text(bandText, { size: 21, color: PALETTE.ink })] })],
+          }),
+          new TableCell({
+            width: { size: 32, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.CLEAR, fill: 'E9F3EC', color: 'auto' },
+            margins: { top: 140, bottom: 140, left: 120, right: 160 },
+            children: [
+              new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: `${g.percent}%`, bold: true, color: bare(trafficHex(light, colors)), size: 48 })] }),
+              new Paragraph({ alignment: AlignmentType.RIGHT, children: [text(`meta ${a.config.goal}%`, { color: PALETTE.muted, size: 16 })] }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
   children.push(
-    new Paragraph({
-      spacing: { after: 160 },
-      children: [
-        new TextRun({ text: '● ', color: bare(trafficHex(light, colors)), size: 30 }),
-        text(`Semáforo de cumplimiento: ${trafficLabel(light)} — ${g.percent}% (meta ${a.config.goal}%)`, { bold: true }),
-      ],
-    }),
+    resumenBand,
+    new Paragraph({ spacing: { after: 120 }, children: [] }),
     heading('Resumen de indicadores (KPIs)'),
     kpiTable(a, colors),
   );
@@ -517,7 +566,7 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
 
   const doc = new Document({
     styles: { default: { document: { run: { font: 'Calibri', color: bare(PALETTE.ink) } } } },
-    sections: [{ properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } }, children }],
+    sections: [{ properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } }, footers: { default: docFooter(folio) }, children }],
   });
 
   const blob = await Packer.toBlob(doc);
