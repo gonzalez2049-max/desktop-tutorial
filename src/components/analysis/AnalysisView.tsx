@@ -254,6 +254,13 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
             </Section>
           )}
 
+          {/* Consolidado por unidad: comparación entre servicios (objetivo del flujo). */}
+          {config.consolidatedByUnit && allUnits && a.complianceByUnit.length > 0 && (
+            <Section title="Cumplimiento por unidad" icon="🏥" subtitle="Comparación entre servicios del período">
+              <ComplianceTable groups={a.complianceByUnit} firstHeader="Unidad" goal={config.goal} />
+            </Section>
+          )}
+
           {/* 3) Qué mejorar y qué se mantiene. */}
           <div className="grid gap-6 lg:grid-cols-2">
             <Section title="Indicadores críticos" icon="🔴" subtitle={`Bajo la meta de ${config.goal}% — priorizar`}>

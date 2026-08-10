@@ -10,7 +10,9 @@ import AnalysisView from './components/analysis/AnalysisView';
 import DashboardUpload from './components/dashboard/DashboardUpload';
 import ConsolidatedDashboard from './components/dashboard/ConsolidatedDashboard';
 import ComparativeView from './components/comparative/ComparativeView';
+import MultiFileChooser from './components/MultiFileChooser';
 import { analyzePeriods, type ComparativePeriod } from './utils/comparative';
+import { mergeWorkbooksByUnit } from './utils/excelParser';
 import NexLogo from './components/NexLogo';
 import Welcome from './components/Welcome';
 import BackBar from './components/BackBar';
@@ -34,6 +36,7 @@ type Stage =
   | 'result'
   | 'dashboard-upload'
   | 'dashboard'
+  | 'multi-choice'
   | 'comparative'
   | 'otros';
 
@@ -45,7 +48,7 @@ const STEPS = [
   { key: 'result', label: 'Reporte' },
 ];
 
-const STAGE_INDEX: Record<Stage, number> = { welcome: 0, home: 0, audit: 0, admin: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4, comparative: 4, otros: 0 };
+const STAGE_INDEX: Record<Stage, number> = { welcome: 0, home: 0, audit: 0, admin: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4, 'multi-choice': 1, comparative: 4, otros: 0 };
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('welcome');
@@ -59,6 +62,8 @@ export default function App() {
   const [config, setConfig] = useState<ReportConfig | null>(null);
   const [dashboardRaw, setDashboardRaw] = useState<RawModule[] | null>(null);
   const [comparative, setComparative] = useState<ComparativePeriod[] | null>(null);
+  const [multiWbs, setMultiWbs] = useState<ParsedWorkbook[] | null>(null);
+  const [consolidatedByUnit, setConsolidatedByUnit] = useState(false);
 
   /** Navega hacia adelante recordando la pantalla actual. */
   const go = (next: Stage) => {
@@ -92,6 +97,8 @@ export default function App() {
     setConfig(null);
     setDashboardRaw(null);
     setComparative(null);
+    setMultiWbs(null);
+    setConsolidatedByUnit(false);
   };
 
   const handleSelectProgram = (rt: ReportType) => {
@@ -110,15 +117,31 @@ export default function App() {
   };
 
   const handleParsed = (wb: ParsedWorkbook) => {
+    setConsolidatedByUnit(false);
     setWorkbook(wb);
     go('review');
   };
 
-  /** Varios archivos → comparativo mensual (cada archivo es un mes). */
+  /** Varios archivos → selector: comparar meses o consolidar por unidad. */
   const handleParsedMany = (wbs: ParsedWorkbook[]) => {
     if (!reportType) return;
-    setComparative(analyzePeriods(wbs, reportType, auditId));
+    setMultiWbs(wbs);
+    go('multi-choice');
+  };
+
+  /** Selector → comparativo mensual (cada archivo es un mes). */
+  const handleChooseMonths = () => {
+    if (!reportType || !multiWbs) return;
+    setComparative(analyzePeriods(multiWbs, reportType, auditId));
     go('comparative');
+  };
+
+  /** Selector → informe consolidado por unidad (cada archivo es una unidad). */
+  const handleChooseUnits = (unitByFile: Record<string, string>) => {
+    if (!reportType || !multiWbs) return;
+    setConsolidatedByUnit(true);
+    setWorkbook(mergeWorkbooksByUnit(multiWbs, reportType, auditId, unitByFile));
+    go('review');
   };
 
   const handleColumns = (columns: DetectedColumn[]) => {
@@ -127,7 +150,7 @@ export default function App() {
 
   const handleWizardComplete = (cfg: ReportConfig) => {
     if (!workbook) return;
-    setConfig({ ...cfg, auditId });
+    setConfig({ ...cfg, auditId, consolidatedByUnit });
     // La pantalla anterior real del reporte es el asistente.
     setHistory((h) => [...h, 'wizard']);
     setStage('generating');
@@ -139,7 +162,7 @@ export default function App() {
   // Portada de bienvenida: pantalla completa, sin encabezado ni pasos.
   if (stage === 'welcome') return <Welcome onStart={() => go('home')} />;
 
-  const showStepper = stage !== 'otros' && stage !== 'dashboard' && stage !== 'dashboard-upload' && stage !== 'comparative' && stage !== 'admin';
+  const showStepper = stage !== 'otros' && stage !== 'dashboard' && stage !== 'dashboard-upload' && stage !== 'comparative' && stage !== 'multi-choice' && stage !== 'admin';
 
   return (
     <div className="min-h-screen">
@@ -197,6 +220,10 @@ export default function App() {
         {stage === 'otros' && <OtrosInformes onExit={goHome} />}
 
         {stage === 'upload' && reportType && <FileUpload onParsed={handleParsed} onParsedMany={handleParsedMany} onBack={goBack} reportType={reportType} auditId={auditId} />}
+
+        {stage === 'multi-choice' && multiWbs && (
+          <MultiFileChooser workbooks={multiWbs} onMonths={handleChooseMonths} onUnits={handleChooseUnits} onBack={goBack} />
+        )}
 
         {stage === 'comparative' && comparative && reportType && (
           <ComparativeView initialPeriods={comparative} reportType={reportType} onReset={reset} onAddMore={goBack} />
