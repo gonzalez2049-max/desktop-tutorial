@@ -9,6 +9,8 @@ import Wizard from './components/wizard/Wizard';
 import AnalysisView from './components/analysis/AnalysisView';
 import DashboardUpload from './components/dashboard/DashboardUpload';
 import ConsolidatedDashboard from './components/dashboard/ConsolidatedDashboard';
+import ComparativeView from './components/comparative/ComparativeView';
+import { analyzePeriods, type ComparativePeriod } from './utils/comparative';
 import NexLogo from './components/NexLogo';
 import Welcome from './components/Welcome';
 import BackBar from './components/BackBar';
@@ -32,6 +34,7 @@ type Stage =
   | 'result'
   | 'dashboard-upload'
   | 'dashboard'
+  | 'comparative'
   | 'otros';
 
 const STEPS = [
@@ -42,7 +45,7 @@ const STEPS = [
   { key: 'result', label: 'Reporte' },
 ];
 
-const STAGE_INDEX: Record<Stage, number> = { welcome: 0, home: 0, audit: 0, admin: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4, otros: 0 };
+const STAGE_INDEX: Record<Stage, number> = { welcome: 0, home: 0, audit: 0, admin: 0, upload: 1, review: 2, wizard: 3, generating: 3, result: 4, 'dashboard-upload': 1, dashboard: 4, comparative: 4, otros: 0 };
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('welcome');
@@ -55,6 +58,7 @@ export default function App() {
   const [workbook, setWorkbook] = useState<ParsedWorkbook | null>(null);
   const [config, setConfig] = useState<ReportConfig | null>(null);
   const [dashboardRaw, setDashboardRaw] = useState<RawModule[] | null>(null);
+  const [comparative, setComparative] = useState<ComparativePeriod[] | null>(null);
 
   /** Navega hacia adelante recordando la pantalla actual. */
   const go = (next: Stage) => {
@@ -87,6 +91,7 @@ export default function App() {
     setWorkbook(null);
     setConfig(null);
     setDashboardRaw(null);
+    setComparative(null);
   };
 
   const handleSelectProgram = (rt: ReportType) => {
@@ -109,6 +114,13 @@ export default function App() {
     go('review');
   };
 
+  /** Varios archivos → comparativo mensual (cada archivo es un mes). */
+  const handleParsedMany = (wbs: ParsedWorkbook[]) => {
+    if (!reportType) return;
+    setComparative(analyzePeriods(wbs, reportType, auditId));
+    go('comparative');
+  };
+
   const handleColumns = (columns: DetectedColumn[]) => {
     if (workbook) setWorkbook({ ...workbook, columns });
   };
@@ -127,7 +139,7 @@ export default function App() {
   // Portada de bienvenida: pantalla completa, sin encabezado ni pasos.
   if (stage === 'welcome') return <Welcome onStart={() => go('home')} />;
 
-  const showStepper = stage !== 'otros' && stage !== 'dashboard' && stage !== 'dashboard-upload' && stage !== 'admin';
+  const showStepper = stage !== 'otros' && stage !== 'dashboard' && stage !== 'dashboard-upload' && stage !== 'comparative' && stage !== 'admin';
 
   return (
     <div className="min-h-screen">
@@ -184,7 +196,11 @@ export default function App() {
 
         {stage === 'otros' && <OtrosInformes onExit={goHome} />}
 
-        {stage === 'upload' && reportType && <FileUpload onParsed={handleParsed} onBack={goBack} reportType={reportType} auditId={auditId} />}
+        {stage === 'upload' && reportType && <FileUpload onParsed={handleParsed} onParsedMany={handleParsedMany} onBack={goBack} reportType={reportType} auditId={auditId} />}
+
+        {stage === 'comparative' && comparative && reportType && (
+          <ComparativeView initialPeriods={comparative} reportType={reportType} onReset={reset} onAddMore={goBack} />
+        )}
 
         {stage === 'review' && workbook && (
           <ColumnReview
