@@ -51,7 +51,8 @@ export default function FileUpload({ onParsed, onParsedMany, reportType, auditId
     [onParsed, reportType, auditId],
   );
 
-  // Carga de varios archivos → comparativo mensual (un mes por archivo).
+  // Carga de varios archivos. Los archivos vacíos NO se descartan: se conservan
+  // (rows = []) para representar la unidad que «no midió» en el consolidado.
   const handleMany = useCallback(
     async (files: File[]) => {
       setError(null);
@@ -61,24 +62,23 @@ export default function FileUpload({ onParsed, onParsedMany, reportType, auditId
       for (let i = 0; i < files.length; i++) {
         setMultiStatus(`Leyendo ${i + 1} de ${files.length}: ${files[i].name}`);
         try {
-          const wb = await parseExcelFile(files[i], reportType, auditId);
-          if (wb.rows && wb.rows.length > 0) parsed.push(wb);
-          else failed.push(files[i].name);
+          parsed.push(await parseExcelFile(files[i], reportType, auditId, { allowEmpty: true }));
         } catch {
-          failed.push(files[i].name);
+          failed.push(files[i].name); // archivo ilegible / corrupto (no simplemente vacío)
         }
       }
       setMultiStatus(null);
+      const withData = parsed.filter((w) => w.rows.length > 0);
       if (parsed.length === 0) {
         setError('No pude leer ninguno de los archivos. Revisa que sean Excel/CSV con una fila de títulos y los datos debajo.');
         return;
       }
-      if (parsed.length === 1) {
-        // Un solo archivo válido: informe individual normal.
+      if (parsed.length === 1 && withData.length === 1) {
+        // Un solo archivo con datos: informe individual normal.
         onParsed(parsed[0]);
         return;
       }
-      if (failed.length > 0) setError(`Comparé ${parsed.length} archivos. No pude leer: ${failed.join(', ')}.`);
+      if (failed.length > 0) setError(`No pude abrir ${failed.length} archivo(s): ${failed.join(', ')}. El resto continúa.`);
       onParsedMany?.(parsed);
     },
     [onParsed, onParsedMany, reportType, auditId],

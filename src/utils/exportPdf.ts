@@ -486,6 +486,18 @@ function drawSurveillance(ctx: Ctx, a: AnalysisResult): void {
   if (s.hasDate) rateTable(`Resultado por período (${s.granularityLabel})`, s.byPeriod, 'Período');
 }
 
+/** Párrafo breve en gris (notas informativas del informe). */
+function drawNote(ctx: Ctx, note: string): void {
+  const { doc, margin, pageW } = ctx;
+  doc.setFont('times', 'normal');
+  doc.setFontSize(10.5);
+  doc.setTextColor(...MUTED);
+  const lines = doc.splitTextToSize(note, pageW - margin * 2);
+  ensure(ctx, lines.length * 13 + 4);
+  doc.text(lines, margin, (ctx.y += 13));
+  ctx.y += (lines.length - 1) * 13;
+}
+
 function drawCharts(ctx: Ctx, a: AnalysisResult): void {
   const charts = buildReportCharts(a, ctx.colors);
   if (!charts.length) return;
@@ -602,6 +614,10 @@ function buildPdfDoc(a: AnalysisResult, fileName: string): jsPDF {
   if (a.complianceByUnit.length) {
     sectionTitle(ctx, 'Cumplimiento por unidad');
     drawComplianceTable(ctx, a.complianceByUnit, 'Unidad', a.config.goal);
+  }
+  if (a.config.emptyUnits && a.config.emptyUnits.length) {
+    sectionTitle(ctx, 'Unidades sin registros este mes');
+    drawNote(ctx, `No auditaron el período (archivo sin datos) y no afectan el cumplimiento: ${a.config.emptyUnits.join(', ')}.`);
   }
   for (const bd of a.complianceByBreakdown) {
     sectionTitle(ctx, `Cumplimiento por ${bd.label.toLowerCase()}`);

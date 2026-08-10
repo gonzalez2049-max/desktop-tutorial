@@ -513,6 +513,16 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
   if (a.complianceByUnit.length) {
     children.push(heading('Cumplimiento por unidad'), complianceTable(a.complianceByUnit, 'Unidad', a.config.goal, colors));
   }
+  if (a.config.emptyUnits && a.config.emptyUnits.length) {
+    children.push(
+      heading('Unidades sin registros este mes'),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 140 },
+        children: [text(`No auditaron el período (archivo sin datos) y no afectan el cumplimiento: ${a.config.emptyUnits.join(', ')}.`, { color: PALETTE.muted })],
+      }),
+    );
+  }
   // Desgloses configurados (p. ej. estamento). Vacío en NT 234.
   for (const bd of a.complianceByBreakdown) {
     children.push(heading(`Cumplimiento por ${bd.label.toLowerCase()}`), complianceTable(bd.groups, bd.label, a.config.goal, colors));

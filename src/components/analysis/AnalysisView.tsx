@@ -52,6 +52,22 @@ function Section({ title, icon, subtitle, children }: { title: string; icon?: st
   );
 }
 
+/** Unidades cuyo archivo llegó vacío: no auditaron el período (consolidado). */
+function EmptyUnitsSection({ units }: { units?: string[] }) {
+  if (!units || units.length === 0) return null;
+  return (
+    <Section title="Unidades sin registros este mes" icon="🚫" subtitle="Su archivo llegó vacío: no auditaron el período. No afectan el % de cumplimiento.">
+      <div className="flex flex-wrap gap-2">
+        {units.map((u) => (
+          <span key={u} className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-800">
+            🏥 {u} <span className="text-xs font-normal text-amber-600">· no auditó</span>
+          </span>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 /** Lista compacta de indicadores (críticos o destacados). */
 function IndicatorList({ items, emptyText, tone }: { items: ComplianceGroup[]; emptyText: string; tone: 'red' | 'green' }) {
   if (items.length === 0) {
@@ -260,6 +276,7 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
               <ComplianceTable groups={a.complianceByUnit} firstHeader="Unidad" goal={config.goal} />
             </Section>
           )}
+          {config.consolidatedByUnit && allUnits && <EmptyUnitsSection units={config.emptyUnits} />}
 
           {/* 3) Qué mejorar y qué se mantiene. */}
           <div className="grid gap-6 lg:grid-cols-2">
@@ -361,6 +378,7 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
               <ComplianceTable groups={a.complianceByUnit} firstHeader="Unidad" goal={config.goal} />
             </Section>
           )}
+          {config.consolidatedByUnit && allUnits && <EmptyUnitsSection units={config.emptyUnits} />}
 
           {/* Desgloses configurados por la auditoría (p. ej. estamento, tipo de higiene). */}
           {a.complianceByBreakdown.map((bd) => (
