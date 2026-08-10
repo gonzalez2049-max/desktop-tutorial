@@ -5,6 +5,8 @@ import { EXPECTED_COLUMNS, exampleCsv, templateCsv, csvToFile, downloadCsv } fro
 
 interface FileUploadProps {
   onParsed: (workbook: ParsedWorkbook) => void;
+  /** Comparativo: se dispara cuando se cargan 2+ archivos (un mes por archivo). */
+  onParsedMany?: (workbooks: ParsedWorkbook[]) => void;
   onBack?: () => void;
   /** Programa seleccionado: activa su perfil de reconocimiento de columnas. */
   reportType?: ReportType;
@@ -13,10 +15,11 @@ interface FileUploadProps {
 }
 
 /** Paso 2: carga del archivo Excel con soporte de arrastrar y soltar. */
-export default function FileUpload({ onParsed, reportType, auditId }: FileUploadProps) {
+export default function FileUpload({ onParsed, onParsedMany, reportType, auditId }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [multiStatus, setMultiStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleFile = useCallback(
@@ -46,6 +49,49 @@ export default function FileUpload({ onParsed, reportType, auditId }: FileUpload
       }
     },
     [onParsed, reportType, auditId],
+  );
+
+  // Carga de varios archivos → comparativo mensual (un mes por archivo).
+  const handleMany = useCallback(
+    async (files: File[]) => {
+      setError(null);
+      setMultiStatus(`Leyendo ${files.length} archivos…`);
+      const parsed: ParsedWorkbook[] = [];
+      const failed: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        setMultiStatus(`Leyendo ${i + 1} de ${files.length}: ${files[i].name}`);
+        try {
+          const wb = await parseExcelFile(files[i], reportType, auditId);
+          if (wb.rows && wb.rows.length > 0) parsed.push(wb);
+          else failed.push(files[i].name);
+        } catch {
+          failed.push(files[i].name);
+        }
+      }
+      setMultiStatus(null);
+      if (parsed.length === 0) {
+        setError('No pude leer ninguno de los archivos. Revisa que sean Excel/CSV con una fila de títulos y los datos debajo.');
+        return;
+      }
+      if (parsed.length === 1) {
+        // Un solo archivo válido: informe individual normal.
+        onParsed(parsed[0]);
+        return;
+      }
+      if (failed.length > 0) setError(`Comparé ${parsed.length} archivos. No pude leer: ${failed.join(', ')}.`);
+      onParsedMany?.(parsed);
+    },
+    [onParsed, onParsedMany, reportType, auditId],
+  );
+
+  /** Enruta según la cantidad de archivos: 1 → informe; 2+ → comparativo. */
+  const handleFiles = useCallback(
+    (files: File[]) => {
+      if (files.length === 0) return;
+      if (files.length === 1 || !onParsedMany) handleFile(files[0]);
+      else handleMany(files);
+    },
+    [handleFile, handleMany, onParsedMany],
   );
 
   const [showHelp, setShowHelp] = useState(false);
@@ -79,8 +125,8 @@ export default function FileUpload({ onParsed, reportType, auditId }: FileUpload
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          const file = e.dataTransfer.files?.[0];
-          if (file) handleFile(file);
+          const files = Array.from(e.dataTransfer.files ?? []);
+          if (files.length) handleFiles(files);
         }}
         onClick={() => inputRef.current?.click()}
         onKeyDown={(e) => {
@@ -98,11 +144,11 @@ export default function FileUpload({ onParsed, reportType, auditId }: FileUpload
         aria-label="Subir archivo: arrastra aquí o presiona Enter para seleccionar un Excel o CSV"
       >
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-nex-100 text-3xl">📄</div>
-        {loading ? (
-          <p className="font-medium text-nex-700">Leyendo el archivo…</p>
+        {loading || multiStatus ? (
+          <p className="font-medium text-nex-700">{multiStatus ?? 'Leyendo el archivo…'}</p>
         ) : (
           <>
-            <p className="font-semibold text-slate-700">Arrastra tu archivo aquí o haz clic para seleccionar</p>
+            <p className="font-semibold text-slate-700">Arrastra tus archivos aquí o haz clic para seleccionar</p>
             <p className="text-sm text-slate-400">Formatos: .xlsx, .xls, .csv</p>
           </>
         )}
@@ -110,14 +156,21 @@ export default function FileUpload({ onParsed, reportType, auditId }: FileUpload
           ref={inputRef}
           type="file"
           accept=".xlsx,.xls,.csv"
+          multiple={!!onParsedMany}
           className="hidden"
           onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleFile(file);
+            const files = Array.from(e.target.files ?? []);
+            if (files.length) handleFiles(files);
             e.target.value = '';
           }}
         />
       </div>
+
+      {onParsedMany && (
+        <p className="mt-3 rounded-xl bg-nex-50/60 px-4 py-2.5 text-center text-xs text-slate-500">
+          💡 <strong className="text-nex-700">¿Comparar meses?</strong> Sube <strong>varios Excel a la vez</strong> (uno por mes) y te muestro la evolución del cumplimiento.
+        </p>
+      )}
 
       {error && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
