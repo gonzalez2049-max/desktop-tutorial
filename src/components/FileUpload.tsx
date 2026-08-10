@@ -168,7 +168,7 @@ export default function FileUpload({ onParsed, onParsedMany, reportType, auditId
 
       {onParsedMany && (
         <p className="mt-3 rounded-xl bg-nex-50/60 px-4 py-2.5 text-center text-xs text-slate-500">
-          💡 <strong className="text-nex-700">¿Comparar meses?</strong> Sube <strong>varios Excel a la vez</strong> (uno por mes) y te muestro la evolución del cumplimiento.
+          💡 <strong className="text-nex-700">Sube varios Excel a la vez</strong> para comparar <strong>meses</strong> (evolución) o consolidar las <strong>unidades</strong> del mes en un solo informe.
         </p>
       )}
 

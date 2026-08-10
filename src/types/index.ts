@@ -69,6 +69,12 @@ export interface ReportConfig {
   goal: number; // meta de cumplimiento en % (0..100)
   /** Vigilancia: tipo de servicio elegido manualmente para fijar la referencia. */
   serviceType?: string;
+  /**
+   * Informe consolidado por unidad (un archivo por servicio): fuerza el
+   * desglose «Cumplimiento por unidad» en pantalla, PDF y Word aunque el
+   * programa (p. ej. NT 234) no lo muestre en su informe estándar.
+   */
+  consolidatedByUnit?: boolean;
 }
 
 /** Fila cruda leída del Excel. */

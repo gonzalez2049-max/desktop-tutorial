@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { ParsedWorkbook, RawRow, ReportType } from '../types';
-import { detectColumns } from './columnDetection';
+import { columnForRole, detectColumns } from './columnDetection';
 import { applyDetectionProfile } from './detectionProfiles';
 
 /**
@@ -129,6 +129,57 @@ export async function readConsolidatedWorkbook(file: File): Promise<{ fileName: 
 /** Convierte una hoja mapeada a una auditoría en un ParsedWorkbook. */
 export function parseMappedSheet(sheet: WorkbookSheet, fileName: string, reportType: ReportType, auditId: string): ParsedWorkbook | null {
   return buildParsedFromSheet(sheet.sheet, sheet.sheetName, fileName, reportType, auditId);
+}
+
+/** Nombre legible de unidad a partir del archivo (sin extensión ni guiones). */
+function unitNameFromFile(fileName: string): string {
+  const base = fileName.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+  return base || fileName;
+}
+
+/**
+ * Fusiona varios archivos (uno por unidad/servicio) en un único workbook para el
+ * informe consolidado. Cada fila queda etiquetada con su unidad:
+ *  - si el archivo ya trae una columna de unidad, se respeta su valor por fila;
+ *  - si no, se usa el nombre del archivo (o el rótulo indicado en `unitByFile`).
+ * Todas las filas quedan bajo una única columna canónica «Unidad», de modo que el
+ * motor agrupe correctamente el cumplimiento por servicio.
+ */
+export function mergeWorkbooksByUnit(
+  workbooks: ParsedWorkbook[],
+  reportType?: ReportType,
+  auditId?: string,
+  unitByFile?: Record<string, string>,
+): ParsedWorkbook {
+  const UNIT = 'Unidad';
+  const merged: RawRow[] = [];
+  for (const wb of workbooks) {
+    const unitCol = columnForRole(wb.columns, 'unidad');
+    const fallback = unitByFile?.[wb.fileName]?.trim() || unitNameFromFile(wb.fileName);
+    for (const r of wb.rows) {
+      const fromCol = unitCol ? String(r[unitCol] ?? '').trim() : '';
+      const unit = fromCol || fallback;
+      const row: RawRow = {};
+      for (const [k, v] of Object.entries(r)) {
+        if (unitCol && k === unitCol) continue; // se reemplaza por la columna canónica
+        row[k] = v;
+      }
+      row[UNIT] = unit;
+      merged.push(row);
+    }
+  }
+  const headerSet = new Set<string>();
+  for (const r of merged) for (const k of Object.keys(r)) headerSet.add(k);
+  const headers = [...headerSet];
+  const base = detectColumns(headers, merged);
+  const columns = reportType ? applyDetectionProfile(reportType, base, merged, auditId) : base;
+  return {
+    fileName: `Consolidado · ${workbooks.length} unidades`,
+    sheetName: 'Consolidado',
+    headers,
+    rows: merged,
+    columns,
+  };
 }
 
 /** Genera un Excel a partir de filas arbitrarias y lo devuelve como Blob. */

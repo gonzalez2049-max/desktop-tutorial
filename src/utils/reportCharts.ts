@@ -385,8 +385,9 @@ export function buildReportCharts(a: AnalysisResult, colors: TrafficColors = DEF
   if (a.complianceByIndicator.length) charts.push(barsChart('Cumplimiento por indicador', a.complianceByIndicator, a.config.goal, colors, { labelW: 170 }));
   if (a.complianceByShift.length) charts.push(barsChart('Cumplimiento por turno', a.complianceByShift, a.config.goal, colors, { labelW: 90 }));
   // Desgloses adicionales (p. ej. estamento) y cumplimiento por unidad: solo en
-  // auditorías distintas de NT 234, para no alterar sus gráficos.
-  if (a.config.reportType !== 'NT234_LPP') {
+  // auditorías distintas de NT 234, para no alterar sus gráficos. El informe
+  // consolidado por unidad sí lo incluye (es su objetivo).
+  if (a.config.reportType !== 'NT234_LPP' || a.config.consolidatedByUnit) {
     if (a.complianceByUnit.length) charts.push(barsChart('Cumplimiento por unidad', a.complianceByUnit, a.config.goal, colors, { labelW: 150 }));
     for (const bd of a.complianceByBreakdown) {
       if (bd.groups.length) charts.push(barsChart(`Cumplimiento por ${bd.label.toLowerCase()}`, bd.groups, a.config.goal, colors, { labelW: 150 }));
