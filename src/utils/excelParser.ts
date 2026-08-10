@@ -8,12 +8,18 @@ import { applyDetectionProfile } from './detectionProfiles';
  * y la detección automática de columnas. Si se indica el programa, aplica su
  * perfil de reconocimiento (p. ej. NT 234 HUAP) para afinar la asignación.
  */
-export async function parseExcelFile(file: File, reportType?: ReportType, auditId?: string): Promise<ParsedWorkbook> {
+export async function parseExcelFile(
+  file: File,
+  reportType?: ReportType,
+  auditId?: string,
+  opts: { allowEmpty?: boolean } = {},
+): Promise<ParsedWorkbook> {
   const data = await file.arrayBuffer();
   const workbook = XLSX.read(data, { cellDates: true });
 
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) {
+    if (opts.allowEmpty) return { fileName: file.name, sheetName: '', headers: [], rows: [], columns: [] };
     throw new Error('El archivo no contiene hojas de cálculo.');
   }
   const sheet = workbook.Sheets[sheetName];
@@ -22,6 +28,9 @@ export async function parseExcelFile(file: File, reportType?: ReportType, auditI
   const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { defval: null, raw: false });
 
   if (rows.length === 0) {
+    // Modo consolidado: un archivo sin filas es una unidad que «no midió»;
+    // se devuelve vacío para representarla, en vez de descartar el archivo.
+    if (opts.allowEmpty) return { fileName: file.name, sheetName, headers: [], rows: [], columns: [] };
     throw new Error('La hoja seleccionada está vacía.');
   }
 

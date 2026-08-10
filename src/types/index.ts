@@ -75,6 +75,8 @@ export interface ReportConfig {
    * programa (p. ej. NT 234) no lo muestre en su informe estándar.
    */
   consolidatedByUnit?: boolean;
+  /** Consolidado por unidad: servicios cuyo archivo llegó vacío (no auditaron). */
+  emptyUnits?: string[];
 }
 
 /** Fila cruda leída del Excel. */

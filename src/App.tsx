@@ -64,6 +64,7 @@ export default function App() {
   const [comparative, setComparative] = useState<ComparativePeriod[] | null>(null);
   const [multiWbs, setMultiWbs] = useState<ParsedWorkbook[] | null>(null);
   const [consolidatedByUnit, setConsolidatedByUnit] = useState(false);
+  const [emptyUnits, setEmptyUnits] = useState<string[]>([]);
 
   /** Navega hacia adelante recordando la pantalla actual. */
   const go = (next: Stage) => {
@@ -99,6 +100,7 @@ export default function App() {
     setComparative(null);
     setMultiWbs(null);
     setConsolidatedByUnit(false);
+    setEmptyUnits([]);
   };
 
   const handleSelectProgram = (rt: ReportType) => {
@@ -118,6 +120,7 @@ export default function App() {
 
   const handleParsed = (wb: ParsedWorkbook) => {
     setConsolidatedByUnit(false);
+    setEmptyUnits([]);
     setWorkbook(wb);
     go('review');
   };
@@ -129,18 +132,27 @@ export default function App() {
     go('multi-choice');
   };
 
-  /** Selector → comparativo mensual (cada archivo es un mes). */
+  /** Selector → comparativo mensual (cada archivo es un mes). Se omiten los vacíos. */
   const handleChooseMonths = () => {
     if (!reportType || !multiWbs) return;
-    setComparative(analyzePeriods(multiWbs, reportType, auditId));
+    const withData = multiWbs.filter((w) => w.rows.length > 0);
+    if (withData.length === 0) return;
+    setComparative(analyzePeriods(withData, reportType, auditId));
     go('comparative');
   };
 
   /** Selector → informe consolidado por unidad (cada archivo es una unidad). */
   const handleChooseUnits = (unitByFile: Record<string, string>) => {
     if (!reportType || !multiWbs) return;
+    const withData = multiWbs.filter((w) => w.rows.length > 0);
+    if (withData.length === 0) return;
+    // Unidades cuyo archivo llegó vacío: se listan como «no auditó», sin datos.
+    const empties = multiWbs
+      .filter((w) => w.rows.length === 0)
+      .map((w) => unitByFile[w.fileName]?.trim() || w.fileName.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || w.fileName);
+    setEmptyUnits(empties);
     setConsolidatedByUnit(true);
-    setWorkbook(mergeWorkbooksByUnit(multiWbs, reportType, auditId, unitByFile));
+    setWorkbook(mergeWorkbooksByUnit(withData, reportType, auditId, unitByFile));
     go('review');
   };
 
@@ -150,7 +162,7 @@ export default function App() {
 
   const handleWizardComplete = (cfg: ReportConfig) => {
     if (!workbook) return;
-    setConfig({ ...cfg, auditId, consolidatedByUnit });
+    setConfig({ ...cfg, auditId, consolidatedByUnit, emptyUnits: consolidatedByUnit ? emptyUnits : undefined });
     // La pantalla anterior real del reporte es el asistente.
     setHistory((h) => [...h, 'wizard']);
     setStage('generating');
