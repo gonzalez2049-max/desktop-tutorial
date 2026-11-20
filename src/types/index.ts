@@ -131,6 +131,34 @@ export interface GlobalCompliance {
   meetsGoal: boolean;
 }
 
+/** Un indicador de la capa NT 234: numerador, denominador y porcentaje. */
+export interface Nt234IndicatorValue {
+  numerator: number;
+  denominator: number;
+  percentage: number; // numerador / denominador * 100 (0 si denominador 0)
+}
+
+/**
+ * Capa de indicadores específicos NT 234, independiente de la auditoría local
+ * de 8 medidas. NO se promedian, NO se suman y NO recalculan la auditoría local.
+ */
+export interface Nt234Summary {
+  /** Valoración de riesgo de LPP: realizada / corresponde evaluar. */
+  riskAssessment: Nt234IndicatorValue;
+  /** 2 medidas INDICADAS («Indicador local»): ambas aplicables / riesgo mod-alto. */
+  measuresIndicated: Nt234IndicatorValue;
+  /** 2 medidas EJECUTADAS («Indicador Global NT 234»): ambas cumplen / ambas aplicables. */
+  measuresExecuted: Nt234IndicatorValue;
+  /** Auditoría local NT 234 – 8 medidas (cumple / aplicables de los 8 indicadores). */
+  localAudit: Nt234IndicatorValue;
+  /** Las medidas indicadas se reconstruyeron desde la aplicabilidad (sin campo explícito). */
+  measuresIndicatedReconstructed: boolean;
+  /** Se identificó el indicador de valoración de riesgo en los datos. */
+  riskAvailable: boolean;
+  /** Se identificaron las dos medidas de prevención en los datos. */
+  measuresAvailable: boolean;
+}
+
 /** Fila del plan de acción sugerido. */
 export interface ActionPlanRow {
   priority: 'Alta' | 'Media' | 'Baja';
@@ -324,6 +352,8 @@ export interface AnalysisResult {
   temporal: TemporalAnalysis;
   /** Análisis de vigilancia (solo auditorías en modo 'vigilancia'). */
   surveillance?: SurveillanceAnalysis;
+  /** Capa de indicadores NT 234 (solo reportType NT234_LPP). */
+  nt234Summary?: Nt234Summary;
   detected: {
     unidad: boolean;
     turno: boolean;

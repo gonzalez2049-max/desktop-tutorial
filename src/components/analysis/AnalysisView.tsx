@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
-import type { AnalysisResult, ComplianceGroup, ParsedWorkbook, ReportConfig } from '../../types';
+import type { AnalysisResult, ComplianceGroup, Nt234Summary, ParsedWorkbook, ReportConfig } from '../../types';
 import { highlightLabel, reportTypeLabel } from '../../config/options';
 import { analyze, filterWorkbookByUnit, listUnits, unitShiftMatrix } from '../../utils/analysis';
 import KpiCards from './KpiCards';
@@ -18,7 +18,7 @@ import SignatureBlock from './SignatureBlock';
 import SurveillanceView from './SurveillanceView';
 import AuditorPanel from './AuditorPanel';
 import { analysisTypeLabel, showsEvolution } from '../../config/options';
-import { trafficHex, trafficLabel, trafficLightFor, type TrafficColors } from '../../utils/palette';
+import { complianceHex, PALETTE, trafficHex, trafficLabel, trafficLightFor, type TrafficColors } from '../../utils/palette';
 import { resolveProgramConfig } from '../../utils/programConfig';
 import { isAdminMode } from '../../utils/admin';
 
@@ -97,7 +97,7 @@ function CompactStatus({ a, colors }: { a: AnalysisResult; colors: TrafficColors
           <span className="h-11 w-11 shrink-0 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 14px ${color}66` }} />
           <div>
             <p className="text-3xl font-black leading-none" style={{ color }}>{a.global.percent}%</p>
-            <p className="mt-1 text-xs text-slate-500">Cumplimiento global · Meta {a.config.goal}%</p>
+            <p className="mt-1 text-xs text-slate-500">Cumplimiento auditoría local NT 234 · 8 medidas · Meta {a.config.goal}%</p>
           </div>
         </div>
         <div className="text-right">
@@ -107,6 +107,91 @@ function CompactStatus({ a, colors }: { a: AnalysisResult; colors: TrafficColors
       </div>
       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
         <div className="h-2 rounded-full transition-all" style={{ width: `${Math.min(100, a.global.percent)}%`, backgroundColor: color }} />
+      </div>
+    </section>
+  );
+}
+
+/** Una tarjeta de indicador NT 234 (numerador, denominador y porcentaje). */
+function NtCard({
+  title,
+  badge,
+  value,
+  goal,
+  available,
+  note,
+  highlight,
+}: {
+  title: string;
+  badge?: string;
+  value: import('../../types').Nt234IndicatorValue;
+  goal: number;
+  available: boolean;
+  note?: string;
+  highlight?: 'global' | 'local';
+}) {
+  const pctColor = available && value.denominator > 0 ? complianceHex(value.percentage, goal) : PALETTE.muted;
+  const border =
+    highlight === 'global'
+      ? 'border-nex-400 ring-1 ring-nex-200 bg-nex-50/40'
+      : highlight === 'local'
+        ? 'border-emerald-300 ring-1 ring-emerald-100 bg-emerald-50/40'
+        : 'border-slate-200 bg-white';
+  const badgeCls =
+    highlight === 'global' ? 'bg-nex-600 text-white' : highlight === 'local' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500';
+  return (
+    <div className={`rounded-2xl border p-4 ${border}`}>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-bold text-slate-800">{title}</p>
+        {badge && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${badgeCls}`}>{badge}</span>}
+      </div>
+      {available ? (
+        <>
+          <p className="mt-2 text-3xl font-black" style={{ color: pctColor }}>
+            {value.denominator > 0 ? `${value.percentage}%` : 's/d'}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {value.numerator} / {value.denominator} <span className="text-slate-400">(numerador / denominador)</span>
+          </p>
+        </>
+      ) : (
+        <p className="mt-2 text-sm text-slate-400">Sin datos suficientes para este indicador.</p>
+      )}
+      {note && <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] leading-snug text-amber-700">⚠️ {note}</p>}
+    </div>
+  );
+}
+
+/**
+ * Capa de indicadores NT 234: valoración de riesgo, dos medidas indicadas
+ * (Indicador local), dos medidas ejecutadas (Indicador Global NT 234) y la
+ * auditoría local de 8 medidas. No se promedian ni se suman entre sí.
+ */
+function Nt234IndicatorsSection({ s, goal }: { s: Nt234Summary; goal: number }) {
+  return (
+    <section className="card p-5">
+      <header className="mb-4">
+        <h3 className="flex items-center gap-2 text-base font-bold text-slate-800">🎯 Indicadores NT 234</h3>
+        <p className="mt-0.5 text-sm text-slate-400">
+          Capa de indicadores NT 234, independiente de la auditoría local de 8 medidas. No se promedian ni se suman entre sí.
+        </p>
+      </header>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <NtCard title="Valoración de riesgo" value={s.riskAssessment} goal={goal} available={s.riskAvailable} />
+        <NtCard
+          title="2 medidas indicadas"
+          badge="Indicador local"
+          value={s.measuresIndicated}
+          goal={goal}
+          available={s.measuresAvailable}
+          note={
+            s.measuresAvailable && s.measuresIndicatedReconstructed
+              ? 'Indicador de medidas indicadas reconstruido desde aplicabilidad de las medidas; la fuente original no contiene un campo explícito de indicación.'
+              : undefined
+          }
+        />
+        <NtCard title="2 medidas ejecutadas" badge="Indicador Global NT 234" value={s.measuresExecuted} goal={goal} available={s.measuresAvailable} highlight="global" />
+        <NtCard title="Cumplimiento auditoría local NT 234" badge="8 medidas" value={s.localAudit} goal={goal} available highlight="local" />
       </div>
     </section>
   );
@@ -263,12 +348,17 @@ export default function AnalysisView({ workbook, config, fileName, onReset, onEd
           {/* 1) Resultado global (semáforo compacto). */}
           <CompactStatus a={a} colors={program.traffic} />
 
+          {/* 1b) Capa de indicadores NT 234 (antes del detalle de 8 medidas). */}
+          {a.nt234Summary && <Nt234IndicatorsSection s={a.nt234Summary} goal={config.goal} />}
+
           {/* 2) Cumplimiento por indicador. */}
           {a.complianceByIndicator.length > 0 && (
-            <Section title="Cumplimiento por indicador" icon="📊" subtitle="Cumple / no cumple y % por indicador">
+            <Section title="Cumplimiento por indicador" icon="📊" subtitle="Auditoría local NT 234 · 8 medidas — cumple / no cumple y % por indicador">
               <ComplianceTable groups={a.complianceByIndicator} firstHeader="Indicador" goal={config.goal} />
             </Section>
           )}
+
+          {/* 1c) El detalle de 8 indicadores explica las brechas (hallazgos/recomendaciones lo usan). */}
 
           {/* Consolidado por unidad: comparación entre servicios (objetivo del flujo). */}
           {config.consolidatedByUnit && allUnits && a.complianceByUnit.length > 0 && (

@@ -167,7 +167,15 @@ function buildNT234Report(a: AnalysisResult): ExecutiveReport {
     resumen.push('No se registraron casos aplicables, por lo que no es posible emitir un juicio de cumplimiento en este período.');
   } else {
     resumen.push(
-      `Cumplimiento global: ${g.percent}% (${g.cumple} cumple / ${g.noCumple} no cumple, sobre ${g.aplicables} casos aplicables), ${meets ? `${over} puntos sobre` : `${gap} puntos bajo`} la meta institucional de ${goal}%.`,
+      `Cumplimiento auditoría local NT 234 – 8 medidas: ${g.percent}% (${g.cumple} cumple / ${g.noCumple} no cumple, sobre ${g.aplicables} casos aplicables), ${meets ? `${over} puntos sobre` : `${gap} puntos bajo`} la meta institucional de ${goal}%.`,
+    );
+  }
+  // Indicador Global NT 234 (dos medidas ejecutadas), informado por separado: no
+  // se promedia ni se suma con la auditoría local de 8 medidas.
+  const nt = a.nt234Summary;
+  if (nt && nt.measuresAvailable && nt.measuresExecuted.denominator > 0) {
+    resumen.push(
+      `Indicador Global NT 234 (cumplimiento simultáneo de cambio de posición y superficie de apoyo): ${nt.measuresExecuted.percentage}% (${nt.measuresExecuted.numerator} / ${nt.measuresExecuted.denominator} pacientes con ambas medidas aplicables). Es un indicador propio y no modifica la auditoría local de 8 medidas.`,
     );
   }
   sections.push({ id: 'resultados', title: 'Resultados', paragraphs: resumen });

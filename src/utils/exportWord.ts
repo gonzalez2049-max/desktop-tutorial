@@ -16,7 +16,7 @@ import {
   WidthType,
 } from 'docx';
 import { saveAs } from 'file-saver';
-import type { ActionPlanRow, AnalysisResult, ClinicalCharacterization, ComplianceGroup, DescriptiveVariable, EvolutionPoint, ExecutiveReport } from '../types';
+import type { ActionPlanRow, AnalysisResult, ClinicalCharacterization, ComplianceGroup, DescriptiveVariable, EvolutionPoint, ExecutiveReport, Nt234Summary } from '../types';
 import { buildExecutiveReport } from './executiveReport';
 import { analysisTypeLabel, showsEvolution } from '../config/options';
 import { buildReportCharts, buildSurveillanceCharts } from './reportCharts';
@@ -143,6 +143,33 @@ function characterizationTable(c: ClinicalCharacterization): Table {
       ...rowsData.map(([k, v]) => new TableRow({ children: [bodyCell([text(k)]), bodyCell([text(v, { bold: true })], AlignmentType.CENTER)] })),
     ],
   });
+}
+
+/** Tabla de indicadores NT 234 (numerador, denominador y %). */
+function nt234IndicatorsTable(s: Nt234Summary): Table {
+  const fmt = (v: { numerator: number; denominator: number; percentage: number }, ok: boolean): [string, string, string] =>
+    ok && v.denominator > 0 ? [String(v.numerator), String(v.denominator), `${v.percentage}%`] : ['—', '—', 's/d'];
+  const data: { label: string; v: [string, string, string]; strong?: boolean }[] = [
+    { label: 'Valoración de riesgo', v: fmt(s.riskAssessment, s.riskAvailable) },
+    { label: '2 medidas indicadas · Indicador local', v: fmt(s.measuresIndicated, s.measuresAvailable) },
+    { label: '2 medidas ejecutadas · Indicador Global NT 234', v: fmt(s.measuresExecuted, s.measuresAvailable), strong: true },
+    { label: 'Cumplimiento auditoría local NT 234 · 8 medidas', v: fmt(s.localAudit, true), strong: true },
+  ];
+  const rows: TableRow[] = [
+    new TableRow({ tableHeader: true, children: [headerCell('Indicador'), headerCell('Numerador'), headerCell('Denominador'), headerCell('%')] }),
+    ...data.map(
+      (d) =>
+        new TableRow({
+          children: [
+            bodyCell([text(d.label, { bold: d.strong })]),
+            bodyCell([text(d.v[0])], AlignmentType.CENTER),
+            bodyCell([text(d.v[1])], AlignmentType.CENTER),
+            bodyCell([text(d.v[2], { bold: true, color: d.strong ? FOREST : undefined })], AlignmentType.CENTER),
+          ],
+        }),
+    ),
+  ];
+  return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
 }
 
 /** Tabla de distribución de LPP por estadio/categoría. */
@@ -489,6 +516,22 @@ export async function exportWord(a: AnalysisResult, fileName: string): Promise<v
     children.push(heading('Caracterización clínica'), characterizationTable(a.characterization));
     if (a.characterization.lppStages.some((s) => s.count > 0)) {
       children.push(heading('Caracterización de pacientes con LPP'), lppStageTable(a.characterization));
+    }
+    if (a.nt234Summary) {
+      children.push(heading('Indicadores NT 234'), nt234IndicatorsTable(a.nt234Summary));
+      if (a.nt234Summary.measuresAvailable && a.nt234Summary.measuresIndicatedReconstructed) {
+        children.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 60, after: 140 },
+            children: [
+              text('Indicador de medidas indicadas reconstruido desde aplicabilidad de las medidas; la fuente original no contiene un campo explícito de indicación.', {
+                color: PALETTE.muted,
+              }),
+            ],
+          }),
+        );
+      }
     }
   }
 
