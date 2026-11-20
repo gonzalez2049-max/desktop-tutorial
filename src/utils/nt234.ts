@@ -14,6 +14,14 @@ export const NT234_INDICATORS = [
   'Registro responsable: hora, fecha y firma',
 ] as const;
 
+// Nombres canónicos usados por la capa de indicadores NT 234 (valoración de
+// riesgo + las dos medidas de prevención). Coinciden exactamente con los
+// nombres que devuelve `canonicalIndicatorNT234`, de modo que localizan la
+// columna/valor correcto sin depender del texto original del Excel.
+export const NT234_RISK_ASSESSMENT = 'Valoración de Riesgo al ingreso';
+export const NT234_MEASURE_CHANGE = 'Cambio de posición según riesgo';
+export const NT234_MEASURE_SURFACE = 'Superficie de apoyo según riesgo';
+
 /**
  * Reglas de reconocimiento. Cada indicador tiene una o más "firmas": una firma
  * coincide si TODOS sus tokens están presentes de forma difusa en el nombre.

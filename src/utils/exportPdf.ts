@@ -263,6 +263,43 @@ function drawComplianceTable(ctx: Ctx, groups: ComplianceGroup[], firstHeader: s
   ctx.y = lastTableY(doc) + 18;
 }
 
+/** Capa de indicadores NT 234 (numerador, denominador y %). */
+function drawNt234Indicators(ctx: Ctx, a: AnalysisResult): void {
+  const s = a.nt234Summary;
+  if (!s) return;
+  const { doc, margin, pageW } = ctx;
+  sectionTitle(ctx, 'Indicadores NT 234');
+  const fmt = (v: { numerator: number; denominator: number; percentage: number }, ok: boolean): string[] =>
+    ok && v.denominator > 0 ? [String(v.numerator), String(v.denominator), `${v.percentage}%`] : ['—', '—', 's/d'];
+  const rows = [
+    ['Valoración de riesgo', ...fmt(s.riskAssessment, s.riskAvailable)],
+    ['2 medidas indicadas · Indicador local', ...fmt(s.measuresIndicated, s.measuresAvailable)],
+    ['2 medidas ejecutadas · Indicador Global NT 234', ...fmt(s.measuresExecuted, s.measuresAvailable)],
+    ['Cumplimiento auditoría local NT 234 · 8 medidas', ...fmt(s.localAudit, true)],
+  ];
+  autoTable(doc, {
+    startY: ctx.y,
+    head: [['Indicador', 'Numerador', 'Denominador', '%']],
+    body: rows,
+    ...tableTheme(),
+    columnStyles: { 0: { halign: 'left' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center', fontStyle: 'bold' } },
+    margin: { left: margin, right: margin },
+    tableWidth: pageW - margin * 2,
+    didParseCell: (data) => {
+      // Resalta las dos filas clave: Indicador Global NT 234 y auditoría local de 8 medidas.
+      if (data.section === 'body' && (data.row.index === 2 || data.row.index === 3)) {
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fillColor = TINT;
+      }
+    },
+  });
+  ctx.y = lastTableY(doc) + 10;
+  if (s.measuresAvailable && s.measuresIndicatedReconstructed) {
+    drawNote(ctx, 'Indicador de medidas indicadas reconstruido desde aplicabilidad de las medidas; la fuente original no contiene un campo explícito de indicación.');
+    ctx.y += 10;
+  }
+}
+
 function drawCharacterization(ctx: Ctx, c: ClinicalCharacterization): void {
   const { doc, margin, pageW } = ctx;
   autoTable(doc, {
@@ -592,6 +629,7 @@ function buildPdfDoc(a: AnalysisResult, fileName: string): jsPDF {
       sectionTitle(ctx, 'Caracterización de pacientes con LPP');
       drawLppStages(ctx, a);
     }
+    drawNt234Indicators(ctx, a);
   }
 
   if (a.complianceByIndicator.length) {

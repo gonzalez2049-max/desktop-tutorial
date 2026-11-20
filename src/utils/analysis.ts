@@ -20,6 +20,8 @@ import { classifyCompliance, classifyRisk, columnForRole, columnsForRole, isDesc
 import { classifyLppStage, isLppStageColumn, LPP_STAGES } from './lpp';
 import { granularityFor } from '../config/options';
 import { resolveProgramConfig } from './programConfig';
+import { NT234_MEASURE_CHANGE, NT234_MEASURE_SURFACE, NT234_RISK_ASSESSMENT } from './nt234';
+import type { Nt234IndicatorValue, Nt234Summary } from '../types';
 import { detectDateOrder, periodKey, periodLabel, type DateOrder, type Granularity } from './periods';
 
 const UNGROUPED = 'Sin especificar';
@@ -625,11 +627,119 @@ export function analyzeSurveillance(workbook: ParsedWorkbook, config: ReportConf
   };
 }
 
+/**
+ * Capa de indicadores NT 234 (independiente de la auditoría local de 8 medidas).
+ *
+ * Trabaja a nivel paciente: en formato ancho cada fila es un paciente (una
+ * columna por indicador); en formato largo agrupa las filas por el contexto del
+ * paciente (columnas que no son indicador ni cumplimiento). Mantiene el filtro
+ * de riesgo moderado/alto para las dos medidas y excluye los N/A del denominador.
+ */
+type NtCValue = 'cumple' | 'no_cumple' | 'no_aplica';
+
+function ntRowValue(row: RawRow, complianceCols: string[]): NtCValue {
+  const t = tally(row, complianceCols);
+  if (t.cumple > 0) return 'cumple';
+  if (t.noCumple > 0) return 'no_cumple';
+  return 'no_aplica';
+}
+
+interface NtPatient {
+  risk: ReturnType<typeof classifyRisk> | null;
+  measures: Map<string, NtCValue>;
+}
+
+function buildNt234Patients(workbook: ParsedWorkbook, config: ReportConfig): { patients: NtPatient[]; present: Set<string> } {
+  const { columns } = workbook;
+  const pc = resolveProgramConfig(config);
+  const indicatorCol = columnForRole(columns, 'indicador');
+  const riskCol = columnForRole(columns, 'riesgo');
+  const complianceCols = columnsForRole(columns, 'cumplimiento');
+  const canon = (label: unknown) => pc.canonicalizeIndicator(label) ?? String(label ?? '').trim();
+  const base = validPatientRows(workbook).filter((r) => !(indicatorCol ? isDescriptive(r[indicatorCol], pc.descriptiveVariables) : false));
+  const present = new Set<string>();
+  const patients: NtPatient[] = [];
+
+  if (indicatorCol) {
+    // Formato largo: agrupa por el contexto del paciente (sin indicador/cumplimiento).
+    const idCols = columns.filter((c) => c.original !== indicatorCol && c.role !== 'cumplimiento' && c.role !== 'descriptivo').map((c) => c.original);
+    const groups = new Map<string, NtPatient>();
+    base.forEach((r, i) => {
+      const key = idCols.length ? idCols.map((c) => String(r[c] ?? '')).join('¦') : `__row${i}`;
+      let p = groups.get(key);
+      if (!p) { p = { risk: riskCol ? classifyRisk(r[riskCol]) : null, measures: new Map() }; groups.set(key, p); }
+      const name = canon(r[indicatorCol]);
+      if (name) { present.add(name); p.measures.set(name, ntRowValue(r, complianceCols)); }
+    });
+    patients.push(...groups.values());
+  } else {
+    // Formato ancho: una fila = un paciente; una columna de cumplimiento = un indicador.
+    for (const r of base) {
+      const measures = new Map<string, NtCValue>();
+      for (const col of complianceCols) {
+        const name = canon(col);
+        if (!name) continue;
+        present.add(name);
+        measures.set(name, ntRowValue(r, [col]));
+      }
+      patients.push({ risk: riskCol ? classifyRisk(r[riskCol]) : null, measures });
+    }
+  }
+  return { patients, present };
+}
+
+function computeNt234Summary(workbook: ParsedWorkbook, config: ReportConfig, global: GlobalCompliance): Nt234Summary {
+  const pc = resolveProgramConfig(config);
+  const hasRisk = columnForRole(workbook.columns, 'riesgo') !== null;
+  const { patients, present } = buildNt234Patients(workbook, config);
+  const applicable = (v?: NtCValue) => v === 'cumple' || v === 'no_cumple';
+  const val = (numerator: number, denominator: number): Nt234IndicatorValue => ({ numerator, denominator, percentage: pct(numerator, denominator) });
+
+  // Subconjunto de riesgo moderado/alto (o todos si no hay filtro/columna de riesgo).
+  const riskPatients = pc.riskFilter && hasRisk ? patients.filter((p) => p.risk === 'alto' || p.risk === 'moderado') : patients;
+
+  // 1) Valoración de riesgo de LPP: realizada / corresponde evaluar (N/A excluido).
+  let raNum = 0;
+  let raDen = 0;
+  for (const p of patients) {
+    const v = p.measures.get(NT234_RISK_ASSESSMENT);
+    if (v === 'cumple') { raNum++; raDen++; }
+    else if (v === 'no_cumple') raDen++;
+  }
+
+  // 2) y 3) Dos medidas de prevención (reconstruidas desde la aplicabilidad conjunta).
+  let miNum = 0; // indicadas: ambas aplicables
+  const miDen = riskPatients.length; // denominador = pacientes de riesgo moderado/alto
+  let meNum = 0; // ejecutadas: ambas cumplen
+  let meDen = 0; // denominador = pacientes donde ambas son aplicables
+  for (const p of riskPatients) {
+    const m1 = p.measures.get(NT234_MEASURE_CHANGE);
+    const m2 = p.measures.get(NT234_MEASURE_SURFACE);
+    if (applicable(m1) && applicable(m2)) {
+      miNum++;
+      meDen++;
+      if (m1 === 'cumple' && m2 === 'cumple') meNum++;
+    }
+  }
+
+  const measuresAvailable = present.has(NT234_MEASURE_CHANGE) && present.has(NT234_MEASURE_SURFACE);
+  const riskAvailable = present.has(NT234_RISK_ASSESSMENT);
+
+  return {
+    riskAssessment: val(raNum, raDen),
+    measuresIndicated: val(miNum, miDen),
+    measuresExecuted: val(meNum, meDen),
+    // Auditoría local de 8 medidas: NO se recalcula, se refleja el global existente.
+    localAudit: { numerator: global.cumple, denominator: global.aplicables, percentage: global.percent },
+    measuresIndicatedReconstructed: measuresAvailable,
+    riskAvailable,
+    measuresAvailable,
+  };
+}
+
 /** Ejecuta el motor de análisis completo. */
 export function analyze(workbook: ParsedWorkbook, config: ReportConfig): AnalysisResult {
   const goal = config.goal;
-
-  // Base de trabajo: solo filas de pacientes reales (descarta resumen/totales y vacías).
   const dataRows = validPatientRows(workbook);
   const data: ParsedWorkbook = { ...workbook, rows: dataRows };
   const { columns } = data;
@@ -703,6 +813,9 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
       ? analyzeSurveillance(data, config, audit.rates[0])
       : undefined;
 
+  // Capa de indicadores NT 234 (sin recalcular la auditoría local de 8 medidas).
+  const nt234Summary = config.reportType === 'NT234_LPP' ? computeNt234Summary(data, config, global) : undefined;
+
   return {
     config,
     totalRecords: dataRows.length,
@@ -719,6 +832,7 @@ export function analyze(workbook: ParsedWorkbook, config: ReportConfig): Analysi
     characterization,
     temporal,
     surveillance,
+    nt234Summary,
     detected: {
       unidad: unitCol !== null,
       turno: shiftCol !== null,
